@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const payload = await req.json();
+    console.log('Incoming Webhook Payload:', JSON.stringify(payload, null, 2));
     
     // 1. Extract message, sender, and media
     let messageText = '';
@@ -242,11 +243,18 @@ async function sendWhatsAppMessage(to: string, text: string) {
     formData.append('message', text);
     formData.append('countryCode', '62');
 
-    await fetch(apiUrl, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Authorization': apiKey },
       body: formData,
     });
+
+    const res = await response.json();
+    console.log('Fonnte API Response:', JSON.stringify(res, null, 2));
+    
+    if (!response.ok) {
+      console.error('Fonnte Send Error:', res);
+    }
   } catch (err: unknown) {
     console.error('WhatsApp Send Error:', err instanceof Error ? err.message : 'Unknown error');
   }

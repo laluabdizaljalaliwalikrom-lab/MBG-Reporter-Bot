@@ -27,7 +27,10 @@ import {
   Bell,
   User,
   Shield,
-  Locate
+  Locate,
+  Bot,
+  MessageSquare,
+  RefreshCw
 } from "lucide-react";
 
 // Interfaces
@@ -142,25 +145,53 @@ export default function Dashboard() {
   const [showApiKey, setShowApiKey] = useState(false);
 
   // Connection Test States
-  const [connectionStatus, setConnectionStatus] = useState<"idle" | "loading" | "connected" | "failed">("idle");
-  const [connectionMessage, setConnectionMessage] = useState("");
+  const [checkingConnections, setCheckingConnections] = useState(false);
+  const [geminiStatus, setGeminiStatus] = useState<"idle" | "OK" | "ERROR">("idle");
+  const [geminiMessage, setGeminiMessage] = useState("");
+  const [whatsappStatus, setWhatsappStatus] = useState<"idle" | "OK" | "ERROR">("idle");
+  const [whatsappMessage, setWhatsappMessage] = useState("");
 
-  const handleCheckConnection = async () => {
-    setConnectionStatus("loading");
-    setConnectionMessage("Menghubungkan...");
+  const handleCheckConnections = async () => {
+    setCheckingConnections(true);
+    setGeminiStatus("idle");
+    setWhatsappStatus("idle");
+    setGeminiMessage("Memeriksa...");
+    setWhatsappMessage("Memeriksa...");
+
     try {
-      const response = await fetch("/api/check-gemini");
+      const response = await fetch("/api/check-connections");
       const data = await response.json();
-      if (response.ok && data.success) {
-        setConnectionStatus("connected");
-        setConnectionMessage("Gemini Terhubung");
+
+      if (response.ok && data) {
+        if (data.gemini) {
+          setGeminiStatus(data.gemini.status);
+          setGeminiMessage(data.gemini.message);
+        } else {
+          setGeminiStatus("ERROR");
+          setGeminiMessage("Tidak ada respons status Gemini.");
+        }
+
+        if (data.whatsapp) {
+          setWhatsappStatus(data.whatsapp.status);
+          setWhatsappMessage(data.whatsapp.message);
+        } else {
+          setWhatsappStatus("ERROR");
+          setWhatsappMessage("Tidak ada respons status WhatsApp.");
+        }
       } else {
-        setConnectionStatus("failed");
-        setConnectionMessage(data.message || "Koneksi gagal.");
+        setGeminiStatus("ERROR");
+        setWhatsappStatus("ERROR");
+        setGeminiMessage(data.message || "Gagal mengambil status koneksi.");
+        setWhatsappMessage(data.message || "Gagal mengambil status koneksi.");
       }
     } catch (err: unknown) {
-      setConnectionStatus("failed");
-      setConnectionMessage(err instanceof Error ? err.message : "Terjadi kesalahan jaringan.");
+      const errorMsg = err instanceof Error ? err.message : "Terjadi kesalahan jaringan.";
+      setGeminiStatus("ERROR");
+      setWhatsappStatus("ERROR");
+      setGeminiMessage(errorMsg);
+      setWhatsappMessage(errorMsg);
+    } finally {
+      setCheckingConnections(false);
     }
   };
 
@@ -1049,43 +1080,90 @@ export default function Dashboard() {
               <div className="space-y-6">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Shield size={18} className="text-indigo-400" />
-                  <span>Cek Integrasi Layanan AI</span>
+                  <span>Status Koneksi Integrasi</span>
                 </h3>
 
-                <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-white">Status Koneksi Gemini API</h4>
-                    <p className="text-[10px] text-slate-500">
-                      Uji kredensial API Key Gemini AI yang terdaftar di environment server.
-                    </p>
-                    {connectionStatus !== "idle" && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${
-                          connectionStatus === "loading" && "bg-amber-500 animate-pulse"
-                        } ${
-                          connectionStatus === "connected" && "bg-emerald-500 shadow-lg shadow-emerald-500/50"
-                        } ${
-                          connectionStatus === "failed" && "bg-red-500 shadow-lg shadow-red-500/50"
-                        }`} />
-                        <span className={`text-xs font-medium ${
-                          connectionStatus === "loading" && "text-amber-400"
-                        } ${
-                          connectionStatus === "connected" && "text-emerald-400"
-                        } ${
-                          connectionStatus === "failed" && "text-red-400"
-                        }`}>
-                          {connectionMessage}
-                        </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Status AI (Gemini) */}
+                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 flex flex-col justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl ${
+                        geminiStatus === "OK" 
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          : geminiStatus === "ERROR"
+                          ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                          : "bg-slate-800/80 text-slate-400 border border-slate-700"
+                      }`}>
+                        <Bot size={20} />
                       </div>
-                    )}
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-bold text-white">Status AI (Gemini)</h4>
+                        <p className="text-[10px] text-slate-500">Koneksi model analisis AI Gemini</p>
+                      </div>
+                    </div>
+                    <div>
+                      {geminiStatus !== "idle" ? (
+                        <div className="flex items-start gap-1.5 mt-1">
+                          <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                            geminiStatus === "OK" ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-red-500 shadow-lg shadow-red-500/50"
+                          }`} />
+                          <span className={`text-xs font-medium leading-relaxed ${
+                            geminiStatus === "OK" ? "text-emerald-400" : "text-red-400"
+                          }`}>
+                            {geminiMessage}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">Belum diperiksa</span>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Status Gateway (MPWA) */}
+                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 flex flex-col justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl ${
+                        whatsappStatus === "OK" 
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          : whatsappStatus === "ERROR"
+                          ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                          : "bg-slate-800/80 text-slate-400 border border-slate-700"
+                      }`}>
+                        <MessageSquare size={20} />
+                      </div>
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-bold text-white">Status Gateway (MPWA)</h4>
+                        <p className="text-[10px] text-slate-500">Koneksi pengiriman pesan WhatsApp</p>
+                      </div>
+                    </div>
+                    <div>
+                      {whatsappStatus !== "idle" ? (
+                        <div className="flex items-start gap-1.5 mt-1">
+                          <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                            whatsappStatus === "OK" ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-red-500 shadow-lg shadow-red-500/50"
+                          }`} />
+                          <span className={`text-xs font-medium leading-relaxed ${
+                            whatsappStatus === "OK" ? "text-emerald-400" : "text-red-400"
+                          }`}>
+                            {whatsappMessage}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">Belum diperiksa</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-start">
                   <button
                     type="button"
-                    disabled={connectionStatus === "loading"}
-                    onClick={handleCheckConnection}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-white rounded-xl text-xs font-bold transition-all"
+                    disabled={checkingConnections}
+                    onClick={handleCheckConnections}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
                   >
-                    {connectionStatus === "loading" ? "Memeriksa..." : "Cek Koneksi AI"}
+                    <RefreshCw size={14} className={checkingConnections ? "animate-spin" : ""} />
+                    <span>Segarkan Status Koneksi</span>
                   </button>
                 </div>
               </div>

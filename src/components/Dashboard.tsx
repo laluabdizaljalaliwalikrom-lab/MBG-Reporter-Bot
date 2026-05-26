@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLaporanRealtime } from "@/lib/hooks/useLaporanRealtime";
 import { supabase } from "@/lib/supabase";
 import {
@@ -143,6 +143,36 @@ export default function Dashboard() {
     return "";
   });
   const [showApiKey, setShowApiKey] = useState(false);
+
+  // Toast notification state for settings
+  const [settingsToast, setSettingsToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
+    show: false, message: "", type: "success"
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const showSettingsToast = (message: string, type: "success" | "error" = "success") => {
+    setSettingsToast({ show: true, message, type });
+    setTimeout(() => setSettingsToast((prev) => ({ ...prev, show: false })), 4000);
+  };
+
+  // Load mpwa_sender from Supabase on mount
+  useEffect(() => {
+    async function loadSenderFromDb() {
+      try {
+        const { data, error } = await supabase
+          .from("system_settings")
+          .select("value")
+          .eq("key", "mpwa_sender")
+          .maybeSingle();
+        if (!error && data?.value) {
+          setWhatsappSender(data.value);
+        }
+      } catch (err) {
+        console.error("Failed to load mpwa_sender from DB:", err);
+      }
+    }
+    loadSenderFromDb();
+  }, []);
 
   // Connection Test States
   const [checkingConnections, setCheckingConnections] = useState(false);
@@ -1068,10 +1098,7 @@ export default function Dashboard() {
                       className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
                     />
                     <p className="text-[10px] text-slate-500">
-                      Nomor pengirim atau ID perangkat yang terdaftar di MPWA. Format angka lengkap (misal: 62812...) atau{" "}
-                      <a href="/dashboard/settings" className="text-indigo-450 hover:text-indigo-400 font-semibold underline">
-                        konfigurasi global di database Supabase
-                      </a>.
+                      Nomor pengirim atau ID perangkat yang terdaftar di MPWA. Format angka lengkap beserta kode negara (misal: 6281234567890). Disimpan ke database Supabase.
                     </p>
                   </div>
                 </div>
@@ -1176,14 +1203,14 @@ export default function Dashboard() {
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (typeof window !== "undefined") {
                       window.localStorage.removeItem("mpwa_api_key");
                       window.localStorage.removeItem("mpwa_sender");
                     }
                     setWhatsappApiKey("");
                     setWhatsappSender("");
-                    alert("Pengaturan di-reset ke nilai default environment.");
+                    showSettingsToast("Pengaturan lokal di-reset ke nilai default.", "success");
                   }}
                   className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
                 >
@@ -1191,16 +1218,45 @@ export default function Dashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      window.localStorage.setItem("mpwa_api_key", whatsappApiKey);
-                      window.localStorage.setItem("mpwa_sender", whatsappSender);
+                  disabled={savingSettings}
+                  onClick={async () => {
+                    setSavingSettings(true);
+                    try {
+                      // Save API key to localStorage (client-side only)
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem("mpwa_api_key", whatsappApiKey);
+                      }
+
+                      // Save sender to Supabase system_settings
+                      const cleanedSender = whatsappSender.replace(/\D/g, "");
+                      if (cleanedSender) {
+                        const { error } = await supabase
+                          .from("system_settings")
+                          .upsert(
+                            { key: "mpwa_sender", value: cleanedSender },
+                            { onConflict: "key" }
+                          );
+                        if (error) {
+                          const pgMsg = error.message || error.details || error.hint || JSON.stringify(error);
+                          throw new Error(pgMsg);
+                        }
+                        setWhatsappSender(cleanedSender);
+                      }
+
+                      showSettingsToast("Pengaturan berhasil disimpan!", "success");
+                    } catch (err: unknown) {
+                      const msg = err instanceof Error ? err.message
+                        : (typeof err === "object" && err !== null && "message" in err)
+                        ? String((err as { message: unknown }).message)
+                        : JSON.stringify(err);
+                      showSettingsToast(msg || "Gagal menyimpan pengaturan.", "error");
+                    } finally {
+                      setSavingSettings(false);
                     }
-                    alert("Pengaturan berhasil disimpan!");
                   }}
-                  className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-600 rounded-xl text-xs font-bold text-white"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all"
                 >
-                  Simpan Pengaturan
+                  {savingSettings ? "Menyimpan..." : "Simpan Pengaturan"}
                 </button>
               </div>
             </div>
@@ -1380,6 +1436,20 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Settings Toast Notification */}
+      <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border bg-slate-950/90 backdrop-blur-md shadow-2xl transition-all duration-300 transform ${
+        settingsToast.show ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95 pointer-events-none"
+      } ${
+        settingsToast.type === "success" ? "border-emerald-500/20" : "border-red-500/20"
+      }`}>
+        {settingsToast.type === "success" ? (
+          <CheckCircle2 className="text-emerald-400 flex-shrink-0" size={18} />
+        ) : (
+          <span className="text-red-400 flex-shrink-0 font-bold text-base">!</span>
+        )}
+        <span className="text-xs font-semibold text-slate-200">{settingsToast.message}</span>
+      </div>
     </div>
   );
 }

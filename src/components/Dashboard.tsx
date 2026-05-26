@@ -15,8 +15,6 @@ import {
   Filter,
   CheckCircle2,
   Send,
-  FileText,
-  ChevronRight,
   TrendingUp,
   Clock,
   MapPin,
@@ -27,7 +25,6 @@ import {
   Bell,
   User,
   Shield,
-  HelpCircle,
   Locate
 } from "lucide-react";
 
@@ -1096,7 +1093,7 @@ export default function Dashboard() {
               {selectedReport.notes && (
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Catatan Lapangan</span>
-                  <p className="text-xs text-slate-400 italic">"{selectedReport.notes}"</p>
+                  <p className="text-xs text-slate-400 italic">&ldquo;{selectedReport.notes}&rdquo;</p>
                 </div>
               )}
             </div>

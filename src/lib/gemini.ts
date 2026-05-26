@@ -5,8 +5,8 @@ const apiKey = process.env.GEMINI_API_KEY || "";
 // Initialize the Gemini Client
 export const genAI = new GoogleGenerativeAI(apiKey);
 
-// Default model used in the application is gemini-1.5-flash
-export const geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Default model used in the application is gemini-2.5-flash
+export const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 /**
  * Checks if the Gemini API Key is valid and the model responds correctly.

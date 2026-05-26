@@ -30,7 +30,7 @@ interface MBGReportRow {
   created_at: string;
   whatsapp_from: string | null;
   raw_message: string | null;
-  extracted_data: Record<string, any> | null;
+  extracted_data: Record<string, unknown> | null;
   status: string;
   tanggal: string | null;
   porsi_besar: number | null;
@@ -243,7 +243,7 @@ export async function POST(req: Request) {
         .insert({
           whatsapp_from: sender,
           raw_message: messageText,
-          extracted_data: extractedData as Record<string, any>,
+          extracted_data: extractedData as Record<string, unknown>,
           status: "DRAFT",
           ...mapExtractedToColumns(extractedData)
         })
@@ -307,7 +307,7 @@ async function uploadPhotoToStorage(imageUrl: string, reportId: string): Promise
 // Extract data from raw WhatsApp message using Gemini AI
 async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `
     Anda adalah asisten data Badan Gizi Nasional. Tugas Anda adalah mengekstrak teks laporan harian MBG menjadi format JSON.

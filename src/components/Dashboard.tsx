@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useLaporanRealtime } from "@/lib/hooks/useLaporanRealtime";
+import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -147,7 +149,77 @@ const INITIAL_REPORTS: Report[] = [
 ];
 
 export default function Dashboard() {
-  const [reports, setReports] = useState<Report[]>(INITIAL_REPORTS);
+  const { reports: dbReports, setReports: setDbReports } = useLaporanRealtime();
+
+  // Map DB reports to local Report structure, fallback to mock data if empty
+  const reportsList = useMemo<Report[]>(() => {
+    const dbMapped = dbReports.map((r) => {
+      let statusStr: "Draft" | "Approved" | "Sent" = "Draft";
+      if (r.status?.toUpperCase() === "SENT") statusStr = "Sent";
+      if (r.status?.toUpperCase() === "APPROVED") statusStr = "Approved";
+
+      const large = r.porsi_besar || 0;
+      const small = r.porsi_kecil || 0;
+      const total = large + small;
+
+      const cleanPhone = r.whatsapp_from ? r.whatsapp_from.replace("@c.us", "") : "";
+      const formattedPhone = cleanPhone ? `+${cleanPhone}` : "Unknown";
+
+      let sppgName = "SPPG Wilayah";
+      let location = "Operasional Lapangan";
+
+      if (cleanPhone.includes("812") || cleanPhone.includes("811")) {
+        sppgName = "SPPG Menteng Jaya";
+        location = "Jakarta Pusat";
+      } else if (cleanPhone.includes("821") || cleanPhone.includes("822")) {
+        sppgName = "SPPG Kebayoran Baru";
+        location = "Jakarta Selatan";
+      } else if (cleanPhone.includes("877") || cleanPhone.includes("878")) {
+        sppgName = "SPPG Pajajaran";
+        location = "Kota Bogor";
+      } else if (cleanPhone.includes("813") || cleanPhone.includes("814")) {
+        sppgName = "SPPG Margonda";
+        location = "Kota Depok";
+      } else if (cleanPhone.includes("852") || cleanPhone.includes("853")) {
+        sppgName = "SPPG Cisadane";
+        location = "Kota Tangerang";
+      } else if (cleanPhone.includes("819") || cleanPhone.includes("818")) {
+        sppgName = "SPPG Dago Elok";
+        location = "Kota Bandung";
+      }
+
+      let dateStr = r.tanggal || "";
+      if (!dateStr && r.created_at) {
+        dateStr = r.created_at.split("T")[0];
+      }
+
+      return {
+        id: r.id,
+        date: dateStr || new Date().toISOString().split("T")[0],
+        sppgName: `${sppgName} (${formattedPhone})`,
+        location: location,
+        totalBeneficiaries: total,
+        largePortions: large,
+        smallPortions: small,
+        status: statusStr,
+        menu: r.menu || "Belum ditentukan",
+        picName: r.extracted_data?.PIC || `Petugas (${formattedPhone})`,
+        picPhone: formattedPhone,
+        distributionTime: r.created_at ? new Date(r.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB" : "11:30 WIB",
+        temperatureServed: "62°C",
+        notes: r.raw_message || undefined
+      };
+    });
+
+    if (dbMapped.length === 0) {
+      return INITIAL_REPORTS;
+    }
+    return dbMapped;
+  }, [dbReports]);
+
+  // Derived state from reportsList
+  const reports = reportsList;
+
   const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "gis" | "pengaturan">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -164,7 +236,7 @@ export default function Dashboard() {
     region: "DKI Jakarta & Jawa Barat"
   });
 
-  // Calculate Metrics based on current reports state
+  // Calculate Metrics dynamically based on current state (synced with DB)
   const metrics = useMemo(() => {
     return reports.reduce(
       (acc, r) => {
@@ -177,12 +249,36 @@ export default function Dashboard() {
     );
   }, [reports]);
 
-  // Handle report status transition from Modal Review
-  const updateReportStatus = (id: string, nextStatus: "Draft" | "Approved" | "Sent") => {
-    setReports((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: nextStatus } : r))
-    );
-    setSelectedReport((prev) => (prev && prev.id === id ? { ...prev, status: nextStatus } : prev));
+  // Handle report status transition from Modal Review and write to DB
+  const updateReportStatus = async (id: string, nextStatus: "Draft" | "Approved" | "Sent") => {
+    try {
+      // Map frontend status back to DB format
+      let dbStatus = "DRAFT";
+      if (nextStatus === "Sent") dbStatus = "SENT";
+      if (nextStatus === "Approved") dbStatus = "APPROVED";
+
+      // Persist to Supabase table mbg_reports if it exists in DB
+      const isDbReport = dbReports.some((r) => r.id === id);
+      if (isDbReport) {
+        // Optimistic update of dbReports state in the hook
+        setDbReports((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, status: dbStatus } : r))
+        );
+
+        const { error: dbError } = await supabase
+          .from("mbg_reports")
+          .update({ status: dbStatus })
+          .eq("id", id);
+        
+        if (dbError) throw dbError;
+      }
+
+      // Update selectedReport state so modal changes instantly
+      setSelectedReport((prev) => (prev && prev.id === id ? { ...prev, status: nextStatus } : prev));
+    } catch (err) {
+      console.error("Failed to update status in Supabase:", err);
+      alert("Gagal memperbarui status di database.");
+    }
   };
 
   // Filtered reports list
@@ -583,20 +679,20 @@ export default function Dashboard() {
                               <span
                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
                                   report.status === "Draft" &&
-                                  "bg-slate-800 text-slate-300 border border-slate-700/60"
+                                  "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                                 } ${
                                   report.status === "Approved" &&
-                                  "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                  "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
                                 } ${
                                   report.status === "Sent" &&
-                                  "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                                  "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                 }`}
                               >
                                 <span
                                   className={`w-1.5 h-1.5 rounded-full ${
-                                    report.status === "Draft" && "bg-slate-400"
-                                  } ${report.status === "Approved" && "bg-emerald-400"} ${
-                                    report.status === "Sent" && "bg-indigo-400"
+                                    report.status === "Draft" && "bg-amber-400"
+                                  } ${report.status === "Approved" && "bg-indigo-400"} ${
+                                    report.status === "Sent" && "bg-emerald-400"
                                   }`}
                                 />
                                 <span>{report.status}</span>
@@ -1103,11 +1199,11 @@ export default function Dashboard() {
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-slate-500 font-semibold uppercase">Status Saat Ini:</span>
                 <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full ${
-                  selectedReport.status === "Draft" && "bg-slate-800 border border-slate-700"
+                  selectedReport.status === "Draft" && "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                 } ${
-                  selectedReport.status === "Approved" && "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  selectedReport.status === "Approved" && "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
                 } ${
-                  selectedReport.status === "Sent" && "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+                  selectedReport.status === "Sent" && "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                 }`}>
                   {selectedReport.status}
                 </span>

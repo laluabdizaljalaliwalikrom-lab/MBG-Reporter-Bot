@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { generatePoster } from "@/lib/poster-service";
 import { sendWhatsAppMessage, sendWhatsAppMedia } from "@/lib/whatsapp";
+import { parseManualInput, type MBGReportData } from "@/lib/parseManualInput";
 
 export const dynamic = "force-dynamic";
 
@@ -21,21 +22,6 @@ interface WebhookPayload {
   from?: string;
   imageUrl?: string;
   mediaUrl?: string;
-}
-
-interface MBGReportData {
-  Tanggal: string | null;
-  "Porsi Besar": number | null;
-  "Porsi Kecil": number | null;
-  Menu: string | null;
-  Energi: number | null;
-  Protein: number | null;
-  Lemak: number | null;
-  Karbohidrat: number | null;
-  Serat: number | null;
-  error?: string;
-  raw?: string;
-  [key: string]: string | number | boolean | null | undefined;
 }
 
 // Database schema matching interface
@@ -203,22 +189,52 @@ export async function POST(req: Request) {
     }
 
     // --- CONDITION A: INPUT DATA BARU (TEXT EXTRACTION) ---
+    const isManualMBG = messageText.trim().startsWith("MANUAL_MBG");
     const isReportKeyword =
-      messageText.toUpperCase().includes("MBG") || messageText.toUpperCase().includes("LAPORAN");
+      isManualMBG ||
+      messageText.toUpperCase().includes("MBG") ||
+      messageText.toUpperCase().includes("LAPORAN");
 
     if (isReportKeyword) {
-      await sendWhatsAppMessage(sender, "📝 Menganalisis data laporan...");
+      let extractedData: Partial<MBGReportData>;
 
-      // 1. Send report text to Gemini API for JSON extraction
-      const extractedData = await extractDataWithAI(messageText);
+      if (isManualMBG) {
+        await sendWhatsAppMessage(sender, "📝 Memproses data laporan manual...");
+        extractedData = parseManualInput(messageText);
+      } else {
+        await sendWhatsAppMessage(sender, "📝 Menganalisis data laporan...");
 
-      // Error handling: if Gemini parsing failed
-      if (extractedData.error) {
-        await sendWhatsAppMessage(
-          sender,
-          "⚠️ Gagal menganalisis teks laporan Anda. Mohon pastikan format teks laporan Anda lengkap (memiliki informasi Tanggal, Menu, Jumlah Porsi Besar & Kecil, dsb)."
-        );
-        return NextResponse.json({ status: "error", reason: "ai_extraction_failed" });
+        try {
+          extractedData = await extractDataWithAI(messageText);
+          if (extractedData.error) {
+            throw new Error(extractedData.error);
+          }
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          console.error("Gemini invocation failed, falling back to manual template:", errorMessage);
+
+          const manualTemplate =
+            `⚠️ *Gagal Menganalisis Laporan*\n` +
+            `Kami tidak dapat memproses laporan Anda secara otomatis menggunakan AI.\n\n` +
+            `Silakan salin teks di bawah ini, isi data dengan benar, dan kirimkan kembali:\n\n` +
+            `MANUAL_MBG\n` +
+            `Tanggal: YYYY-MM-DD\n` +
+            `Porsi Besar: \n` +
+            `Porsi Kecil: \n` +
+            `Menu: \n` +
+            `Energi: \n` +
+            `Protein: \n` +
+            `Lemak: \n` +
+            `Karbohidrat: \n` +
+            `Serat: `;
+
+          await sendWhatsAppMessage(sender, manualTemplate);
+          return NextResponse.json({
+            status: "error",
+            reason: "ai_extraction_failed_manual_sent",
+            details: errorMessage
+          });
+        }
       }
 
       // 2. Insert new draft row to Supabase mbg_reports table
@@ -227,7 +243,7 @@ export async function POST(req: Request) {
         .insert({
           whatsapp_from: sender,
           raw_message: messageText,
-          extracted_data: extractedData,
+          extracted_data: extractedData as Record<string, any>,
           status: "DRAFT",
           ...mapExtractedToColumns(extractedData)
         })
@@ -354,3 +370,4 @@ function formatSummary(data: Partial<MBGReportData>) {
 🍚 *Karbohidrat:* ${data.Karbohidrat || 0} g
 🥦 *Serat:* ${data.Serat || 0} g`;
 }
+

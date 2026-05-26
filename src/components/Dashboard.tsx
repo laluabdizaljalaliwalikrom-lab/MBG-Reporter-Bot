@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import {
   LayoutDashboard,
-  ClipboardText,
+  ClipboardList,
   Map,
   Settings,
   Menu,
@@ -276,7 +276,7 @@ export default function Dashboard() {
                   : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
               }`}
             >
-              <ClipboardText size={18} />
+              <ClipboardList size={18} />
               <span>Laporan Harian</span>
             </button>
 

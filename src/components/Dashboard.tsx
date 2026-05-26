@@ -155,20 +155,17 @@ export default function Dashboard() {
     setTimeout(() => setSettingsToast((prev) => ({ ...prev, show: false })), 4000);
   };
 
-  // Load mpwa_sender from Supabase on mount
+  // Load mpwa_sender from server-side API on mount
   useEffect(() => {
     async function loadSenderFromDb() {
       try {
-        const { data, error } = await supabase
-          .from("system_settings")
-          .select("value")
-          .eq("key", "mpwa_sender")
-          .maybeSingle();
-        if (!error && data?.value) {
+        const res = await fetch("/api/settings?key=mpwa_sender");
+        const data = await res.json();
+        if (res.ok && data.value) {
           setWhatsappSender(data.value);
         }
       } catch (err) {
-        console.error("Failed to load mpwa_sender from DB:", err);
+        console.error("Failed to load mpwa_sender:", err);
       }
     }
     loadSenderFromDb();
@@ -1227,18 +1224,17 @@ export default function Dashboard() {
                         window.localStorage.setItem("mpwa_api_key", whatsappApiKey);
                       }
 
-                      // Save sender to Supabase system_settings
+                      // Save sender via server-side API route
                       const cleanedSender = whatsappSender.replace(/\D/g, "");
                       if (cleanedSender) {
-                        const { error } = await supabase
-                          .from("system_settings")
-                          .upsert(
-                            { key: "mpwa_sender", value: cleanedSender },
-                            { onConflict: "key" }
-                          );
-                        if (error) {
-                          const pgMsg = error.message || error.details || error.hint || JSON.stringify(error);
-                          throw new Error(pgMsg);
+                        const res = await fetch("/api/settings", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ key: "mpwa_sender", value: cleanedSender })
+                        });
+                        const result = await res.json();
+                        if (!res.ok) {
+                          throw new Error(result.error || "Gagal menyimpan ke database.");
                         }
                         setWhatsappSender(cleanedSender);
                       }

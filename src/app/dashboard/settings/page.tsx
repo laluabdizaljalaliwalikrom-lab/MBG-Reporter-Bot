@@ -31,8 +31,13 @@ export default function SettingsPage() {
           setSenderNumber(data.value);
         }
       } catch (err: unknown) {
+        const msg = err instanceof Error
+          ? err.message
+          : (typeof err === "object" && err !== null && "message" in err)
+          ? String((err as { message: unknown }).message)
+          : String(err);
         console.error("Failed to load settings:", err);
-        showToast("Gagal memuat pengaturan dari database.", "error");
+        showToast(`Gagal memuat pengaturan: ${msg}`, "error");
       } finally {
         setLoading(false);
       }
@@ -62,6 +67,9 @@ export default function SettingsPage() {
       }
 
       // Perform upsert on key 'mpwa_sender'
+      // Note: the 'key' column in system_settings must have a UNIQUE constraint
+      // for upsert to work. If not, run this SQL in Supabase:
+      // ALTER TABLE system_settings ADD CONSTRAINT system_settings_key_unique UNIQUE (key);
       const { error } = await supabase
         .from("system_settings")
         .upsert(
@@ -69,11 +77,19 @@ export default function SettingsPage() {
           { onConflict: "key" }
         );
 
-      if (error) throw error;
+      if (error) {
+        // Extract readable message from PostgrestError
+        const pgMsg = error.message || error.details || error.hint || JSON.stringify(error);
+        throw new Error(pgMsg);
+      }
 
       showToast("Nomor WhatsApp Sender berhasil diperbarui!", "success");
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = err instanceof Error
+        ? err.message
+        : (typeof err === "object" && err !== null && "message" in err)
+        ? String((err as { message: unknown }).message)
+        : JSON.stringify(err);
       console.error("Failed to save settings:", err);
       showToast(errorMessage || "Gagal menyimpan perubahan ke database.", "error");
     } finally {

@@ -48,105 +48,7 @@ interface Report {
   notes?: string;
 }
 
-// Mock Data
-const INITIAL_REPORTS: Report[] = [
-  {
-    id: "REP-20260526-001",
-    date: "2026-05-26",
-    sppgName: "SPPG Menteng Jaya",
-    location: "Jakarta Pusat",
-    totalBeneficiaries: 1850,
-    largePortions: 1200,
-    smallPortions: 650,
-    status: "Sent",
-    menu: "Nasi Timbel, Ayam Goreng Lengkuas, Cah Sayur (Wortel & Buncis), Susu UHT, Pisang Mas",
-    picName: "Budi Santoso",
-    picPhone: "0812-3456-7890",
-    distributionTime: "11:30 WIB",
-    temperatureServed: "64°C",
-    notes: "Distribusi lancar, seluruh porsi terbagi rata."
-  },
-  {
-    id: "REP-20260526-002",
-    date: "2026-05-26",
-    sppgName: "SPPG Kebayoran Baru",
-    location: "Jakarta Selatan",
-    totalBeneficiaries: 2400,
-    largePortions: 1600,
-    smallPortions: 800,
-    status: "Approved",
-    menu: "Nasi Uduk Wangi, Semur Daging Sapi, Orek Tempe Manis, Melon Potong, Air Mineral",
-    picName: "Siti Rahma",
-    picPhone: "0821-9876-5432",
-    distributionTime: "11:45 WIB",
-    temperatureServed: "62°C",
-    notes: "Kualitas buah melon sangat segar."
-  },
-  {
-    id: "REP-20260526-003",
-    date: "2026-05-26",
-    sppgName: "SPPG Pajajaran",
-    location: "Kota Bogor",
-    totalBeneficiaries: 1450,
-    largePortions: 950,
-    smallPortions: 500,
-    status: "Draft",
-    menu: "Nasi Putih, Ikan Bakar Bumbu Kuning, Sayur Asem Segar, Susu Cokelat, Jeruk",
-    picName: "Asep Sunandar",
-    picPhone: "0877-3344-5566",
-    distributionTime: "12:00 WIB",
-    temperatureServed: "58°C",
-    notes: "Sedang menunggu tanda tangan digital dari pengawas lapang."
-  },
-  {
-    id: "REP-20260525-004",
-    date: "2026-05-25",
-    sppgName: "SPPG Margonda",
-    location: "Kota Depok",
-    totalBeneficiaries: 1200,
-    largePortions: 780,
-    smallPortions: 420,
-    status: "Sent",
-    menu: "Nasi Kuning Harum, Ayam Bakar Madu, Tumis Kacang Panjang, Susu Putih UHT, Apel",
-    picName: "Dewi Lestari",
-    picPhone: "0813-2211-0099",
-    distributionTime: "11:15 WIB",
-    temperatureServed: "65°C",
-    notes: "Laporan terkirim otomatis ke dinas pusat."
-  },
-  {
-    id: "REP-20260525-005",
-    date: "2026-05-25",
-    sppgName: "SPPG Cisadane",
-    location: "Kota Tangerang",
-    totalBeneficiaries: 1980,
-    largePortions: 1300,
-    smallPortions: 680,
-    status: "Approved",
-    menu: "Nasi Merah Sehat, Empal Gentong Kuah Kuning, Capcay Bakso, Pisang Cavendish, Air Mineral",
-    picName: "Rudi Hermawan",
-    picPhone: "0852-6677-8899",
-    distributionTime: "11:50 WIB",
-    temperatureServed: "61°C",
-    notes: "Suhu makanan terjaga dalam thermal box."
-  },
-  {
-    id: "REP-20260525-006",
-    date: "2026-05-25",
-    sppgName: "SPPG Dago Elok",
-    location: "Kota Bandung",
-    totalBeneficiaries: 3100,
-    largePortions: 2000,
-    smallPortions: 1100,
-    status: "Draft",
-    menu: "Nasi Putih Organik, Ayam Goreng Mentega, Tumis Sawi Hijau, Susu Kedelai, Buah Pir",
-    picName: "Cecep Mulyana",
-    picPhone: "0819-4455-6677",
-    distributionTime: "12:10 WIB",
-    temperatureServed: "55°C",
-    notes: "Menunggu finalisasi input jumlah porsi PAUD."
-  }
-];
+// Realtime database data source
 
 export default function Dashboard() {
   const { reports: dbReports, setReports: setDbReports } = useLaporanRealtime();
@@ -211,9 +113,6 @@ export default function Dashboard() {
       };
     });
 
-    if (dbMapped.length === 0) {
-      return INITIAL_REPORTS;
-    }
     return dbMapped;
   }, [dbReports]);
 
@@ -226,6 +125,21 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  // WhatsApp Gateway Settings (MPWA) States
+  const [whatsappApiKey, setWhatsappApiKey] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem("mpwa_api_key") || "";
+    }
+    return "";
+  });
+  const [whatsappSender, setWhatsappSender] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem("mpwa_sender") || "";
+    }
+    return "";
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
 
   // Notifications State Mockup
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -1059,16 +973,80 @@ export default function Dashboard() {
 
               <div className="h-px bg-slate-800" />
 
+              {/* WhatsApp Gateway Settings (MPWA) */}
+              <div className="space-y-6">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Locate size={18} className="text-indigo-400" />
+                  <span>Pengaturan WhatsApp Gateway (MPWA)</span>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold text-slate-400 uppercase">MPWA API Key</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold"
+                      >
+                        {showApiKey ? "Sembunyikan" : "Tampilkan"}
+                      </button>
+                    </div>
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      placeholder="Masukkan MPWA API Key..."
+                      value={whatsappApiKey}
+                      onChange={(e) => setWhatsappApiKey(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
+                    />
+                    <p className="text-[10px] text-slate-500">
+                      Jika dikosongkan, sistem akan menggunakan key dari environment variable (`WHATSAPP_API_KEY` / `MPWA_API_KEY`).
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Sender Phone ID / Number</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 6281234567890"
+                      value={whatsappSender}
+                      onChange={(e) => setWhatsappSender(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
+                    />
+                    <p className="text-[10px] text-slate-500">
+                      Nomor pengirim atau ID perangkat yang terdaftar di MPWA. Format angka lengkap (misal: 62812...).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-slate-800" />
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.localStorage.removeItem("mpwa_api_key");
+                      window.localStorage.removeItem("mpwa_sender");
+                    }
+                    setWhatsappApiKey("");
+                    setWhatsappSender("");
+                    alert("Pengaturan di-reset ke nilai default environment.");
+                  }}
                   className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
                 >
                   Reset Default
                 </button>
                 <button
                   type="button"
-                  onClick={() => alert("Pengaturan berhasil disimpan!")}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem("mpwa_api_key", whatsappApiKey);
+                      window.localStorage.setItem("mpwa_sender", whatsappSender);
+                    }
+                    alert("Pengaturan berhasil disimpan!");
+                  }}
                   className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-600 rounded-xl text-xs font-bold text-white"
                 >
                   Simpan Pengaturan

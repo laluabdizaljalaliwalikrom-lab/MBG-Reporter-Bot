@@ -96,7 +96,7 @@ export async function POST(req: Request) {
     // --- CONDITION C: PERSETUJUAN 'YA' ---
     if (existingDraft && messageText.trim().toUpperCase() === "YA") {
       const groupId = process.env.WHATSAPP_GROUP_ID || sender;
-      
+
       // Check if poster exists, otherwise generate it
       let posterUrl = existingDraft.poster_url;
       if (!posterUrl) {
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
         `🧈 *Lemak:* ${existingDraft.lemak || 0} g\n` +
         `🍚 *Karbohidrat:* ${existingDraft.karbohidrat || 0} g\n` +
         `🥦 *Serat:* ${existingDraft.serat || 0} g\n\n` +
-        `✅ Laporan telah divalidasi oleh Koordinator Wilayah.`;
+        `✅ Laporan telah disetujui oleh Kepala SPPG.`;
 
       // Send poster to the Stakeholder Group via MPWA sendWhatsAppMedia
       await sendWhatsAppMedia(groupId, posterUrl, caption);
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
         sender,
         "✅ Laporan telah dikirim ke grup pemangku kepentingan. Terima kasih!"
       );
-      
+
       return NextResponse.json({ status: "success", action: "confirmed" });
     }
 

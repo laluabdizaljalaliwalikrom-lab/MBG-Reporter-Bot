@@ -2,6 +2,28 @@
  * Utility helper to send WhatsApp messages via MPWA Gateway (https://wa.gusdin.my.id/send-message)
  */
 
+import { supabase } from "@/lib/supabase";
+
+async function getSender(localSender?: string): Promise<string> {
+  if (localSender) return localSender;
+
+  try {
+    const { data, error } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "mpwa_sender")
+      .maybeSingle();
+
+    if (!error && data?.value) {
+      return data.value;
+    }
+  } catch (err) {
+    console.error("whatsapp helper: Failed to fetch mpwa_sender from system_settings:", err);
+  }
+
+  return process.env.MPWA_SENDER || process.env.WHATSAPP_PHONE_ID || "";
+}
+
 export interface MPWAResponse {
   status: boolean | string;
   message?: string;
@@ -38,9 +60,7 @@ export async function sendWhatsAppMessage(
   if (!apiKey) {
     apiKey = process.env.MPWA_API_KEY || process.env.WHATSAPP_API_KEY || "";
   }
-  if (!sender) {
-    sender = process.env.MPWA_SENDER || process.env.WHATSAPP_PHONE_ID || "";
-  }
+  sender = await getSender(sender);
 
   // Validate credentials
   if (!apiKey) {
@@ -140,9 +160,7 @@ export async function sendWhatsAppMedia(
   if (!apiKey) {
     apiKey = process.env.MPWA_API_KEY || process.env.WHATSAPP_API_KEY || "";
   }
-  if (!sender) {
-    sender = process.env.MPWA_SENDER || process.env.WHATSAPP_PHONE_ID || "";
-  }
+  sender = await getSender(sender);
 
   // Validate credentials
   if (!apiKey) {
@@ -226,7 +244,7 @@ export async function checkWhatsAppConnection(): Promise<{
   details?: string;
 }> {
   const apiKey = process.env.MPWA_API_KEY || process.env.WHATSAPP_API_KEY || "";
-  const sender = process.env.MPWA_SENDER || process.env.WHATSAPP_PHONE_ID || "";
+  const sender = await getSender();
 
   if (!apiKey) {
     return {
@@ -239,8 +257,8 @@ export async function checkWhatsAppConnection(): Promise<{
   if (!sender) {
     return {
       success: false,
-      message: "Nomor pengirim (Sender) WhatsApp tidak didefinisikan di environment variables.",
-      details: "Harap atur MPWA_SENDER atau WHATSAPP_PHONE_ID di file konfigurasi .env."
+      message: "Nomor pengirim (Sender) WhatsApp tidak didefinisikan di database maupun environment variables.",
+      details: "Harap atur mpwa_sender di tabel system_settings Supabase atau MPWA_SENDER di file konfigurasi .env."
     };
   }
 

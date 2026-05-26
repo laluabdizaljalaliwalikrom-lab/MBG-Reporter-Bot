@@ -1068,7 +1068,10 @@ export default function Dashboard() {
                       className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
                     />
                     <p className="text-[10px] text-slate-500">
-                      Nomor pengirim atau ID perangkat yang terdaftar di MPWA. Format angka lengkap (misal: 62812...).
+                      Nomor pengirim atau ID perangkat yang terdaftar di MPWA. Format angka lengkap (misal: 62812...) atau{" "}
+                      <a href="/dashboard/settings" className="text-indigo-450 hover:text-indigo-400 font-semibold underline">
+                        konfigurasi global di database Supabase
+                      </a>.
                     </p>
                   </div>
                 </div>

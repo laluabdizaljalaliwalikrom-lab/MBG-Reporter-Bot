@@ -141,6 +141,29 @@ export default function Dashboard() {
   });
   const [showApiKey, setShowApiKey] = useState(false);
 
+  // Connection Test States
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "loading" | "connected" | "failed">("idle");
+  const [connectionMessage, setConnectionMessage] = useState("");
+
+  const handleCheckConnection = async () => {
+    setConnectionStatus("loading");
+    setConnectionMessage("Menghubungkan...");
+    try {
+      const response = await fetch("/api/check-gemini");
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setConnectionStatus("connected");
+        setConnectionMessage("Gemini Terhubung");
+      } else {
+        setConnectionStatus("failed");
+        setConnectionMessage(data.message || "Koneksi gagal.");
+      }
+    } catch (err: unknown) {
+      setConnectionStatus("failed");
+      setConnectionMessage(err instanceof Error ? err.message : "Terjadi kesalahan jaringan.");
+    }
+  };
+
   // Notifications State Mockup
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [autoSync, setAutoSync] = useState(true);
@@ -1017,6 +1040,53 @@ export default function Dashboard() {
                       Nomor pengirim atau ID perangkat yang terdaftar di MPWA. Format angka lengkap (misal: 62812...).
                     </p>
                   </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-slate-800" />
+
+              {/* API Connection Check */}
+              <div className="space-y-6">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Shield size={18} className="text-indigo-400" />
+                  <span>Cek Integrasi Layanan AI</span>
+                </h3>
+
+                <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-white">Status Koneksi Gemini API</h4>
+                    <p className="text-[10px] text-slate-500">
+                      Uji kredensial API Key Gemini AI yang terdaftar di environment server.
+                    </p>
+                    {connectionStatus !== "idle" && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className={`w-2.5 h-2.5 rounded-full ${
+                          connectionStatus === "loading" && "bg-amber-500 animate-pulse"
+                        } ${
+                          connectionStatus === "connected" && "bg-emerald-500 shadow-lg shadow-emerald-500/50"
+                        } ${
+                          connectionStatus === "failed" && "bg-red-500 shadow-lg shadow-red-500/50"
+                        }`} />
+                        <span className={`text-xs font-medium ${
+                          connectionStatus === "loading" && "text-amber-400"
+                        } ${
+                          connectionStatus === "connected" && "text-emerald-400"
+                        } ${
+                          connectionStatus === "failed" && "text-red-400"
+                        }`}>
+                          {connectionMessage}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={connectionStatus === "loading"}
+                    onClick={handleCheckConnection}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-white rounded-xl text-xs font-bold transition-all"
+                  >
+                    {connectionStatus === "loading" ? "Memeriksa..." : "Cek Koneksi AI"}
+                  </button>
                 </div>
               </div>
 

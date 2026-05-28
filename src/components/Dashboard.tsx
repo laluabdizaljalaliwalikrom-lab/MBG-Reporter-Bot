@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
   ClipboardList,
-  Map,
   Settings,
   Menu,
   X,
@@ -122,7 +121,7 @@ export default function Dashboard() {
   // Derived state from reportsList
   const reports = reportsList;
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "gis" | "pengaturan">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "pengaturan">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -368,20 +367,7 @@ export default function Dashboard() {
               <span>Laporan Harian</span>
             </button>
 
-            <button
-              onClick={() => {
-                setActiveTab("gis");
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === "gis"
-                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <Map size={18} />
-              <span>Peta GIS</span>
-            </button>
+
 
             <button
               onClick={() => {
@@ -440,7 +426,6 @@ export default function Dashboard() {
               <h2 className="text-xl font-bold tracking-tight text-white capitalize">
                 {activeTab === "dashboard" && "Dashboard Utama"}
                 {activeTab === "laporan" && "Manajemen Laporan"}
-                {activeTab === "gis" && "Pemantauan Peta GIS"}
                 {activeTab === "pengaturan" && "Pengaturan Sistem"}
               </h2>
               <p className="text-xs text-slate-400 hidden sm:block">
@@ -842,121 +827,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* TAB 3: PETA GIS */}
-          {activeTab === "gis" && (
-            <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-white">Visualisasi Peta GIS Satuan Pelayanan</h3>
-                  <p className="text-xs text-slate-400">
-                    Lokasi geografis SPPG terdaftar dengan indikator status pengiriman makanan.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <span className="flex items-center gap-1 text-[10px] text-slate-300 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Sent
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] text-slate-300 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
-                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Approved
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] text-slate-300 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" /> Draft
-                  </span>
-                </div>
-              </div>
-
-              {/* MOCK MAP SVG */}
-              <div className="relative border border-slate-800 rounded-xl overflow-hidden bg-slate-950 h-[380px] flex items-center justify-center">
-                {/* Background grid */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:24px_24px] opacity-70" />
-
-                {/* Cyberpunk Map SVG Outline representation */}
-                <svg
-                  className="w-full h-full text-slate-800/40 absolute max-w-xl p-4"
-                  viewBox="0 0 800 400"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M 50 150 C 150 180, 220 120, 320 150 C 420 180, 480 80, 600 130 C 690 170, 720 220, 750 300 C 650 320, 580 250, 480 280 C 380 310, 280 220, 180 280 C 120 320, 80 220, 50 150 Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeDasharray="4 4"
-                    fill="url(#mapGrad)"
-                  />
-                  <defs>
-                    <linearGradient id="mapGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.03" />
-                      <stop offset="100%" stopColor="#10b981" stopOpacity="0.03" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-
-                {/* Interactive map points mapping */}
-                {reports.map((rep, idx) => {
-                  // Generate deterministic but spread coordinates
-                  const coordinates = [
-                    { x: "25%", y: "45%" }, // Menteng
-                    { x: "32%", y: "60%" }, // Kebayoran
-                    { x: "42%", y: "75%" }, // Pajajaran
-                    { x: "48%", y: "52%" }, // Margonda
-                    { x: "18%", y: "55%" }, // Cisadane
-                    { x: "65%", y: "65%" }  // Dago
-                  ];
-
-                  const coord = coordinates[idx] || { x: "50%", y: "50%" };
-
-                  const statusColor =
-                    rep.status === "Sent"
-                      ? "bg-emerald-500 shadow-emerald-500/50"
-                      : rep.status === "Approved"
-                      ? "bg-indigo-500 shadow-indigo-500/50"
-                      : "bg-amber-500 shadow-amber-500/50 animate-pulse";
-
-                  return (
-                    <div
-                      key={rep.id}
-                      className="absolute group/point"
-                      style={{ left: coord.x, top: coord.y }}
-                    >
-                      <button
-                        onClick={() => setSelectedReport(rep)}
-                        className={`w-4 h-4 rounded-full ${statusColor} border border-slate-950 shadow-lg relative flex items-center justify-center transform transition-transform duration-300 hover:scale-150`}
-                      >
-                        <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-20 group-hover/point:animate-ping" />
-                      </button>
-
-                      {/* Tooltip on hover */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/point:flex flex-col items-center z-20">
-                        <div className="bg-slate-900 border border-slate-800 text-white rounded-lg px-3 py-2 text-[10px] font-medium shadow-2xl whitespace-nowrap min-w-[150px]">
-                          <p className="font-bold text-slate-200">{rep.sppgName}</p>
-                          <p className="text-slate-400 mt-0.5">{rep.location}</p>
-                          <div className="h-px bg-slate-800 my-1" />
-                          <p className="flex justify-between gap-2">
-                            <span>Penerima:</span>
-                            <span className="font-bold">{rep.totalBeneficiaries}</span>
-                          </p>
-                          <p className="flex justify-between gap-2">
-                            <span>Status:</span>
-                            <span className="font-bold text-indigo-400">{rep.status}</span>
-                          </p>
-                        </div>
-                        <div className="w-2.5 h-2.5 bg-slate-900 border-r border-b border-slate-800 rotate-45 -mt-1.5" />
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <div className="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-3 text-[10px] space-y-1">
-                  <p className="font-bold text-white flex items-center gap-1">
-                    <Locate size={12} className="text-indigo-400" />
-                    <span>Informasi Pemetaan</span>
-                  </p>
-                  <p className="text-slate-400">Klik titik di atas untuk membuka detail review laporan.</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* TAB 4: PENGATURAN */}
           {activeTab === "pengaturan" && (

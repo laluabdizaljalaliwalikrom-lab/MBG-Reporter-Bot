@@ -102,7 +102,7 @@ export async function POST(req: Request) {
                   (body.key && body.key.participant) ||
                   body.pushName ||
                   "unknown";
-      imageUrl = body.url || body.imageUrl || body.mediaUrl || "";
+      imageUrl = body.url || body.imageUrl || body.mediaUrl || body.bufferImage || "";
     }
 
     if (!senderRaw || senderRaw === "unknown") {
@@ -342,15 +342,23 @@ export async function POST(req: Request) {
   }
 }
 
-// Download and upload photo from webhook to Supabase storage posters bucket
-async function uploadPhotoToStorage(imageUrl: string, reportId: string): Promise<string> {
-  const response = await fetch(imageUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to download image from payload: ${response.statusText}`);
+// Download or decode and upload photo from webhook to Supabase storage posters bucket
+async function uploadPhotoToStorage(imageInput: string, reportId: string): Promise<string> {
+  let buffer: Buffer;
+
+  if (imageInput.startsWith("http://") || imageInput.startsWith("https://")) {
+    const response = await fetch(imageInput);
+    if (!response.ok) {
+      throw new Error(`Failed to download image from payload: ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    buffer = Buffer.from(arrayBuffer);
+  } else {
+    // Treat as base64 string
+    const base64Data = imageInput.replace(/^data:image\/\w+;base64,/, "");
+    buffer = Buffer.from(base64Data, "base64");
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
   const fileName = `photo-${reportId}-${Date.now()}.jpg`;
 
   const { error: uploadError } = await supabase.storage

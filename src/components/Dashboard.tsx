@@ -31,7 +31,6 @@ import {
   MessageSquare,
   RefreshCw,
   Database,
-  Plus,
   Trash2,
   Edit
 } from "lucide-react";
@@ -263,8 +262,26 @@ export default function Dashboard() {
     }
   };
 
+  const [waGroups, setWaGroups] = useState<{ id: string; name: string }[]>([]);
+
+  const fetchWaGroups = async () => {
+    try {
+      const res = await fetch("/api/settings/groups");
+      const json = await res.json();
+      if (json.status === "success" && json.groups) {
+        setWaGroups(json.groups);
+      }
+    } catch (err) {
+      console.error("Gagal memuat grup WhatsApp:", err);
+    }
+  };
+
   useEffect(() => {
-    fetchSppgList();
+    const timer = setTimeout(() => {
+      fetchSppgList();
+      fetchWaGroups();
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // Form states for manual report submission
@@ -337,8 +354,9 @@ export default function Dashboard() {
       } else {
         alert("Gagal menyimpan data SPPG: " + json.message);
       }
-    } catch (err: any) {
-      alert("Error: " + err.message);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan internal.";
+      alert("Error: " + errMsg);
     }
   };
 
@@ -369,8 +387,9 @@ export default function Dashboard() {
       } else {
         alert("Gagal menghapus data SPPG: " + json.message);
       }
-    } catch (err: any) {
-      alert("Error: " + err.message);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan internal.";
+      alert("Error: " + errMsg);
     }
   };
 
@@ -1235,14 +1254,36 @@ export default function Dashboard() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">No. WhatsApp Tujuan (Opsional)</label>
-                    <input
-                      type="text"
-                      placeholder="Kosongkan untuk kirim ke Grup Pemangku Kepentingan"
-                      value={formTargetNumber}
-                      onChange={(e) => setFormTargetNumber(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                    />
+                    <label className="text-xs font-bold text-slate-400 uppercase">Tujuan Pengiriman Laporan</label>
+                    <select
+                      value={waGroups.some(g => g.id === formTargetNumber) ? formTargetNumber : (formTargetNumber ? "__custom__" : "")}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "__custom__") {
+                          setFormTargetNumber("");
+                        } else {
+                          setFormTargetNumber(val);
+                        }
+                      }}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs cursor-pointer mb-2"
+                    >
+                      <option value="">-- Kirim ke Grup Default (Environment) --</option>
+                      {waGroups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                      <option value="__custom__">Input Nomor/ID Manual...</option>
+                    </select>
+                    {(!waGroups.some(g => g.id === formTargetNumber) || formTargetNumber === "") && formTargetNumber !== undefined && (
+                      <input
+                        type="text"
+                        placeholder="Ketik nomor WA (misal: 62812...) atau ID Grup manual..."
+                        value={formTargetNumber}
+                        onChange={(e) => setFormTargetNumber(e.target.value)}
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      />
+                    )}
                   </div>
 
                   <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-800">

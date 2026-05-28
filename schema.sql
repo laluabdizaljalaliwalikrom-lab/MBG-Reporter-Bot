@@ -38,3 +38,5 @@ CREATE TABLE IF NOT EXISTS sppg_data (
     busui INTEGER DEFAULT 0
 );
 
+-- Disable RLS for sppg_data (matching mbg_reports behaviour)
+ALTER TABLE sppg_data DISABLE ROW LEVEL SECURITY;

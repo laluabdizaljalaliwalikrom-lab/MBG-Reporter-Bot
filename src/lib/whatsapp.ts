@@ -75,12 +75,15 @@ export async function sendWhatsAppMessage(
   }
 
   // 3. Format the target phone number
-  // Clean all non-digit characters
-  let formattedNumber = number.replace(/\D/g, "");
+  let formattedNumber = number;
+  if (!number.endsWith("@g.us")) {
+    // Clean all non-digit characters
+    formattedNumber = number.replace(/\D/g, "");
 
-  // Convert leading 0 to 62 (Indonesian country code prefix)
-  if (formattedNumber.startsWith("0")) {
-    formattedNumber = "62" + formattedNumber.substring(1);
+    // Convert leading 0 to 62 (Indonesian country code prefix)
+    if (formattedNumber.startsWith("0")) {
+      formattedNumber = "62" + formattedNumber.substring(1);
+    }
   }
 
   const endpoint = "https://wa.gusdin.my.id/send-message";
@@ -181,12 +184,15 @@ export async function sendWhatsAppMedia(
   }
 
   // 3. Format the target phone number
-  // Clean all non-digit characters
-  let formattedNumber = number.replace(/\D/g, "");
+  let formattedNumber = number;
+  if (!number.endsWith("@g.us")) {
+    // Clean all non-digit characters
+    formattedNumber = number.replace(/\D/g, "");
 
-  // Convert leading 0 to 62 (Indonesian country code prefix)
-  if (formattedNumber.startsWith("0")) {
-    formattedNumber = "62" + formattedNumber.substring(1);
+    // Convert leading 0 to 62 (Indonesian country code prefix)
+    if (formattedNumber.startsWith("0")) {
+      formattedNumber = "62" + formattedNumber.substring(1);
+    }
   }
 
   const endpoint = "https://wa.gusdin.my.id/send-media";

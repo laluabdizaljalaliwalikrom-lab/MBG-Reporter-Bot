@@ -15,6 +15,22 @@ export async function generatePoster(reportId: string) {
     throw new Error('Report not found');
   }
 
+  // 1.5. Fetch photo and convert to base64 if it exists, because Satori requires data URIs to embed images
+  let embeddedPhotoUrl = report.photo_url;
+  if (embeddedPhotoUrl) {
+    try {
+      const imgResponse = await fetch(embeddedPhotoUrl);
+      if (imgResponse.ok) {
+        const arrayBuffer = await imgResponse.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
+        embeddedPhotoUrl = `data:${contentType};base64,${base64}`;
+      }
+    } catch (e) {
+      console.error('Failed to embed photo in poster generation:', e);
+    }
+  }
+
   // 2. Load Font (Local first, fallback to CDN)
   let fontData: ArrayBuffer;
   try {
@@ -61,9 +77,9 @@ export async function generatePoster(reportId: string) {
         React.createElement('div', { style: { fontSize: '48px', fontWeight: 'bold', color: '#1e3a8a', marginBottom: '40px', borderBottom: '4px solid #1e3a8a', paddingBottom: '10px', width: '100%', textAlign: 'center' } }, 'LAPORAN HARIAN MBG'),
 
         // Photo (Use actual photo if available, otherwise placeholder)
-        report.photo_url 
+        embeddedPhotoUrl 
           ? React.createElement('img', { 
-              src: report.photo_url, 
+              src: embeddedPhotoUrl, 
               style: { width: '500px', height: '350px', borderRadius: '20px', objectFit: 'cover', marginBottom: '40px' } 
             })
           : React.createElement('div', { style: { width: '500px', height: '350px', border: '4px dashed #cbd5e1', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '40px', backgroundColor: '#f8fafc', color: '#94a3b8', fontSize: '32px' } }, 'FOTO MENU'),
@@ -81,11 +97,31 @@ export async function generatePoster(reportId: string) {
           ]),
           // Right Section (Kandungan Gizi)
           (() => {
-            const ext = (report.extracted_data || {}) as any;
+            interface ExtractedNutritionalInfo {
+              Energi?: number | null;
+              energi?: number | null;
+              Protein?: number | null;
+              protein?: number | null;
+              Lemak?: number | null;
+              lemak?: number | null;
+              Karbohidrat?: number | null;
+              karbohidrat?: number | null;
+              Serat?: number | null;
+              serat?: number | null;
+            }
+
+            interface ExtractedMBGReport {
+              "Porsi Besar"?: ExtractedNutritionalInfo | number | null;
+              porsi_besar?: ExtractedNutritionalInfo | number | null;
+              "Porsi Kecil"?: ExtractedNutritionalInfo | number | null;
+              porsi_kecil?: ExtractedNutritionalInfo | number | null;
+            }
+
+            const ext = (report.extracted_data || {}) as unknown as ExtractedMBGReport;
             const besarRaw = ext["Porsi Besar"] || ext.porsi_besar;
-            const besar = (besarRaw && typeof besarRaw === "object") ? besarRaw : {};
+            const besar = (besarRaw && typeof besarRaw === "object") ? (besarRaw as ExtractedNutritionalInfo) : {};
             const kecilRaw = ext["Porsi Kecil"] || ext.porsi_kecil;
-            const kecil = (kecilRaw && typeof kecilRaw === "object") ? kecilRaw : {};
+            const kecil = (kecilRaw && typeof kecilRaw === "object") ? (kecilRaw as ExtractedNutritionalInfo) : {};
 
             const energiBesar = besar.Energi || besar.energi || report.energi || 0;
             const proteinBesar = besar.Protein || besar.protein || report.protein || 0;

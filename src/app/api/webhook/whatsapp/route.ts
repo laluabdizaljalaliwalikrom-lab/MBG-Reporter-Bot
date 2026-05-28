@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     }
 
     if (!senderRaw || senderRaw === "unknown") {
-      senderRaw = "271648158646318";
+      senderRaw = "6287818383876";
     }
 
     // Clean sender string using Regex to keep only digits
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
 
     // Fallback: If sender is empty or doesn't start with '62', use the test number for testing
     if (!sender || !sender.startsWith("62")) {
-      sender = "271648158646318";
+      sender = "6287818383876";
     }
 
     // 2. State Machine: Fetch the latest active DRAFT for this sender

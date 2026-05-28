@@ -102,6 +102,12 @@ export async function sendWhatsAppMessage(
 
   // 5. Send POST request
   try {
+    console.log("Sending MPWA request:", {
+      api_key: payload.api_key,
+      sender: payload.sender,
+      number: payload.number,
+      message: payload.message
+    });
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -277,6 +283,12 @@ export async function checkWhatsAppConnection(): Promise<{
   };
 
   try {
+    console.log("Sending MPWA request (Connection Check):", {
+      api_key: payload.api_key,
+      sender: payload.sender,
+      number: payload.number,
+      message: payload.message
+    });
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -314,5 +326,12 @@ export async function checkWhatsAppConnection(): Promise<{
       details: errorMessage
     };
   }
+}
+
+/**
+ * Cleans a WhatsApp number by removing the suffix (e.g. @c.us) if present.
+ */
+export function cleanNumber(num: string): string {
+  return num.replace(/@c\.us$/, "");
 }
 

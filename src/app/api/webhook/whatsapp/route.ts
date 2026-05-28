@@ -47,18 +47,18 @@ interface MBGReportRow {
 
 export async function POST(req: Request) {
   try {
-    const payload = (await req.json()) as WebhookPayload;
-    console.log("Incoming Webhook Payload:", JSON.stringify(payload, null, 2));
+    const body = await req.json();
+    console.log('Full MPWA Payload:', JSON.stringify(body, null, 2));
 
     // 1. Extract message, sender, and media
     let messageText = "";
-    let sender = "";
+    let senderRaw = "";
     let imageUrl = "";
 
     // Parse Whapi.cloud Format
-    if (payload.messages && payload.messages[0]) {
-      const msg = payload.messages[0];
-      sender = msg.from;
+    if (body.messages && body.messages[0]) {
+      const msg = body.messages[0];
+      senderRaw = msg.from;
       if (msg.type === "text") {
         messageText = msg.text?.body || "";
       } else if (msg.type === "image") {
@@ -66,15 +66,27 @@ export async function POST(req: Request) {
         messageText = msg.image?.caption || "";
       }
     }
-    // Parse Fontee / MPWA / Generic Format
+    // Parse Fontee / MPWA / Generic / Multi-device Format
     else {
-      messageText = payload.message || payload.text || "";
-      sender = payload.sender || payload.from || "unknown";
-      imageUrl = payload.url || payload.imageUrl || payload.mediaUrl || "";
+      messageText = body.message || body.text || "";
+      senderRaw = body.sender || 
+                  body.from || 
+                  body.participant || 
+                  (body.key && body.key.participant) ||
+                  (body.key && body.key.remoteJid) ||
+                  "unknown";
+      imageUrl = body.url || body.imageUrl || body.mediaUrl || "";
     }
 
-    if (!sender || sender === "unknown") {
+    if (!senderRaw || senderRaw === "unknown") {
       return NextResponse.json({ status: "error", message: "Invalid sender" }, { status: 400 });
+    }
+
+    // Clean sender string using Regex to keep only digits
+    const sender = senderRaw.replace(/\D/g, "");
+
+    if (!sender) {
+      return NextResponse.json({ status: "error", message: "Invalid cleaned sender" }, { status: 400 });
     }
 
     // 2. State Machine: Fetch the latest active DRAFT for this sender

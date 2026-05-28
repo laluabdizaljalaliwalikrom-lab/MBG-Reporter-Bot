@@ -3,22 +3,30 @@ import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const apiKey = process.env.MPWA_API_KEY || process.env.WHATSAPP_API_KEY || "";
+    const { searchParams } = new URL(request.url);
     
-    let sender = process.env.MPWA_SENDER || process.env.WHATSAPP_PHONE_ID || "";
-    const { data: settingData } = await supabase
-      .from("system_settings")
-      .select("value")
-      .eq("key", "mpwa_sender")
-      .maybeSingle();
-    if (settingData?.value) {
-      sender = settingData.value;
+    let apiKey = searchParams.get("api_key") || "";
+    if (!apiKey) {
+      apiKey = process.env.MPWA_API_KEY || process.env.WHATSAPP_API_KEY || "";
+    }
+    
+    let sender = searchParams.get("sender") || "";
+    if (!sender) {
+      sender = process.env.MPWA_SENDER || process.env.WHATSAPP_PHONE_ID || "";
+      const { data: settingData } = await supabase
+        .from("system_settings")
+        .select("value")
+        .eq("key", "mpwa_sender")
+        .maybeSingle();
+      if (settingData?.value) {
+        sender = settingData.value;
+      }
     }
 
     if (!apiKey) {
-      return NextResponse.json({ status: "error", message: "API Key MPWA tidak disetel di environment variables." });
+      return NextResponse.json({ status: "error", message: "API Key MPWA tidak disetel." });
     }
     if (!sender) {
       return NextResponse.json({ status: "error", message: "Nomor pengirim (MPWA Sender) tidak disetel." });

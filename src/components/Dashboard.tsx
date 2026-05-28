@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLaporanRealtime } from "@/lib/hooks/useLaporanRealtime";
 import { supabase } from "@/lib/supabase";
 import {
@@ -247,7 +247,7 @@ export default function Dashboard() {
   const [editingSppgId, setEditingSppgId] = useState<string | null>(null);
   const [sppgSearch, setSppgSearch] = useState("");
 
-  const fetchSppgList = async () => {
+  const fetchSppgList = useCallback(async () => {
     setLoadingSppg(true);
     try {
       const res = await fetch("/api/sppg");
@@ -260,13 +260,15 @@ export default function Dashboard() {
     } finally {
       setLoadingSppg(false);
     }
-  };
+  }, []);
 
   const [waGroups, setWaGroups] = useState<{ id: string; name: string }[]>([]);
 
-  const fetchWaGroups = async () => {
+  const fetchWaGroups = useCallback(async () => {
     try {
-      const res = await fetch("/api/settings/groups");
+      const storedApiKey = typeof window !== "undefined" ? window.localStorage.getItem("mpwa_api_key") || "" : "";
+      const storedSender = whatsappSender || "";
+      const res = await fetch(`/api/settings/groups?api_key=${encodeURIComponent(storedApiKey)}&sender=${encodeURIComponent(storedSender)}`);
       const json = await res.json();
       if (json.status === "success" && json.groups) {
         setWaGroups(json.groups);
@@ -274,7 +276,7 @@ export default function Dashboard() {
     } catch (err) {
       console.error("Gagal memuat grup WhatsApp:", err);
     }
-  };
+  }, [whatsappSender]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -282,7 +284,7 @@ export default function Dashboard() {
       fetchWaGroups();
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchSppgList, fetchWaGroups]);
 
   // Form states for manual report submission
   const [formSppgName, setFormSppgName] = useState("");
@@ -1854,6 +1856,7 @@ export default function Dashboard() {
                       }
 
                       showSettingsToast("Pengaturan berhasil disimpan!", "success");
+                      fetchWaGroups();
                     } catch (err: unknown) {
                       const msg = err instanceof Error ? err.message
                         : (typeof err === "object" && err !== null && "message" in err)

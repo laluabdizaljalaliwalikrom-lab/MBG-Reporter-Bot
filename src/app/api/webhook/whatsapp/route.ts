@@ -371,7 +371,10 @@ async function uploadPhotoToStorage(imageUrl: string, reportId: string): Promise
   return publicUrl;
 }
 
-// Extract data from raw WhatsApp message using Gemini AI
+// Helper function to wait/sleep
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Extract data from raw WhatsApp message using Gemini AI with retry mechanism
 async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
   const model = genAI.getGenerativeModel({
@@ -411,15 +414,26 @@ async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> 
     Teks Laporan: "${text}"
   `;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const jsonStr = response.text().trim();
-    return JSON.parse(jsonStr) as Partial<MBGReportData>;
-  } catch (e: unknown) {
-    console.error("Gemini Parsing failed:", e);
-    return { error: "Parsing failed" };
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const jsonStr = response.text().trim();
+      return JSON.parse(jsonStr) as Partial<MBGReportData>;
+    } catch (e: unknown) {
+      lastError = e;
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      console.warn(`Gemini API attempt ${attempt} failed: ${errorMessage}`);
+      if (attempt < 3) {
+        // Wait 2 seconds before retrying
+        await delay(2000);
+      }
+    }
   }
+
+  console.error("Gemini Parsing failed after 3 attempts:", lastError);
+  return { error: "Parsing failed" };
 }
 
 // Map parsed JSON fields to db column names

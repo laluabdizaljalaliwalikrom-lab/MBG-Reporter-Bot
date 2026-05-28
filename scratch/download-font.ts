@@ -2,9 +2,9 @@ import fs from 'fs';
 import path from 'path';
 
 async function downloadFont() {
-  const fontUrl = 'https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf';
+  const fontUrl = 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf';
   const destDir = path.resolve(__dirname, '../public/fonts');
-  const destPath = path.join(destDir, 'Roboto-Bold.ttf');
+  const destPath = path.join(destDir, 'Poppins-Bold.ttf');
 
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true });

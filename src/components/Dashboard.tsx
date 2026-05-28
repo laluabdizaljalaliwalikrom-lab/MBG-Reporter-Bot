@@ -222,7 +222,7 @@ export default function Dashboard() {
   };
 
   // Form states for manual report submission
-  const [formSppgName, setFormSppgName] = useState("SPPG Menteng Jaya");
+  const [formSppgName, setFormSppgName] = useState("SPPG Lombok Timur Sikur Sikur 2");
   const [formTanggal, setFormTanggal] = useState(() => new Date().toISOString().split("T")[0]);
   const [formMenu, setFormMenu] = useState("");
   const [formPorsiBesar, setFormPorsiBesar] = useState<number>(0);
@@ -846,18 +846,13 @@ export default function Dashboard() {
 
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Satuan Pelayanan SPPG</label>
-                    <select
+                    <input
+                      type="text"
+                      placeholder="Masukkan nama SPPG..."
                       value={formSppgName}
                       onChange={(e) => setFormSppgName(e.target.value)}
                       className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                    >
-                      <option value="SPPG Menteng Jaya">SPPG Menteng Jaya</option>
-                      <option value="SPPG Kebayoran Baru">SPPG Kebayoran Baru</option>
-                      <option value="SPPG Pajajaran">SPPG Pajajaran</option>
-                      <option value="SPPG Margonda">SPPG Margonda</option>
-                      <option value="SPPG Cisadane">SPPG Cisadane</option>
-                      <option value="SPPG Dago Elok">SPPG Dago Elok</option>
-                    </select>
+                    />
                   </div>
 
                   <div className="space-y-2">

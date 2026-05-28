@@ -3,6 +3,26 @@ import { Resvg } from '@resvg/resvg-js';
 import React from 'react';
 import { supabase } from './supabase';
 
+function formatIndonesianDate(dateStr: string): string {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    const dayName = days[date.getDay()];
+    const day = date.getDate();
+    const monthName = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${dayName}, ${day} ${monthName} ${year}`;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 export async function generatePoster(reportId: string) {
   // 1. Fetch data
   const { data: report, error: fetchError } = await supabase
@@ -31,12 +51,26 @@ export async function generatePoster(reportId: string) {
     }
   }
 
+  // 1.7. Load local BGN Logo and convert to base64
+  let logoBase64 = '';
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const logoPath = path.join(process.cwd(), 'public/images/logo-bgn.png');
+    if (fs.existsSync(logoPath)) {
+      const buffer = fs.readFileSync(logoPath);
+      logoBase64 = `data:image/png;base64,${buffer.toString('base64')}`;
+    }
+  } catch (e) {
+    console.error('Failed to load BGN logo locally:', e);
+  }
+
   // 2. Load Font (Local first, fallback to CDN)
   let fontData: ArrayBuffer;
   try {
     const fs = await import('fs');
     const path = await import('path');
-    const localFontPath = path.join(process.cwd(), 'public/fonts/Roboto-Bold.ttf');
+    const localFontPath = path.join(process.cwd(), 'public/fonts/Poppins-Bold.ttf');
     if (fs.existsSync(localFontPath)) {
       const buffer = fs.readFileSync(localFontPath);
       fontData = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
@@ -46,7 +80,7 @@ export async function generatePoster(reportId: string) {
   } catch (err) {
     console.warn('Failed to load font locally, falling back to CDN fetch:', err);
     const fontResponse = await fetch(
-      'https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf'
+      'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf'
     );
     if (!fontResponse.ok) {
       throw new Error(`Failed to fetch font from CDN: ${fontResponse.statusText}`);
@@ -65,74 +99,278 @@ export async function generatePoster(reportId: string) {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'flex-start',
-          backgroundColor: '#f8fafc',
+          justifyContent: 'space-between',
+          backgroundColor: '#ffffff',
+          backgroundImage: 'linear-gradient(to right, #e2e8f0 1px, transparent 1px), linear-gradient(to bottom, #e2e8f0 1px, transparent 1px)',
+          backgroundSize: '30px 30px',
           padding: '60px',
-          fontFamily: 'Roboto',
-          color: '#1e293b',
+          fontFamily: 'Poppins',
+          color: '#334155',
         },
       },
       [
-        // Header
+        // 1. Institution Logo & Address Header (Horizontal, left-aligned)
         React.createElement('div', {
           style: {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             width: '100%',
-            borderBottom: '3px solid #e2e8f0',
-            paddingBottom: '20px',
             marginBottom: '30px'
           }
         }, [
-          // Left Logo + Title
-          React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '15px' } }, [
-            // Styled Logo Emblem
+          // Left: BGN Logo (Emblem + "BADAN GIZI NASIONAL" text)
+          React.createElement('div', {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '15px'
+            }
+          }, [
+            // Circular emblem
             React.createElement('div', {
               style: {
-                width: '56px',
-                height: '56px',
-                borderRadius: '28px',
-                backgroundColor: '#1e3a8a',
+                width: '64px',
+                height: '64px',
+                borderRadius: '32px',
+                overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '3px solid #ffffff',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                backgroundColor: '#ffffff',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
               }
             }, [
-              React.createElement('span', { style: { color: '#ffffff', fontWeight: '900', fontSize: '18px' } }, 'BGN')
+              logoBase64
+                ? React.createElement('img', {
+                    src: logoBase64,
+                    style: {
+                      width: '64px',
+                      height: '64px'
+                    }
+                  })
+                : React.createElement('svg', {
+                    width: '32',
+                    height: '32',
+                    viewBox: '0 0 24 24',
+                    fill: 'none',
+                    stroke: '#2b4cbf',
+                    strokeWidth: '2.5',
+                    strokeLinecap: 'round',
+                    strokeLinejoin: 'round'
+                  }, [
+                    React.createElement('path', { d: 'M12 2L2 7l10 5 10-5-10-5z' }),
+                    React.createElement('path', { d: 'M2 17l10 5 10-5' }),
+                    React.createElement('path', { d: 'M2 12l10 5 10-5' })
+                  ])
             ]),
-            React.createElement('div', { style: { display: 'flex', flexDirection: 'column' } }, [
-              React.createElement('div', { style: { fontSize: '11px', fontWeight: '900', color: '#b45309', letterSpacing: '1.5px' } }, 'BADAN GIZI NASIONAL'),
-              React.createElement('div', { style: { fontSize: '20px', fontWeight: 'bold', color: '#1e3a8a' } }, `SPPG ${report.extracted_data?.sppg_name || 'Sikur Kotaraja 2'}`)
+            // Logo Text: "BADAN GIZI NASIONAL"
+            React.createElement('div', {
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                fontSize: '18px',
+                fontWeight: '900',
+                color: '#2b4cbf',
+                lineHeight: '1.0',
+                letterSpacing: '0.5px'
+              }
+            }, [
+              React.createElement('span', {}, 'BADAN'),
+              React.createElement('span', {}, 'GIZI'),
+              React.createElement('span', {}, 'NASIONAL')
             ])
           ]),
-          // Right Date Badge
+
+          // Right: SPPG / School details
           React.createElement('div', {
             style: {
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#475569',
-              backgroundColor: '#e2e8f0',
-              padding: '6px 16px',
-              borderRadius: '30px'
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              textAlign: 'right'
             }
-          }, `Tanggal: ${report.tanggal || '-'}`)
+          }, [
+            React.createElement('span', {
+              style: {
+                fontSize: '22px',
+                fontWeight: 'bold',
+                color: '#1e293b'
+              }
+            }, report.extracted_data?.sppg_name || 'Sekolah Salford & Co.'),
+            React.createElement('span', {
+              style: {
+                fontSize: '16px',
+                color: '#64748b',
+                marginTop: '4px'
+              }
+            }, report.extracted_data?.sppg_address || 'Jl. H. Sinarah Ibrahim, Sikur, Kec. Sikur')
+          ])
         ]),
 
-        // Grid Section (Middle Portion)
+        // 2. Large Titles (Centered)
+        React.createElement('div', {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginBottom: '30px'
+          }
+        }, [
+          React.createElement('div', {
+            style: {
+              display: 'flex',
+              gap: '12px',
+              fontSize: '84px',
+              fontWeight: '900',
+              lineHeight: '1.1'
+            }
+          }, [
+            React.createElement('span', { style: { color: '#2b4cbf' } }, 'Menu'),
+            React.createElement('span', { style: { color: '#0d9488' } }, 'MBG')
+          ]),
+          React.createElement('div', {
+            style: {
+              fontSize: '84px',
+              fontWeight: '900',
+              color: '#2b4cbf',
+              lineHeight: '1.1'
+            }
+          }, 'Hari ini'),
+          React.createElement('div', {
+            style: {
+              fontSize: '26px',
+              fontWeight: 'bold',
+              color: '#475569',
+              marginTop: '15px'
+            }
+          }, formatIndonesianDate(report.tanggal))
+        ]),
+
+        // 3. Centered Food Image with shadow
+        React.createElement('div', {
+          style: {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            marginBottom: '35px'
+          }
+        }, [
+          React.createElement('div', {
+            style: {
+              width: '680px',
+              height: '460px',
+              borderRadius: '24px',
+              backgroundColor: '#edf2f7',
+              border: '8px solid #ffffff',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              overflow: 'hidden',
+              display: 'flex',
+              position: 'relative'
+            }
+          }, [
+            embeddedPhotoUrl 
+              ? React.createElement('img', { 
+                  src: embeddedPhotoUrl, 
+                  style: { width: '100%', height: '100%', objectFit: 'cover' } 
+                })
+              : React.createElement('div', { 
+                  style: { 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    color: '#94a3b8', 
+                    fontSize: '24px', 
+                    fontWeight: 'bold' 
+                  } 
+                }, 'Foto Makanan Belum Tersedia')
+          ])
+        ]),
+
+        // 4. Split Cards (Menu Makanan & Gizi Info)
         React.createElement('div', {
           style: {
             display: 'flex',
             width: '100%',
             gap: '30px',
-            height: '700px',
-            marginBottom: '30px'
+            marginBottom: '35px',
+            alignItems: 'stretch'
           }
         }, [
-          // LEFT COLUMN (Nutrition Cards - Width: 48%)
-          (() => {
+          // Left Card: Menu Makanan (Teal Gradient/Solid)
+          React.createElement('div', {
+            style: {
+              width: '38%',
+              backgroundColor: '#14b8a6',
+              borderRadius: '24px',
+              padding: '25px',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+            }
+          }, [
+            React.createElement('span', {
+              style: {
+                fontSize: '26px',
+                fontWeight: 'bold',
+                color: '#ffffff',
+                marginBottom: '10px'
+              }
+            }, 'Menu Makanan'),
+            // Divider line
+            React.createElement('div', {
+              style: {
+                height: '1px',
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                width: '100%',
+                marginBottom: '15px'
+              }
+            }),
+            // Menu list items
+            React.createElement('div', {
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }
+            }, (() => {
+              const menuString = report.menu || '';
+              // Split by commas or newlines
+              const items = menuString.split(/[,;\n]+/).map((item: string) => item.trim()).filter(Boolean);
+              if (items.length === 0) {
+                return [React.createElement('span', { key: 'empty', style: { color: '#ffffff', fontSize: '20px' } }, '• -')];
+              }
+              return items.map((item: string, idx: number) => 
+                React.createElement('span', {
+                  key: idx,
+                  style: {
+                    color: '#ffffff',
+                    fontSize: '20px',
+                    fontWeight: 'bold'
+                  }
+                }, `• ${item}`)
+              );
+            })())
+          ]),
+
+          // Right Card: Gizi Comparison Table (Light Slate Card `#f1f5f9`)
+          React.createElement('div', {
+            style: {
+              width: '62%',
+              backgroundColor: '#f1f5f9',
+              borderRadius: '24px',
+              border: '1px solid #e2e8f0',
+              padding: '25px',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+            }
+          }, (() => {
             interface ExtractedNutritionalInfo {
               Energi?: number | null;
               energi?: number | null;
@@ -142,6 +380,8 @@ export async function generatePoster(reportId: string) {
               lemak?: number | null;
               Karbohidrat?: number | null;
               karbohidrat?: number | null;
+              Serat?: number | null;
+              serat?: number | null;
             }
 
             interface ExtractedMBGReport {
@@ -161,206 +401,152 @@ export async function generatePoster(reportId: string) {
             const proteinBesar = besar.Protein || besar.protein || report.protein || 0;
             const lemakBesar = besar.Lemak || besar.lemak || report.lemak || 0;
             const karbohidratBesar = besar.Karbohidrat || besar.karbohidrat || report.karbohidrat || 0;
+            const seratBesar = besar.Serat || besar.serat || report.serat || 0;
 
             const energiKecil = kecil.Energi || kecil.energi || 0;
             const proteinKecil = kecil.Protein || kecil.protein || 0;
             const lemakKecil = kecil.Lemak || kecil.lemak || 0;
             const karbohidratKecil = kecil.Karbohidrat || kecil.karbohidrat || 0;
+            const seratKecil = kecil.Serat || kecil.serat || 0;
 
-            return React.createElement('div', {
-              style: {
-                width: '48%',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '20px',
-                height: '100%'
-              }
-            }, [
-              // Porsi Besar (Soft Red Card)
+            const rows = [
+              { label: 'Energi', besarVal: `${energiBesar} kkal`, kecilVal: `${energiKecil} kkal` },
+              { label: 'Lemak', besarVal: `${lemakBesar} g`, kecilVal: `${lemakKecil} g` },
+              { label: 'Protein', besarVal: `${proteinBesar} g`, kecilVal: `${proteinKecil} g` },
+              { label: 'Karbohidrat', besarVal: `${karbohidratBesar} g`, kecilVal: `${karbohidratKecil} g` },
+              { label: 'Serat', besarVal: `${seratBesar} g`, kecilVal: `${seratKecil} g` }
+            ];
+
+            return [
+              // Header Row
               React.createElement('div', {
+                key: 'header',
                 style: {
-                  flex: 1,
                   display: 'flex',
-                  flexDirection: 'column',
-                  backgroundColor: '#fef2f2',
-                  borderRadius: '24px',
-                  padding: '25px',
-                  border: '1.5px solid #fecaca',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
+                  width: '100%',
+                  marginBottom: '15px',
+                  borderBottom: '2px solid #e2e8f0',
+                  paddingBottom: '8px'
                 }
               }, [
-                React.createElement('div', { style: { fontSize: '16px', fontWeight: '900', color: '#b91c1c', marginBottom: '15px', borderBottom: '1px solid #fee2e2', paddingBottom: '6px' } }, 'GIZI PORSI BESAR (SD-SMP)'),
-                React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '15px', flex: 1, alignItems: 'center' } }, [
-                  React.createElement('div', { style: { display: 'flex', flexDirection: 'column', width: '45%' } }, [
-                    React.createElement('span', { style: { fontSize: '11px', color: '#7f1d1d', fontWeight: 'bold' } }, 'Energi'),
-                    React.createElement('span', { style: { fontSize: '26px', fontWeight: '900', color: '#991b1b' } }, `${energiBesar} kcal`)
-                  ]),
-                  React.createElement('div', { style: { display: 'flex', flexDirection: 'column', width: '45%' } }, [
-                    React.createElement('span', { style: { fontSize: '11px', color: '#7f1d1d', fontWeight: 'bold' } }, 'Protein'),
-                    React.createElement('span', { style: { fontSize: '26px', fontWeight: '900', color: '#991b1b' } }, `${proteinBesar} g`)
-                  ]),
-                  React.createElement('div', { style: { display: 'flex', flexDirection: 'column', width: '45%' } }, [
-                    React.createElement('span', { style: { fontSize: '11px', color: '#7f1d1d', fontWeight: 'bold' } }, 'Lemak'),
-                    React.createElement('span', { style: { fontSize: '24px', fontWeight: '900', color: '#991b1b' } }, `${lemakBesar} g`)
-                  ]),
-                  React.createElement('div', { style: { display: 'flex', flexDirection: 'column', width: '45%' } }, [
-                    React.createElement('span', { style: { fontSize: '11px', color: '#7f1d1d', fontWeight: 'bold' } }, 'Karbohidrat'),
-                    React.createElement('span', { style: { fontSize: '24px', fontWeight: '900', color: '#991b1b' } }, `${karbohidratBesar} g`)
-                  ])
-                ])
+                React.createElement('span', { style: { width: '50%', fontSize: '22px', fontWeight: 'bold', color: '#1e293b' } }, 'Porsi Besar'),
+                React.createElement('span', { style: { width: '50%', fontSize: '22px', fontWeight: 'bold', color: '#1e293b' } }, 'Porsi Kecil')
               ]),
-
-              // Porsi Kecil (Soft Amber Card)
+              // Data Rows
               React.createElement('div', {
+                key: 'rows',
                 style: {
-                  flex: 1,
                   display: 'flex',
                   flexDirection: 'column',
-                  backgroundColor: '#fffbeb',
-                  borderRadius: '24px',
-                  padding: '25px',
-                  border: '1.5px solid #fef3c7',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
+                  gap: '12px'
                 }
-              }, [
-                React.createElement('div', { style: { fontSize: '16px', fontWeight: '900', color: '#b45309', marginBottom: '15px', borderBottom: '1px solid #fef9c3', paddingBottom: '6px' } }, 'GIZI PORSI KECIL (PAUD-TK)'),
-                React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '15px', flex: 1, alignItems: 'center' } }, [
-                  React.createElement('div', { style: { display: 'flex', flexDirection: 'column', width: '45%' } }, [
-                    React.createElement('span', { style: { fontSize: '11px', color: '#78350f', fontWeight: 'bold' } }, 'Energi'),
-                    React.createElement('span', { style: { fontSize: '26px', fontWeight: '900', color: '#92400e' } }, `${energiKecil} kcal`)
+              }, rows.map((row, idx) => 
+                React.createElement('div', {
+                  key: idx,
+                  style: {
+                    display: 'flex',
+                    width: '100%'
+                  }
+                }, [
+                  // Porsi Besar Column
+                  React.createElement('div', {
+                    key: 'besar',
+                    style: {
+                      width: '50%',
+                      display: 'flex',
+                      fontSize: '20px',
+                      color: '#475569'
+                    }
+                  }, [
+                    React.createElement('span', { style: { marginRight: '6px' } }, `${row.label} :`),
+                    React.createElement('span', { style: { fontWeight: 'bold', color: '#0f172a' } }, row.besarVal)
                   ]),
-                  React.createElement('div', { style: { display: 'flex', flexDirection: 'column', width: '45%' } }, [
-                    React.createElement('span', { style: { fontSize: '11px', color: '#78350f', fontWeight: 'bold' } }, 'Protein'),
-                    React.createElement('span', { style: { fontSize: '26px', fontWeight: '900', color: '#92400e' } }, `${proteinKecil} g`)
-                  ]),
-                  React.createElement('div', { style: { display: 'flex', flexDirection: 'column', width: '45%' } }, [
-                    React.createElement('span', { style: { fontSize: '11px', color: '#78350f', fontWeight: 'bold' } }, 'Lemak'),
-                    React.createElement('span', { style: { fontSize: '24px', fontWeight: '900', color: '#92400e' } }, `${lemakKecil} g`)
-                  ]),
-                  React.createElement('div', { style: { display: 'flex', flexDirection: 'column', width: '45%' } }, [
-                    React.createElement('span', { style: { fontSize: '11px', color: '#78350f', fontWeight: 'bold' } }, 'Karbohidrat'),
-                    React.createElement('span', { style: { fontSize: '24px', fontWeight: '900', color: '#92400e' } }, `${karbohidratKecil} g`)
+                  // Porsi Kecil Column
+                  React.createElement('div', {
+                    key: 'kecil',
+                    style: {
+                      width: '50%',
+                      display: 'flex',
+                      fontSize: '20px',
+                      color: '#475569'
+                    }
+                  }, [
+                    React.createElement('span', { style: { marginRight: '6px' } }, `${row.label} :`),
+                    React.createElement('span', { style: { fontWeight: 'bold', color: '#0f172a' } }, row.kecilVal)
                   ])
                 ])
-              ])
-            ]);
-          })(),
-
-          // RIGHT COLUMN (Food Photo with Location Overlay - Width: 48%)
-          React.createElement('div', {
-            style: {
-              width: '48%',
-              height: '100%',
-              borderRadius: '24px',
-              border: '1.5px solid #e2e8f0',
-              overflow: 'hidden',
-              display: 'flex',
-              position: 'relative',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)'
-            }
-          }, [
-            embeddedPhotoUrl 
-              ? React.createElement('img', { 
-                  src: embeddedPhotoUrl, 
-                  style: { width: '100%', height: '100%', objectFit: 'cover' } 
-                })
-              : React.createElement('div', { style: { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#e2e8f0', color: '#64748b', fontSize: '20px', fontWeight: 'bold' } }, 'FOTO MENU MAKANAN'),
-            
-            // Transparent location & menu overlay
-            React.createElement('div', {
-              style: {
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                backgroundImage: 'linear-gradient(to top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.65), transparent)',
-                padding: '30px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }
-            }, [
-              React.createElement('span', { style: { fontSize: '12px', fontWeight: '900', color: '#f59e0b', letterSpacing: '1px' } }, 'LOKASI LAYANAN'),
-              React.createElement('span', { style: { fontSize: '24px', fontWeight: 'bold', color: '#ffffff' } }, report.extracted_data?.sppg_name || 'Sikur Kotaraja 2'),
-              React.createElement('span', { style: { fontSize: '16px', fontWeight: 'bold', color: '#cbd5e1', marginTop: '5px' } }, `Menu: ${report.menu || '-'}`)
-            ])
-          ])
+              ))
+            ];
+          })())
         ]),
 
-        // Beneficiary row (Icons / Text Box list)
+        // 5. Footer Capsule Bar (Vibrant Indigo Blue background)
         React.createElement('div', {
           style: {
             display: 'flex',
-            width: '100%',
-            justifyContent: 'space-between',
-            gap: '15px',
-            marginBottom: '30px'
-          }
-        }, (() => {
-          interface ExtractedMBGReport {
-            B3?: { Balita?: number; Bumil?: number; Busui?: number };
-            b3?: { Balita?: number; Bumil?: number; Busui?: number };
-          }
-          const ext = (report.extracted_data || {}) as unknown as ExtractedMBGReport;
-          const b3Raw = ext.B3 || ext.b3 || {};
-          const balita = b3Raw.Balita || 0;
-          const bumil = b3Raw.Bumil || 0;
-          const busui = b3Raw.Busui || 0;
-
-          const groups = [
-            { label: 'SD/SMP', count: report.porsi_besar || 0, bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af' },
-            { label: 'PAUD/TK', count: report.porsi_kecil || 0, bg: '#ecfdf5', border: '#a7f3d0', text: '#047857' },
-            { label: 'Balita', count: balita, bg: '#fffbeb', border: '#fef3c7', text: '#b45309' },
-            { label: 'Ibu Hamil', count: bumil, bg: '#fdf2f8', border: '#fbcfe8', text: '#be185d' },
-            { label: 'Ibu Menyusui', count: busui, bg: '#faf5ff', border: '#e9d5ff', text: '#7e22ce' }
-          ];
-
-          return groups.map((g) => (
-            React.createElement('div', {
-              key: g.label,
-              style: {
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                backgroundColor: g.bg,
-                border: `1.5px solid ${g.border}`,
-                borderRadius: '20px',
-                padding: '12px 10px',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'
-              }
-            }, [
-              React.createElement('span', { style: { fontSize: '11px', fontWeight: 'bold', color: g.text, marginBottom: '4px' } }, g.label),
-              React.createElement('span', { style: { fontSize: '20px', fontWeight: '900', color: g.text } }, g.count.toString())
-            ])
-          ));
-        })()),
-
-        // Social Media Footer
-        React.createElement('div', {
-          style: {
-            display: 'flex',
-            justifyContent: 'center',
+            justifyContent: 'space-around',
             alignItems: 'center',
             width: '100%',
-            marginTop: 'auto',
-            borderTop: '2px solid #e2e8f0',
-            paddingTop: '20px',
-            fontSize: '14px',
-            color: '#64748b'
+            backgroundColor: '#2b4cbf',
+            borderRadius: '50px',
+            padding: '18px 45px',
+            boxShadow: '0 4px 10px rgba(43, 76, 191, 0.2)',
+            marginTop: 'auto'
           }
         }, [
-          React.createElement('div', { style: { display: 'flex', gap: '30px' } }, [
-            React.createElement('span', {}, 'IG: @badangizinasional.ri'),
-            React.createElement('span', {}, 'Web: bgn.go.id')
+          // Instagram Item
+          React.createElement('div', {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }
+          }, [
+            React.createElement('svg', {
+              width: '22',
+              height: '22',
+              viewBox: '0 0 24 24',
+              fill: 'none',
+              stroke: '#ffffff',
+              strokeWidth: '2.5',
+              strokeLinecap: 'round',
+              strokeLinejoin: 'round'
+            }, [
+              React.createElement('rect', { x: '2', y: '2', width: '20', height: '20', rx: '5', ry: '5' }),
+              React.createElement('path', { d: 'M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z' }),
+              React.createElement('line', { x1: '17.5', y1: '6.5', x2: '17.51', y2: '6.5' })
+            ]),
+            React.createElement('span', { style: { color: '#ffffff', fontSize: '16px', fontWeight: 'bold' } }, '@sppg_sikur2')
+          ]),
+          // Facebook Item
+          React.createElement('div', {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }
+          }, [
+            React.createElement('svg', {
+              width: '22',
+              height: '22',
+              viewBox: '0 0 24 24',
+              fill: 'none',
+              stroke: '#ffffff',
+              strokeWidth: '2.5',
+              strokeLinecap: 'round',
+              strokeLinejoin: 'round'
+            }, [
+              React.createElement('path', { d: 'M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z' })
+            ]),
+            React.createElement('span', { style: { color: '#ffffff', fontSize: '16px', fontWeight: 'bold' } }, 'SPPG Lombok Timur Sikur Sikur 2')
           ])
-        ]),
+        ])
       ]
     ),
     {
       width: 1080,
       height: 1350,
-      fonts: [{ name: 'Roboto', data: fontData, weight: 700, style: 'normal' }],
+      fonts: [{ name: 'Poppins', data: fontData, weight: 700, style: 'normal' }],
     }
   );
 

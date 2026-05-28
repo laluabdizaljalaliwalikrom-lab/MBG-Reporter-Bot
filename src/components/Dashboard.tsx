@@ -29,7 +29,11 @@ import {
   Locate,
   Bot,
   MessageSquare,
-  RefreshCw
+  RefreshCw,
+  Database,
+  Plus,
+  Trash2,
+  Edit
 } from "lucide-react";
 
 // Interfaces
@@ -121,7 +125,7 @@ export default function Dashboard() {
   // Derived state from reportsList
   const reports = reportsList;
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "pengaturan">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "pengaturan" | "sppg">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -221,8 +225,50 @@ export default function Dashboard() {
     }
   };
 
+  // SPPG States
+  interface SppgData {
+    id?: string;
+    nama_sppg: string;
+    porsi_kecil: number;
+    porsi_besar: number;
+    balita: number;
+    bumil: number;
+    busui: number;
+  }
+  const [sppgList, setSppgList] = useState<SppgData[]>([]);
+  const [loadingSppg, setLoadingSppg] = useState(false);
+  const [sppgForm, setSppgForm] = useState<SppgData>({
+    nama_sppg: "",
+    porsi_kecil: 0,
+    porsi_besar: 0,
+    balita: 0,
+    bumil: 0,
+    busui: 0
+  });
+  const [editingSppgId, setEditingSppgId] = useState<string | null>(null);
+  const [sppgSearch, setSppgSearch] = useState("");
+
+  const fetchSppgList = async () => {
+    setLoadingSppg(true);
+    try {
+      const res = await fetch("/api/sppg");
+      const json = await res.json();
+      if (json.status === "success") {
+        setSppgList(json.data || []);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil data SPPG:", err);
+    } finally {
+      setLoadingSppg(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSppgList();
+  }, []);
+
   // Form states for manual report submission
-  const [formSppgName, setFormSppgName] = useState("SPPG Lombok Timur Sikur Sikur 2");
+  const [formSppgName, setFormSppgName] = useState("");
   const [formTanggal, setFormTanggal] = useState(() => new Date().toISOString().split("T")[0]);
   const [formMenu, setFormMenu] = useState("");
   const [formPorsiBesar, setFormPorsiBesar] = useState<number>(0);
@@ -255,6 +301,76 @@ export default function Dashboard() {
         setFormImageBase64(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveSppg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sppgForm.nama_sppg.trim()) {
+      alert("Nama SPPG harus diisi!");
+      return;
+    }
+
+    try {
+      const method = editingSppgId ? "PUT" : "POST";
+      const res = await fetch("/api/sppg", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingSppgId ? { id: editingSppgId, ...sppgForm } : sppgForm)
+      });
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        showSettingsToast(
+          editingSppgId ? "Data SPPG berhasil diperbarui!" : "Data SPPG baru berhasil ditambahkan!",
+          "success"
+        );
+        setSppgForm({
+          nama_sppg: "",
+          porsi_kecil: 0,
+          porsi_besar: 0,
+          balita: 0,
+          bumil: 0,
+          busui: 0
+        });
+        setEditingSppgId(null);
+        fetchSppgList();
+      } else {
+        alert("Gagal menyimpan data SPPG: " + json.message);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleEditSppg = (sppg: SppgData) => {
+    if (!sppg.id) return;
+    setEditingSppgId(sppg.id);
+    setSppgForm({
+      nama_sppg: sppg.nama_sppg,
+      porsi_kecil: sppg.porsi_kecil,
+      porsi_besar: sppg.porsi_besar,
+      balita: sppg.balita,
+      bumil: sppg.bumil,
+      busui: sppg.busui
+    });
+  };
+
+  const handleDeleteSppg = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus data SPPG ini?")) return;
+
+    try {
+      const res = await fetch(`/api/sppg?id=${id}`, {
+        method: "DELETE"
+      });
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        showSettingsToast("Data SPPG berhasil dihapus!", "success");
+        fetchSppgList();
+      } else {
+        alert("Gagal menghapus data SPPG: " + json.message);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
     }
   };
 
@@ -493,8 +609,20 @@ export default function Dashboard() {
               <ClipboardList size={18} />
               <span>Laporan Harian</span>
             </button>
-
-
+            <button
+              onClick={() => {
+                setActiveTab("sppg");
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeTab === "sppg"
+                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+              }`}
+            >
+              <Database size={18} />
+              <span>Data SPPG</span>
+            </button>
 
             <button
               onClick={() => {
@@ -554,6 +682,7 @@ export default function Dashboard() {
                 {activeTab === "dashboard" && "Dashboard Utama"}
                 {activeTab === "laporan" && "Manajemen Laporan"}
                 {activeTab === "pengaturan" && "Pengaturan Sistem"}
+                {activeTab === "sppg" && "Data Master SPPG"}
               </h2>
               <p className="text-xs text-slate-400 hidden sm:block">
                 Sistem Pemantauan Makanan Bergizi Gratis (MBG) & Satuan Pelayanan Peningkatan Gizi (SPPG)
@@ -846,13 +975,43 @@ export default function Dashboard() {
 
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Satuan Pelayanan SPPG</label>
-                    <input
-                      type="text"
-                      placeholder="Masukkan nama SPPG..."
-                      value={formSppgName}
-                      onChange={(e) => setFormSppgName(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                    />
+                    <select
+                      value={sppgList.some(s => s.nama_sppg === formSppgName) ? formSppgName : (formSppgName ? "__custom__" : "")}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "__custom__") {
+                          setFormSppgName("");
+                        } else {
+                          setFormSppgName(val);
+                          const selectedSppg = sppgList.find(s => s.nama_sppg === val);
+                          if (selectedSppg) {
+                            setFormPorsiBesar(selectedSppg.porsi_besar);
+                            setFormPorsiKecil(selectedSppg.porsi_kecil);
+                            setFormBalita(selectedSppg.balita);
+                            setFormBumil(selectedSppg.bumil);
+                            setFormBusui(selectedSppg.busui);
+                          }
+                        }
+                      }}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs cursor-pointer mb-2"
+                    >
+                      <option value="">-- Pilih SPPG --</option>
+                      {sppgList.map((sppg) => (
+                        <option key={sppg.id} value={sppg.nama_sppg}>
+                          {sppg.nama_sppg}
+                        </option>
+                      ))}
+                      <option value="__custom__">Input Manual / SPPG Baru...</option>
+                    </select>
+                    {(!sppgList.some(s => s.nama_sppg === formSppgName) || formSppgName === "") && (
+                      <input
+                        type="text"
+                        placeholder="Ketik nama SPPG manual..."
+                        value={formSppgName}
+                        onChange={(e) => setFormSppgName(e.target.value)}
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      />
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -1165,6 +1324,208 @@ export default function Dashboard() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}          {/* TAB 3: MASTER DATA SPPG */}
+          {activeTab === "sppg" && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Form SPPG */}
+              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl h-fit">
+                <h3 className="text-lg font-bold text-white mb-2">
+                  {editingSppgId ? "Edit Data SPPG" : "Tambah SPPG Baru"}
+                </h3>
+                <p className="text-xs text-slate-400 mb-6">
+                  Input data master SPPG beserta jumlah penerima manfaat bawaannya.
+                </p>
+
+                <form onSubmit={handleSaveSppg} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Nama SPPG</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: SPPG Lombok Timur"
+                      value={sppgForm.nama_sppg}
+                      onChange={(e) => setSppgForm({ ...sppgForm, nama_sppg: e.target.value })}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP)</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={sppgForm.porsi_besar || ""}
+                        onChange={(e) => setSppgForm({ ...sppgForm, porsi_besar: Number(e.target.value) })}
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Porsi Kecil (PAUD-TK)</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={sppgForm.porsi_kecil || ""}
+                        onChange={(e) => setSppgForm({ ...sppgForm, porsi_kecil: Number(e.target.value) })}
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-800 pt-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase block mb-3">PMT B3</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-semibold text-slate-400 uppercase">Balita</label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={sppgForm.balita || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, balita: Number(e.target.value) })}
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-250 outline-none focus:border-indigo-500 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-semibold text-slate-400 uppercase">Bumil</label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={sppgForm.bumil || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, bumil: Number(e.target.value) })}
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-250 outline-none focus:border-indigo-500 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-semibold text-slate-400 uppercase">Busui</label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={sppgForm.busui || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, busui: Number(e.target.value) })}
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-250 outline-none focus:border-indigo-500 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                    {editingSppgId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSppgId(null);
+                          setSppgForm({
+                            nama_sppg: "",
+                            porsi_kecil: 0,
+                            porsi_besar: 0,
+                            balita: 0,
+                            bumil: 0,
+                            busui: 0
+                          });
+                        }}
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300"
+                      >
+                        Batal
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 rounded-xl text-xs font-semibold text-white shadow-md shadow-indigo-600/10 flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>{editingSppgId ? "Simpan Perubahan" : "Tambah SPPG"}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Tabel SPPG */}
+              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl lg:col-span-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Daftar SPPG</h3>
+                    <p className="text-xs text-slate-400">Total terdaftar: {sppgList.length} SPPG</p>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                    <input
+                      type="text"
+                      placeholder="Cari SPPG..."
+                      value={sppgSearch}
+                      onChange={(e) => setSppgSearch(e.target.value)}
+                      className="pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none w-full sm:w-56"
+                    />
+                  </div>
+                </div>
+
+                {loadingSppg ? (
+                  <div className="py-12 flex justify-center items-center text-slate-400 text-xs gap-2">
+                    <RefreshCw className="animate-spin" size={16} />
+                    <span>Memuat data SPPG...</span>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider bg-slate-950/20">
+                          <th className="py-3 px-4">Nama SPPG</th>
+                          <th className="py-3 px-4 text-center">Porsi Bsr / Kcl</th>
+                          <th className="py-3 px-4 text-center">PMT (Balita/Bml/Bsi)</th>
+                          <th className="py-3 px-4 text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {sppgList.filter(s => s.nama_sppg.toLowerCase().includes(sppgSearch.toLowerCase())).length > 0 ? (
+                          sppgList
+                            .filter(s => s.nama_sppg.toLowerCase().includes(sppgSearch.toLowerCase()))
+                            .map((sppg) => (
+                              <tr key={sppg.id} className="text-xs text-slate-350 hover:bg-slate-900/20 transition-colors">
+                                <td className="py-3.5 px-4 font-semibold text-white">{sppg.nama_sppg}</td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span className="text-indigo-400 font-medium">{sppg.porsi_besar}</span>
+                                  <span className="text-slate-500 mx-1">/</span>
+                                  <span className="text-emerald-400 font-medium">{sppg.porsi_kecil}</span>
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span>{sppg.balita}</span>
+                                  <span className="text-slate-600 mx-1">|</span>
+                                  <span>{sppg.bumil}</span>
+                                  <span className="text-slate-600 mx-1">|</span>
+                                  <span>{sppg.busui}</span>
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <button
+                                      onClick={() => handleEditSppg(sppg)}
+                                      className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-indigo-400 hover:text-indigo-300 rounded-lg transition-colors"
+                                      title="Edit SPPG"
+                                    >
+                                      <Edit size={12} />
+                                    </button>
+                                    <button
+                                      onClick={() => sppg.id && handleDeleteSppg(sppg.id)}
+                                      className="p-1.5 bg-slate-900 hover:bg-red-950/40 border border-slate-800 hover:border-red-900/30 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
+                                      title="Hapus SPPG"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="py-8 px-4 text-center text-slate-500">
+                              Tidak ada data SPPG yang ditemukan.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}

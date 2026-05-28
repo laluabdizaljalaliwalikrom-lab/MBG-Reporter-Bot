@@ -221,6 +221,7 @@ export async function POST(req: Request) {
 
         try {
           extractedData = await extractDataWithAI(messageText);
+          console.log("Extracted Data from Gemini:", JSON.stringify(extractedData, null, 2));
           if (extractedData.error) {
             throw new Error(extractedData.error);
           }
@@ -362,11 +363,11 @@ async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> 
 }
 
 // Map parsed JSON fields to db column names
-function mapExtractedToColumns(data: Partial<MBGReportData>) {
+function mapExtractedToColumns(data: any) {
   return {
-    tanggal: data.Tanggal || null,
-    porsi_besar: data["Porsi Besar"] || data.porsi_besar || null,
-    porsi_kecil: data["Porsi Kecil"] || data.porsi_kecil || null,
+    tanggal: data.Tanggal || data.tanggal || null,
+    porsi_besar: data["Porsi Besar"] || data.porsi_besar || data.porsiBesar || null,
+    porsi_kecil: data["Porsi Kecil"] || data.porsi_kecil || data.porsiKecil || null,
     menu: data.Menu || data.menu || null,
     energi: data.Energi || data.energi || null,
     protein: data.Protein || data.protein || null,
@@ -377,14 +378,24 @@ function mapExtractedToColumns(data: Partial<MBGReportData>) {
 }
 
 // Format a readable summary message for user verification
-function formatSummary(data: Partial<MBGReportData>) {
-  return `📅 *Tanggal:* ${data.Tanggal || "-"}
-🍴 *Menu:* ${data.Menu || "-"}
-👥 *Porsi:* ${data["Porsi Besar"] || 0} Besar (SD-SMP), ${data["Porsi Kecil"] || 0} Kecil (PAUD)
-🔥 *Energi:* ${data.Energi || 0} kcal
-🥩 *Protein:* ${data.Protein || 0} g
-🧈 *Lemak:* ${data.Lemak || 0} g
-🍚 *Karbohidrat:* ${data.Karbohidrat || 0} g
-🥦 *Serat:* ${data.Serat || 0} g`;
+function formatSummary(data: any) {
+  const tanggal = data.Tanggal || data.tanggal || "-";
+  const menu = data.Menu || data.menu || "-";
+  const porsiBesar = data["Porsi Besar"] || data.porsi_besar || data.porsiBesar || 0;
+  const porsiKecil = data["Porsi Kecil"] || data.porsi_kecil || data.porsiKecil || 0;
+  const energi = data.Energi || data.energi || 0;
+  const protein = data.Protein || data.protein || 0;
+  const lemak = data.Lemak || data.lemak || 0;
+  const karbohidrat = data.Karbohidrat || data.karbohidrat || 0;
+  const serat = data.Serat || data.serat || 0;
+
+  return `📅 *Tanggal:* ${tanggal}
+🍴 *Menu:* ${menu}
+👥 *Porsi:* ${porsiBesar} Besar (SD-SMP), ${porsiKecil} Kecil (PAUD)
+🔥 *Energi:* ${energi} kcal
+🥩 *Protein:* ${protein} g
+🧈 *Lemak:* ${lemak} g
+🍚 *Karbohidrat:* ${karbohidrat} g
+🥦 *Serat:* ${serat} g`;
 }
 

@@ -242,6 +242,9 @@ export default function Dashboard() {
   const [formImageBase64, setFormImageBase64] = useState("");
   const [formTargetNumber, setFormTargetNumber] = useState("");
   const [formIsSubmitting, setFormIsSubmitting] = useState(false);
+  const [formPreviewData, setFormPreviewData] = useState<{ reportId: string; posterUrl: string; caption: string } | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [formIsConfirming, setFormIsConfirming] = useState(false);
 
   // Helper to handle image file input to base64 conversion
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,6 +269,7 @@ export default function Dashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "preview",
           sppgName: formSppgName,
           tanggal: formTanggal,
           menu: formMenu,
@@ -282,24 +286,64 @@ export default function Dashboard() {
       });
 
       const resData = await response.json();
-      if (response.ok) {
-        showSettingsToast("Laporan sukses disimpan & dikirim ke WhatsApp!", "success");
-        // Reset form
-        setFormMenu("");
-        setFormPorsiBesar(0);
-        setFormPorsiKecil(0);
-        setFormBalita(0);
-        setFormBumil(0);
-        setFormBusui(0);
-        setFormImageBase64("");
+      if (response.ok && resData.action === "preview_ready") {
+        setFormPreviewData({
+          reportId: resData.reportId,
+          posterUrl: resData.posterUrl,
+          caption: resData.caption
+        });
+        setShowPreviewModal(true);
       } else {
-        alert("Gagal mengirim laporan: " + resData.message);
+        alert("Gagal membuat pratinjau: " + resData.message);
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Terjadi kesalahan internal.";
       alert("Error: " + errorMsg);
     } finally {
       setFormIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmReport = async (confirmAction: "confirm" | "cancel") => {
+    if (!formPreviewData) return;
+    setFormIsConfirming(true);
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: confirmAction,
+          reportId: formPreviewData.reportId,
+          targetNumber: formTargetNumber
+        })
+      });
+
+      const resData = await response.json();
+      if (response.ok) {
+        if (confirmAction === "confirm") {
+          showSettingsToast("Laporan sukses disetujui & dikirim ke WhatsApp!", "success");
+          // Reset form
+          setFormMenu("");
+          setFormPorsiBesar(0);
+          setFormPorsiKecil(0);
+          setFormBalita(0);
+          setFormBumil(0);
+          setFormBusui(0);
+          setFormImageBase64("");
+          setFormTargetNumber("");
+        } else {
+          showSettingsToast("Draf laporan berhasil dibatalkan/revisi.", "success");
+        }
+        setShowPreviewModal(false);
+        setFormPreviewData(null);
+      } else {
+        alert("Gagal memproses persetujuan: " + resData.message);
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Terjadi kesalahan.";
+      alert("Error: " + errorMsg);
+    } finally {
+      setFormIsConfirming(false);
     }
   };
 
@@ -1073,7 +1117,7 @@ export default function Dashboard() {
                       }`}
                     >
                       {formIsSubmitting && <RefreshCw size={14} className="animate-spin" />}
-                      <span>{formIsSubmitting ? "Mengirim..." : "Kirim Laporan & WhatsApp"}</span>
+                      <span>{formIsSubmitting ? "Memproses..." : "Pratinjau Laporan"}</span>
                     </button>
                   </div>
                 </form>
@@ -1601,6 +1645,81 @@ export default function Dashboard() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- PREVIEW MODAL --- */}
+      {showPreviewModal && formPreviewData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-5xl w-full overflow-hidden shadow-2xl flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-850 bg-slate-950/40 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <h3 className="font-bold text-white text-base">Pratinjau Poster & Teks Laporan</h3>
+                <p className="text-[10px] text-slate-500">Tinjau poster dan teks laporan sebelum dikirim ke grup pemangku kepentingan.</p>
+              </div>
+              <button
+                onClick={() => handleConfirmReport("cancel")}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-850 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[65vh] overflow-y-auto">
+              {/* Left Column: Poster Image Preview */}
+              <div className="space-y-2 flex flex-col items-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider self-start">Draft Poster Laporan</span>
+                <div className="w-full max-w-[400px] aspect-[800/1100] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
+                  {formPreviewData.posterUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img 
+                      src={formPreviewData.posterUrl} 
+                      alt="Laporan Poster" 
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-slate-500">
+                      <RefreshCw size={24} className="animate-spin text-indigo-500" />
+                      <span className="text-xs">Membuat Poster...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: WhatsApp Caption Preview */}
+              <div className="space-y-2 flex flex-col">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Teks Laporan WhatsApp</span>
+                <div className="flex-1 p-4 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] text-slate-350 overflow-y-auto whitespace-pre-wrap select-all leading-relaxed shadow-inner">
+                  {formPreviewData.caption}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-850 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={formIsConfirming}
+                onClick={() => handleConfirmReport("cancel")}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
+              >
+                Revisi / Batal
+              </button>
+              <button
+                type="button"
+                disabled={formIsConfirming}
+                onClick={() => handleConfirmReport("confirm")}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${
+                  formIsConfirming ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-650 hover:bg-indigo-600 shadow-md"
+                }`}
+              >
+                {formIsConfirming && <RefreshCw size={14} className="animate-spin" />}
+                <span>{formIsConfirming ? "Mengirim..." : "Setujui & Kirim ke WhatsApp"}</span>
+              </button>
             </div>
           </div>
         </div>

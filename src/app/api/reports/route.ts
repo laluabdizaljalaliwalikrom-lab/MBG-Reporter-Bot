@@ -32,6 +32,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
+      action = "preview",
+      reportId,
       sppgName,
       tanggal,
       menu,
@@ -46,7 +48,99 @@ export async function POST(request: Request) {
       targetNumber
     } = body;
 
-    // Validate essential fields
+    // --- ACTION: CANCEL ---
+    if (action === "cancel") {
+      if (!reportId) {
+        return NextResponse.json({ status: "error", message: "Report ID wajib disertakan untuk pembatalan." }, { status: 400 });
+      }
+      await supabase
+        .from("mbg_reports")
+        .update({ status: "CANCELLED" })
+        .eq("id", reportId);
+
+      return NextResponse.json({ status: "success", message: "Laporan berhasil dibatalkan." });
+    }
+
+    // --- ACTION: CONFIRM (APPROVE & SEND) ---
+    if (action === "confirm") {
+      if (!reportId) {
+        return NextResponse.json({ status: "error", message: "Report ID wajib disertakan untuk pengiriman." }, { status: 400 });
+      }
+
+      // Fetch the draft report
+      const { data: report, error: fetchError } = await supabase
+        .from("mbg_reports")
+        .select("*")
+        .eq("id", reportId)
+        .single();
+
+      if (fetchError || !report) {
+        return NextResponse.json({ status: "error", message: "Laporan tidak ditemukan." }, { status: 404 });
+      }
+
+      let posterUrl = report.poster_url;
+      if (!posterUrl) {
+        posterUrl = await generatePoster(report.id);
+      }
+
+      // Parse nested gizi & B3 from extracted_data
+      const ext = report.extracted_data || {};
+      const besar = ext["Porsi Besar"] || {};
+      const kecil = ext["Porsi Kecil"] || {};
+      const b3 = ext["B3"] || {};
+
+      const balitaVal = b3.Balita || 0;
+      const bumilVal = b3.Bumil || 0;
+      const busuiVal = b3.Busui || 0;
+      const totalPenerima = (report.porsi_besar || 0) + (report.porsi_kecil || 0) + balitaVal + bumilVal + busuiVal;
+
+      // Construct official caption
+      const caption =
+        `📢 *LAPORAN RESMI MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
+        `🏫 *SPPG:* ${ext.sppg_name || "SPPG Wilayah"}\n` +
+        `📅 *Tanggal:* ${report.tanggal || "-"}\n` +
+        `🍴 *Menu:* ${report.menu || "-"}\n` +
+        `👥 *Jumlah Penerima:* ${totalPenerima} Orang\n` +
+        `   - Porsi Besar (SD-SMP): ${report.porsi_besar || 0} Anak\n` +
+        `   - Porsi Kecil (PAUD-TK): ${report.porsi_kecil || 0} Anak\n` +
+        `   - PMT B3 Balita: ${balitaVal} Anak\n` +
+        `   - PMT B3 Bumil: ${bumilVal} Ibu\n` +
+        `   - PMT B3 Busui: ${busuiVal} Ibu\n\n` +
+        `🍱 *Nilai Gizi Porsi Besar (SD-SMP):*\n` +
+        `   - Energi: ${besar.Energi || report.energi || 0} kcal\n` +
+        `   - Protein: ${besar.Protein || report.protein || 0} g\n` +
+        `   - Lemak: ${besar.Lemak || report.lemak || 0} g\n` +
+        `   - Karbohidrat: ${besar.Karbohidrat || report.karbohidrat || 0} g\n` +
+        `   - Serat: ${besar.Serat || report.serat || 0} g\n\n` +
+        `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK):*\n` +
+        `   - Energi: ${kecil.Energi || 0} kcal\n` +
+        `   - Protein: ${kecil.Protein || 0} g\n` +
+        `   - Lemak: ${kecil.Lemak || 0} g\n` +
+        `   - Karbohidrat: ${kecil.Karbohidrat || 0} g\n` +
+        `   - Serat: ${kecil.Serat || 0} g\n\n` +
+        `✅ Laporan telah disetujui oleh Kepala SPPG.`;
+
+      // Update status to SENT in Database
+      await supabase
+        .from("mbg_reports")
+        .update({ status: "SENT" })
+        .eq("id", report.id);
+
+      // Dispatch to WhatsApp
+      const whatsappDestination = targetNumber || process.env.WHATSAPP_GROUP_ID || report.whatsapp_from || "";
+      if (whatsappDestination) {
+        await sendWhatsAppMedia(whatsappDestination, posterUrl, caption);
+      }
+
+      return NextResponse.json({
+        status: "success",
+        message: "Laporan resmi berhasil disetujui dan dikirim ke WhatsApp!",
+        reportId: report.id,
+        posterUrl
+      });
+    }
+
+    // --- ACTION: PREVIEW (DEFAULT) ---
     if (!tanggal || !menu) {
       return NextResponse.json(
         { status: "error", message: "Tanggal dan Menu Makanan wajib diisi." },
@@ -54,7 +148,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Insert initial record with status DRAFT
     const totalPenerima = Number(porsiBesar) + Number(porsiKecil) + Number(balita) + Number(bumil) + Number(busui);
 
     const extractedData = {
@@ -68,6 +161,7 @@ export async function POST(request: Request) {
       }
     };
 
+    // Insert as DRAFT
     const { data: newReport, error: insertError } = await supabase
       .from("mbg_reports")
       .insert({
@@ -95,12 +189,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Handle photo upload if bufferImage is provided
+    // Upload photo
     let uploadedPhotoUrl = "";
     if (bufferImage) {
       try {
         uploadedPhotoUrl = await uploadPhotoToStorage(bufferImage, newReport.id);
-        // Update report with photo URL
         await supabase
           .from("mbg_reports")
           .update({ photo_url: uploadedPhotoUrl })
@@ -110,26 +203,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Generate poster
+    // Generate poster preview
     let posterUrl = "";
     try {
       posterUrl = await generatePoster(newReport.id);
     } catch (err) {
       console.error("Poster generation failed:", err);
       return NextResponse.json(
-        { status: "error", message: "Laporan disimpan tetapi pembuatan poster gagal." },
+        { status: "error", message: "Gagal membuat draf poster laporan harian." },
         { status: 500 }
       );
     }
 
-    // 4. Update status to SENT
-    await supabase
-      .from("mbg_reports")
-      .update({ status: "SENT" })
-      .eq("id", newReport.id);
-
-    // 5. Construct official report caption
-    const caption =
+    // Construct caption preview
+    const previewCaption =
       `📢 *LAPORAN HARIAN MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
       `🏫 *SPPG:* ${sppgName || "SPPG Wilayah"}\n` +
       `📅 *Tanggal:* ${tanggal || "-"}\n` +
@@ -154,27 +241,12 @@ export async function POST(request: Request) {
       `   - Serat: ${giziKecil.Serat || 0} g\n\n` +
       `✅ Laporan telah disetujui dan dikirim via Dashboard.`;
 
-    // 6. Send WhatsApp poster + message to WhatsApp group or target
-    const whatsappDestination = targetNumber || process.env.WHATSAPP_GROUP_ID || "";
-    if (whatsappDestination) {
-      try {
-        await sendWhatsAppMedia(whatsappDestination, posterUrl, caption);
-      } catch (err) {
-        console.error("WhatsApp dispatch failed:", err);
-        return NextResponse.json({
-          status: "success",
-          message: "Laporan tersimpan di database dan poster terbuat, tetapi gagal terkirim ke WhatsApp.",
-          reportId: newReport.id,
-          posterUrl
-        });
-      }
-    }
-
     return NextResponse.json({
       status: "success",
-      message: "Laporan berhasil disimpan, poster terbuat, dan dikirim ke WhatsApp!",
+      action: "preview_ready",
       reportId: newReport.id,
-      posterUrl
+      posterUrl,
+      caption: previewCaption
     });
   } catch (error: unknown) {
     console.error("Error processing dashboard report:", error);

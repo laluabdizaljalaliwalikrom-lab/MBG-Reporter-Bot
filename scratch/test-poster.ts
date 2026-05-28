@@ -33,7 +33,7 @@ async function run() {
     const { supabase } = await import('../src/lib/supabase');
     const { data, error } = await supabase
       .from('mbg_reports')
-      .select('id, tanggal, menu')
+      .select('id, tanggal, menu, photo_url, extracted_data')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -47,7 +47,7 @@ async function run() {
       process.exit(1);
     }
     reportId = data.id;
-    console.log(`Found latest report: ID=${data.id}, Tanggal=${data.tanggal}, Menu=${data.menu}`);
+    console.log(`Found latest report: ID=${data.id}, Tanggal=${data.tanggal}, Menu=${data.menu}, PhotoURL=${data.photo_url}`);
   }
 
   console.log(`Testing generatePoster for report ID: ${reportId}`);

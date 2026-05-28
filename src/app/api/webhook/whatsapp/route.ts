@@ -427,7 +427,14 @@ async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> 
     try {
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      const jsonStr = response.text().trim();
+      const rawText = response.text().trim();
+      
+      // Clean markdown code blocks if the model wrapped the JSON in backticks
+      let jsonStr = rawText;
+      if (jsonStr.startsWith("```")) {
+        jsonStr = jsonStr.replace(/```json|```/g, "").trim();
+      }
+      
       return JSON.parse(jsonStr) as Partial<MBGReportData>;
     } catch (e: unknown) {
       lastError = e;

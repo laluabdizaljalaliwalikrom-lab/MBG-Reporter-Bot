@@ -322,28 +322,30 @@ async function uploadPhotoToStorage(imageUrl: string, reportId: string): Promise
 // Extract data from raw WhatsApp message using Gemini AI
 async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+      responseMimeType: "application/json"
+    }
+  });
 
   const prompt = `
     Anda adalah asisten data Badan Gizi Nasional. Tugas Anda adalah mengekstrak teks laporan harian MBG menjadi format JSON.
 
     Aturan:
-    1. Keluarkan output HANYA dalam format JSON.
-    2. Jangan tambahkan penjelasan atau kata-kata tambahan di luar JSON.
-    3. Gunakan skema JSON berikut:
+    1. Gunakan skema JSON berikut:
        {
          "Tanggal": "YYYY-MM-DD",
-         "Porsi Besar": number,
-         "Porsi Kecil": number,
+         "Porsi Besar": number atau null,
+         "Porsi Kecil": number atau null,
          "Menu": "string",
-         "Energi": float,
-         "Protein": float,
-         "Lemak": float,
-         "Karbohidrat": float,
-         "Serat": float
+         "Energi": float atau null,
+         "Protein": float atau null,
+         "Lemak": float atau null,
+         "Karbohidrat": float atau null,
+         "Serat": float atau null
        }
-    4. Jika ada informasi yang hilang, isi dengan null.
-    5. Pastikan angka gizi dikonversi menjadi format float (desimal), bukan string.
+    2. Pastikan angka gizi dikonversi menjadi format float (desimal) atau integer, bukan string.
 
     Teks Laporan: "${text}"
   `;
@@ -351,7 +353,7 @@ async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> 
   try {
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const jsonStr = response.text().trim().replace(/```json|```/g, "").trim();
+    const jsonStr = response.text().trim();
     return JSON.parse(jsonStr) as Partial<MBGReportData>;
   } catch (e: unknown) {
     console.error("Gemini Parsing failed:", e);

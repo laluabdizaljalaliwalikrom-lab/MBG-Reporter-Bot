@@ -8,20 +8,45 @@ import { parseManualInput, type MBGReportData } from "@/lib/parseManualInput";
 export const dynamic = "force-dynamic";
 
 // Webhook payload interface to support strict type-checking
-interface WebhookPayload {
-  messages?: Array<{
-    from: string;
-    type: string;
-    text?: { body: string };
-    image?: { link: string; caption: string };
-  }>;
-  message?: string;
-  sender?: string;
-  url?: string;
-  text?: string;
-  from?: string;
-  imageUrl?: string;
-  mediaUrl?: string;
+interface ExtractedNutritionalInfo {
+  Jumlah?: number | null;
+  jumlah?: number | null;
+  Energi?: number | null;
+  energi?: number | null;
+  Protein?: number | null;
+  protein?: number | null;
+  Lemak?: number | null;
+  lemak?: number | null;
+  Karbohidrat?: number | null;
+  karbohidrat?: number | null;
+  Serat?: number | null;
+  serat?: number | null;
+  [key: string]: unknown;
+}
+
+interface ExtractedMBGReport {
+  Tanggal?: string | null;
+  tanggal?: string | null;
+  Menu?: string | null;
+  menu?: string | null;
+  "Porsi Besar"?: ExtractedNutritionalInfo | number | null;
+  porsi_besar?: ExtractedNutritionalInfo | number | null;
+  porsiBesar?: ExtractedNutritionalInfo | number | null;
+  "Porsi Kecil"?: ExtractedNutritionalInfo | number | null;
+  porsi_kecil?: ExtractedNutritionalInfo | number | null;
+  porsiKecil?: ExtractedNutritionalInfo | number | null;
+  Energi?: number | null;
+  energi?: number | null;
+  Protein?: number | null;
+  protein?: number | null;
+  Lemak?: number | null;
+  lemak?: number | null;
+  Karbohidrat?: number | null;
+  karbohidrat?: number | null;
+  Serat?: number | null;
+  serat?: number | null;
+  error?: string;
+  [key: string]: unknown;
 }
 
 // Database schema matching interface
@@ -118,19 +143,45 @@ export async function POST(req: Request) {
         posterUrl = await generatePoster(existingDraft.id);
       }
 
+      // Try to read nested gizi from JSONB extracted_data
+      const ext = (existingDraft.extracted_data || {}) as ExtractedMBGReport;
+      const besarRaw = ext["Porsi Besar"] || ext.porsi_besar;
+      const besar = (besarRaw && typeof besarRaw === "object") ? (besarRaw as ExtractedNutritionalInfo) : {};
+      const kecilRaw = ext["Porsi Kecil"] || ext.porsi_kecil;
+      const kecil = (kecilRaw && typeof kecilRaw === "object") ? (kecilRaw as ExtractedNutritionalInfo) : {};
+
+      const energiBesar = besar.Energi || besar.energi || existingDraft.energi || 0;
+      const proteinBesar = besar.Protein || besar.protein || existingDraft.protein || 0;
+      const lemakBesar = besar.Lemak || besar.lemak || existingDraft.lemak || 0;
+      const karbohidratBesar = besar.Karbohidrat || besar.karbohidrat || existingDraft.karbohidrat || 0;
+      const seratBesar = besar.Serat || besar.serat || existingDraft.serat || 0;
+
+      const energiKecil = kecil.Energi || kecil.energi || 0;
+      const proteinKecil = kecil.Protein || kecil.protein || 0;
+      const lemakKecil = kecil.Lemak || kecil.lemak || 0;
+      const karbohidratKecil = kecil.Karbohidrat || kecil.karbohidrat || 0;
+      const seratKecil = kecil.Serat || kecil.serat || 0;
+
       // Construct official report caption
       const caption =
         `📢 *LAPORAN RESMI MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
         `📅 *Tanggal:* ${existingDraft.tanggal || "-"}\n` +
         `🍴 *Menu:* ${existingDraft.menu || "-"}\n` +
         `👥 *Jumlah Penerima:* ${(existingDraft.porsi_besar || 0) + (existingDraft.porsi_kecil || 0)} Anak\n` +
-        `   - Porsi Besar (SD-SMP): ${existingDraft.porsi_besar || 0}\n` +
-        `   - Porsi Kecil (PAUD-TK): ${existingDraft.porsi_kecil || 0}\n\n` +
-        `🔥 *Energi:* ${existingDraft.energi || 0} kcal\n` +
-        `🥩 *Protein:* ${existingDraft.protein || 0} g\n` +
-        `🧈 *Lemak:* ${existingDraft.lemak || 0} g\n` +
-        `🍚 *Karbohidrat:* ${existingDraft.karbohidrat || 0} g\n` +
-        `🥦 *Serat:* ${existingDraft.serat || 0} g\n\n` +
+        `   - Porsi Besar (SD-SMP): ${existingDraft.porsi_besar || 0} Anak\n` +
+        `   - Porsi Kecil (PAUD-TK): ${existingDraft.porsi_kecil || 0} Anak\n\n` +
+        `🍱 *Nilai Gizi Porsi Besar (SD-SMP):*\n` +
+        `   - Energi: ${energiBesar} kcal\n` +
+        `   - Protein: ${proteinBesar} g\n` +
+        `   - Lemak: ${lemakBesar} g\n` +
+        `   - Karbohidrat: ${karbohidratBesar} g\n` +
+        `   - Serat: ${seratBesar} g\n\n` +
+        `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK):*\n` +
+        `   - Energi: ${energiKecil} kcal\n` +
+        `   - Protein: ${proteinKecil} g\n` +
+        `   - Lemak: ${lemakKecil} g\n` +
+        `   - Karbohidrat: ${karbohidratKecil} g\n` +
+        `   - Serat: ${seratKecil} g\n\n` +
         `✅ Laporan telah disetujui oleh Kepala SPPG.`;
 
       // Send poster to the Stakeholder Group via MPWA sendWhatsAppMedia
@@ -211,7 +262,7 @@ export async function POST(req: Request) {
       messageText.toUpperCase().includes("LAPORAN");
 
     if (isReportKeyword) {
-      let extractedData: Partial<MBGReportData>;
+      let extractedData: ExtractedMBGReport;
 
       if (isManualMBG) {
         await sendWhatsAppMessage(sender, "📝 Memproses data laporan manual...");
@@ -337,14 +388,23 @@ async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> 
     1. Gunakan skema JSON berikut:
        {
          "Tanggal": "YYYY-MM-DD",
-         "Porsi Besar": number atau null,
-         "Porsi Kecil": number atau null,
          "Menu": "string",
-         "Energi": float atau null,
-         "Protein": float atau null,
-         "Lemak": float atau null,
-         "Karbohidrat": float atau null,
-         "Serat": float atau null
+         "Porsi Besar": {
+           "Jumlah": number atau null,
+           "Energi": float atau null,
+           "Protein": float atau null,
+           "Lemak": float atau null,
+           "Karbohidrat": float atau null,
+           "Serat": float atau null
+         },
+         "Porsi Kecil": {
+           "Jumlah": number atau null,
+           "Energi": float atau null,
+           "Protein": float atau null,
+           "Lemak": float atau null,
+           "Karbohidrat": float atau null,
+           "Serat": float atau null
+         }
        }
     2. Pastikan angka gizi dikonversi menjadi format float (desimal) atau integer, bukan string.
 
@@ -363,33 +423,77 @@ async function extractDataWithAI(text: string): Promise<Partial<MBGReportData>> 
 }
 
 // Map parsed JSON fields to db column names
-function mapExtractedToColumns(data: any) {
+function mapExtractedToColumns(data: ExtractedMBGReport) {
+  const besarRaw = data["Porsi Besar"] || data.porsi_besar;
+  const besar = (besarRaw && typeof besarRaw === "object") ? besarRaw : {};
+  
+  const kecilRaw = data["Porsi Kecil"] || data.porsi_kecil;
+  const kecil = (kecilRaw && typeof kecilRaw === "object") ? kecilRaw : {};
+
+  const porsiBesar = (typeof besarRaw === "number") ? besarRaw : (besar.Jumlah || besar.jumlah || null);
+  const porsiKecil = (typeof kecilRaw === "number") ? kecilRaw : (kecil.Jumlah || kecil.jumlah || null);
+
   return {
     tanggal: data.Tanggal || data.tanggal || null,
-    porsi_besar: data["Porsi Besar"] || data.porsi_besar || data.porsiBesar || null,
-    porsi_kecil: data["Porsi Kecil"] || data.porsi_kecil || data.porsiKecil || null,
+    porsi_besar: porsiBesar,
+    porsi_kecil: porsiKecil,
     menu: data.Menu || data.menu || null,
-    energi: data.Energi || data.energi || null,
-    protein: data.Protein || data.protein || null,
-    lemak: data.Lemak || data.lemak || null,
-    karbohidrat: data.Karbohidrat || data.karbohidrat || null,
-    serat: data.Serat || data.serat || null
+    // Default fallback to Porsi Besar values or root values for main db columns
+    energi: besar.Energi || besar.energi || data.Energi || data.energi || null,
+    protein: besar.Protein || besar.protein || data.Protein || data.protein || null,
+    lemak: besar.Lemak || besar.lemak || data.Lemak || data.lemak || null,
+    karbohidrat: besar.Karbohidrat || besar.karbohidrat || data.Karbohidrat || data.karbohidrat || null,
+    serat: besar.Serat || besar.serat || data.Serat || data.serat || null
   };
 }
 
 // Format a readable summary message for user verification
-function formatSummary(data: any) {
+function formatSummary(data: ExtractedMBGReport) {
   const tanggal = data.Tanggal || data.tanggal || "-";
   const menu = data.Menu || data.menu || "-";
-  const porsiBesar = data["Porsi Besar"] || data.porsi_besar || data.porsiBesar || 0;
-  const porsiKecil = data["Porsi Kecil"] || data.porsi_kecil || data.porsiKecil || 0;
-  const energi = data.Energi || data.energi || 0;
-  const protein = data.Protein || data.protein || 0;
-  const lemak = data.Lemak || data.lemak || 0;
-  const karbohidrat = data.Karbohidrat || data.karbohidrat || 0;
-  const serat = data.Serat || data.serat || 0;
 
-  return `📅 *Tanggal:* ${tanggal}
+  const besarRaw = data["Porsi Besar"] || data.porsi_besar;
+  const besar = (besarRaw && typeof besarRaw === "object") ? besarRaw : {};
+
+  const kecilRaw = data["Porsi Kecil"] || data.porsi_kecil;
+  const kecil = (kecilRaw && typeof kecilRaw === "object") ? kecilRaw : {};
+
+  const porsiBesar = (typeof besarRaw === "number") ? besarRaw : (besar.Jumlah || besar.jumlah || 0);
+  const porsiKecil = (typeof kecilRaw === "number") ? kecilRaw : (kecil.Jumlah || kecil.jumlah || 0);
+
+  // Check if we have nested nutritional data
+  const hasNestedNutrition = (Object.keys(besar).length > 0 && (besar.Energi || besar.energi)) ||
+                            (Object.keys(kecil).length > 0 && (kecil.Energi || kecil.energi));
+
+  if (hasNestedNutrition) {
+    return `📅 *Tanggal:* ${tanggal}
+🍴 *Menu:* ${menu}
+👥 *Jumlah Penerima:* ${porsiBesar + porsiKecil} Anak
+   - Porsi Besar (SD-SMP): ${porsiBesar} Anak
+   - Porsi Kecil (PAUD-TK): ${porsiKecil} Anak
+
+🍱 *Nilai Gizi Porsi Besar (SD-SMP):*
+   - Energi: ${besar.Energi || besar.energi || 0} kcal
+   - Protein: ${besar.Protein || besar.protein || 0} g
+   - Lemak: ${besar.Lemak || besar.lemak || 0} g
+   - Karbohidrat: ${besar.Karbohidrat || besar.karbohidrat || 0} g
+   - Serat: ${besar.Serat || besar.serat || 0} g
+
+🍱 *Nilai Gizi Porsi Kecil (PAUD-TK):*
+   - Energi: ${kecil.Energi || kecil.energi || 0} kcal
+   - Protein: ${kecil.Protein || kecil.protein || 0} g
+   - Lemak: ${kecil.Lemak || kecil.lemak || 0} g
+   - Karbohidrat: ${kecil.Karbohidrat || kecil.karbohidrat || 0} g
+   - Serat: ${kecil.Serat || kecil.serat || 0} g`;
+  } else {
+    // Legacy / manual flat format
+    const energi = data.Energi || data.energi || 0;
+    const protein = data.Protein || data.protein || 0;
+    const lemak = data.Lemak || data.lemak || 0;
+    const karbohidrat = data.Karbohidrat || data.karbohidrat || 0;
+    const serat = data.Serat || data.serat || 0;
+
+    return `📅 *Tanggal:* ${tanggal}
 🍴 *Menu:* ${menu}
 👥 *Porsi:* ${porsiBesar} Besar (SD-SMP), ${porsiKecil} Kecil (PAUD)
 🔥 *Energi:* ${energi} kcal
@@ -397,5 +501,6 @@ function formatSummary(data: any) {
 🧈 *Lemak:* ${lemak} g
 🍚 *Karbohidrat:* ${karbohidrat} g
 🥦 *Serat:* ${serat} g`;
+  }
 }
 

@@ -1,6 +1,7 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const fs = require('fs');
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import fs from 'fs';
 
+// Parse .env.local manually
 const envContent = fs.readFileSync('.env.local', 'utf8');
 const env = {};
 envContent.split('\n').forEach(line => {
@@ -49,14 +50,23 @@ const prompt = `
   1. Gunakan skema JSON berikut:
      {
        "Tanggal": "YYYY-MM-DD",
-       "Porsi Besar": number atau null,
-       "Porsi Kecil": number atau null,
-       "Menu": "string",
-       "Energi": float atau null,
-       "Protein": float atau null,
-       "Lemak": float atau null,
-       "Karbohidrat": float atau null,
-       "Serat": float atau null
+       "Porsi Besar": {
+         "Jumlah": number atau null,
+         "Energi": float atau null,
+         "Protein": float atau null,
+         "Lemak": float atau null,
+         "Karbohidrat": float atau null,
+         "Serat": float atau null
+       },
+       "Porsi Kecil": {
+         "Jumlah": number atau null,
+         "Energi": float atau null,
+         "Protein": float atau null,
+         "Lemak": float atau null,
+         "Karbohidrat": float atau null,
+         "Serat": float or null
+       },
+       "Menu": "string"
      }
   2. Pastikan angka gizi dikonversi menjadi format float (desimal) atau integer, bukan string.
 
@@ -69,9 +79,6 @@ async function run() {
     const response = await result.response;
     const jsonStr = response.text().trim();
     console.log("Raw Response:\n", jsonStr);
-    const parsed = JSON.parse(jsonStr);
-    console.log("Parsed keys:", Object.keys(parsed));
-    console.log("Parsed data:", parsed);
   } catch (error) {
     console.error("Error during test:", error);
   }

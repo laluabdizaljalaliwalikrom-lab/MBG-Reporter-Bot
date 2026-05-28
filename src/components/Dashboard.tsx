@@ -221,6 +221,89 @@ export default function Dashboard() {
     }
   };
 
+  // Form states for manual report submission
+  const [formSppgName, setFormSppgName] = useState("SPPG Menteng Jaya");
+  const [formTanggal, setFormTanggal] = useState(() => new Date().toISOString().split("T")[0]);
+  const [formMenu, setFormMenu] = useState("");
+  const [formPorsiBesar, setFormPorsiBesar] = useState<number>(0);
+  const [formPorsiKecil, setFormPorsiKecil] = useState<number>(0);
+  const [formBalita, setFormBalita] = useState<number>(0);
+  const [formBumil, setFormBumil] = useState<number>(0);
+  const [formBusui, setFormBusui] = useState<number>(0);
+  
+  // Nutrition states
+  const [formGiziBesar, setFormGiziBesar] = useState({
+    Energi: 650, Protein: 30, Lemak: 15, Karbohidrat: 90, Serat: 6
+  });
+  const [formGiziKecil, setFormGiziKecil] = useState({
+    Energi: 450, Protein: 25, Lemak: 12, Karbohidrat: 60, Serat: 4
+  });
+  
+  const [formImageBase64, setFormImageBase64] = useState("");
+  const [formTargetNumber, setFormTargetNumber] = useState("");
+  const [formIsSubmitting, setFormIsSubmitting] = useState(false);
+
+  // Helper to handle image file input to base64 conversion
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormImageBase64(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmitReport = async () => {
+    if (!formMenu.trim()) {
+      alert("Detail Menu Makanan harus diisi!");
+      return;
+    }
+    setFormIsSubmitting(true);
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sppgName: formSppgName,
+          tanggal: formTanggal,
+          menu: formMenu,
+          porsiBesar: formPorsiBesar,
+          porsiKecil: formPorsiKecil,
+          balita: formBalita,
+          bumil: formBumil,
+          busui: formBusui,
+          giziBesar: formGiziBesar,
+          giziKecil: formGiziKecil,
+          bufferImage: formImageBase64,
+          targetNumber: formTargetNumber
+        })
+      });
+
+      const resData = await response.json();
+      if (response.ok) {
+        showSettingsToast("Laporan sukses disimpan & dikirim ke WhatsApp!", "success");
+        // Reset form
+        setFormMenu("");
+        setFormPorsiBesar(0);
+        setFormPorsiKecil(0);
+        setFormBalita(0);
+        setFormBumil(0);
+        setFormBusui(0);
+        setFormImageBase64("");
+      } else {
+        alert("Gagal mengirim laporan: " + resData.message);
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Terjadi kesalahan internal.";
+      alert("Error: " + errorMsg);
+    } finally {
+      setFormIsSubmitting(false);
+    }
+  };
+
+
   // Notifications State Mockup
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [autoSync, setAutoSync] = useState(true);
@@ -712,13 +795,24 @@ export default function Dashboard() {
                 </p>
 
                 <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={(e) => e.preventDefault()}>
+                  {/* --- SECTION 1: INFORMASI UMUM --- */}
+                  <div className="md:col-span-2 border-b border-slate-800 pb-2">
+                    <h4 className="text-sm font-semibold text-indigo-400">Informasi Umum Laporan</h4>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Satuan Pelayanan SPPG</label>
-                    <select className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs">
-                      <option>SPPG Menteng Jaya</option>
-                      <option>SPPG Kebayoran Baru</option>
-                      <option>SPPG Pajajaran</option>
-                      <option>SPPG Margonda</option>
+                    <select
+                      value={formSppgName}
+                      onChange={(e) => setFormSppgName(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    >
+                      <option value="SPPG Menteng Jaya">SPPG Menteng Jaya</option>
+                      <option value="SPPG Kebayoran Baru">SPPG Kebayoran Baru</option>
+                      <option value="SPPG Pajajaran">SPPG Pajajaran</option>
+                      <option value="SPPG Margonda">SPPG Margonda</option>
+                      <option value="SPPG Cisadane">SPPG Cisadane</option>
+                      <option value="SPPG Dago Elok">SPPG Dago Elok</option>
                     </select>
                   </div>
 
@@ -726,25 +820,8 @@ export default function Dashboard() {
                     <label className="text-xs font-bold text-slate-400 uppercase">Tanggal Distribusi</label>
                     <input
                       type="date"
-                      defaultValue="2026-05-26"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Jumlah Porsi Besar (SD-SMP)</label>
-                    <input
-                      type="number"
-                      placeholder="Contoh: 1200"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Jumlah Porsi Kecil (PAUD-TK)</label>
-                    <input
-                      type="number"
-                      placeholder="Contoh: 600"
+                      value={formTanggal}
+                      onChange={(e) => setFormTanggal(e.target.value)}
                       className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
                     />
                   </div>
@@ -752,25 +829,251 @@ export default function Dashboard() {
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Detail Menu Makanan</label>
                     <textarea
-                      placeholder="Contoh: Nasi Putih, Ayam Goreng, Cah Sayur, Susu..."
+                      placeholder="Contoh: Nasi Putih, Ayam Goreng Saos Padang, Tumis Buncis Wortel, Melon..."
                       rows={3}
+                      value={formMenu}
+                      onChange={(e) => setFormMenu(e.target.value)}
                       className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
                     />
                   </div>
 
-                  <div className="md:col-span-2 flex justify-end gap-3 pt-4">
+                  {/* --- SECTION 2: PENERIMA MANFAAT SEKOLAH --- */}
+                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                    <h4 className="text-sm font-semibold text-indigo-400">Penerima Manfaat Sekolah</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP) - Anak</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={formPorsiBesar || ""}
+                      onChange={(e) => setFormPorsiBesar(Number(e.target.value))}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Porsi Kecil (PAUD-TK) - Anak</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={formPorsiKecil || ""}
+                      onChange={(e) => setFormPorsiKecil(Number(e.target.value))}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+
+                  {/* --- SECTION 3: PENERIMA MANFAAT PMT B3 --- */}
+                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                    <h4 className="text-sm font-semibold text-indigo-400">Penerima Manfaat PMT B3</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Balita - Anak</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={formBalita || ""}
+                      onChange={(e) => setFormBalita(Number(e.target.value))}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Ibu Hamil (Bumil) - Orang</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={formBumil || ""}
+                      onChange={(e) => setFormBumil(Number(e.target.value))}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Ibu Menyusui (Busui) - Orang</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={formBusui || ""}
+                      onChange={(e) => setFormBusui(Number(e.target.value))}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Total Penerima Manfaat (Otomatis)</label>
+                    <div className="w-full p-3 bg-slate-950/80 border border-slate-850 rounded-xl text-indigo-400 font-extrabold text-sm shadow-inner">
+                      {(formPorsiBesar || 0) + (formPorsiKecil || 0) + (formBalita || 0) + (formBumil || 0) + (formBusui || 0)} Orang
+                    </div>
+                  </div>
+
+                  {/* --- SECTION 4: NILAI GIZI PORSI BESAR --- */}
+                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                    <h4 className="text-sm font-semibold text-indigo-400">Nilai Gizi Porsi Besar (SD-SMP)</h4>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-2 md:col-span-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Energi (kcal)</label>
+                      <input
+                        type="number"
+                        value={formGiziBesar.Energi || ""}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Energi: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Protein (g)</label>
+                      <input
+                        type="number"
+                        value={formGiziBesar.Protein || ""}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Protein: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Lemak (g)</label>
+                      <input
+                        type="number"
+                        value={formGiziBesar.Lemak || ""}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Lemak: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Karbo (g)</label>
+                      <input
+                        type="number"
+                        value={formGiziBesar.Karbohidrat || ""}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Karbohidrat: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Serat (g)</label>
+                      <input
+                        type="number"
+                        value={formGiziBesar.Serat || ""}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Serat: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* --- SECTION 5: NILAI GIZI PORSI KECIL --- */}
+                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                    <h4 className="text-sm font-semibold text-indigo-400">Nilai Gizi Porsi Kecil (PAUD-TK)</h4>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-2 md:col-span-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Energi (kcal)</label>
+                      <input
+                        type="number"
+                        value={formGiziKecil.Energi || ""}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Energi: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Protein (g)</label>
+                      <input
+                        type="number"
+                        value={formGiziKecil.Protein || ""}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Protein: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Lemak (g)</label>
+                      <input
+                        type="number"
+                        value={formGiziKecil.Lemak || ""}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Lemak: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Karbo (g)</label>
+                      <input
+                        type="number"
+                        value={formGiziKecil.Karbohidrat || ""}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Karbohidrat: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Serat (g)</label>
+                      <input
+                        type="number"
+                        value={formGiziKecil.Serat || ""}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Serat: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* --- SECTION 6: FOTO MAKANAN & TUJUAN --- */}
+                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                    <h4 className="text-sm font-semibold text-indigo-400">Media & Tujuan Pengiriman</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Foto Makanan</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 outline-none text-xs cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-650 file:text-white hover:file:bg-indigo-600"
+                    />
+                    {formImageBase64 && (
+                      <div className="mt-2 text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 size={12} />
+                        <span>Gambar siap diunggah</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">No. WhatsApp Tujuan (Opsional)</label>
+                    <input
+                      type="text"
+                      placeholder="Kosongkan untuk kirim ke Grup Pemangku Kepentingan"
+                      value={formTargetNumber}
+                      onChange={(e) => setFormTargetNumber(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-800">
                     <button
                       type="button"
+                      onClick={() => {
+                        setFormMenu("");
+                        setFormPorsiBesar(0);
+                        setFormPorsiKecil(0);
+                        setFormBalita(0);
+                        setFormBumil(0);
+                        setFormBusui(0);
+                        setFormImageBase64("");
+                        setFormTargetNumber("");
+                      }}
                       className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
                     >
-                      Batal
+                      Reset Form
                     </button>
                     <button
                       type="button"
-                      onClick={() => alert("Laporan disimulasikan disimpan sebagai Draft")}
-                      className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-600 rounded-xl text-xs font-bold text-white"
+                      disabled={formIsSubmitting}
+                      onClick={handleSubmitReport}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${
+                        formIsSubmitting ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-650 hover:bg-indigo-600 shadow-md shadow-indigo-600/10"
+                      }`}
                     >
-                      Simpan Draft
+                      {formIsSubmitting && <RefreshCw size={14} className="animate-spin" />}
+                      <span>{formIsSubmitting ? "Mengirim..." : "Kirim Laporan & WhatsApp"}</span>
                     </button>
                   </div>
                 </form>

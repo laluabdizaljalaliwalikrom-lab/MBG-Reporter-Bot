@@ -94,9 +94,9 @@ export async function POST(req: Request) {
     // Parse Fontee / MPWA / Generic / Multi-device Format
     else {
       messageText = body.message || body.text || "";
-      senderRaw = body.sender || 
-                  body.from || 
-                  body.participant || 
+      senderRaw = body.sender ||
+                  body.from ||
+                  body.participant ||
                   (body.data && body.data.key && body.data.key.remoteJid) ||
                   (body.key && body.key.remoteJid) ||
                   (body.key && body.key.participant) ||
@@ -105,16 +105,57 @@ export async function POST(req: Request) {
       imageUrl = body.url || body.imageUrl || body.mediaUrl || body.bufferImage || "";
     }
 
-    if (!senderRaw || senderRaw === "unknown") {
-      senderRaw = "6287818383876";
+    // --- EKSTRAKSI NOMOR PENGIRIM ASLI ---
+    // Untuk pesan grup: extract participant (pengirim asli di grup), bukan remoteJid/from (ID grup)
+    // Format: personal = 628xxx@s.whatsapp.net, grup = 628xxx@g.us
+    const isFromGroup = senderRaw.endsWith("@g.us");
+    let participantRaw = "";
+
+    if (isFromGroup) {
+      // Cari participant (pengirim asli) di berbagai format payload
+      if (body.messages && body.messages[0]) {
+        const msg = body.messages[0];
+        participantRaw = msg.key?.participant ||
+                         msg.participant ||
+                         body.data?.key?.participant ||
+                         body.key?.participant ||
+                         "";
+      } else {
+        participantRaw = body.key?.participant ||
+                         body.participant ||
+                         body.data?.key?.participant ||
+                         "";
+      }
     }
 
-    // Clean sender string using Regex to keep only digits
-    let sender = senderRaw.replace(/\D/g, "");
+    // Gunakan participant untuk group, senderRaw untuk personal
+    const rawNumber = isFromGroup && participantRaw ? participantRaw : senderRaw;
 
-    // Fallback: If sender is empty or doesn't start with '62', use the test number for testing
+    // Clean sender string using Regex to keep only digits
+    let sender = rawNumber.replace(/\D/g, "");
+
+    // Validasi: pastikan nomor dimulai dengan kode negara 62
     if (!sender || !sender.startsWith("62")) {
-      sender = "6287818383876";
+      console.error("Webhook: Gagal menentukan nomor pengirim. rawNumber:", rawNumber);
+      return NextResponse.json({
+        status: "error",
+        reason: "invalid_sender",
+        message: "Tidak dapat mengidentifikasi nomor pengirim."
+      }, { status: 400 });
+    }
+
+    // --- FILTER GRUP: hanya proses laporan eksplisit, abaikan chat biasa ---
+    if (isFromGroup) {
+      // Di grup, jangan proses YA/REVISI/foto — takut false positive
+      const isExplicitReport =
+        messageText.trim().startsWith("MANUAL_MBG") ||
+        messageText.trim().toUpperCase().startsWith("LAPORAN") ||
+        /^(MBG|LAPORAN\s+MBG)/i.test(messageText.trim());
+
+      if (!isExplicitReport) {
+        return NextResponse.json({ status: "ignored", reason: "group_chat_non_report" });
+      }
+      // Lanjut ke pemrosesan laporan di bawah (Kondisi A)
     }
 
     // 2. State Machine: Fetch the latest active DRAFT for this sender
@@ -133,133 +174,141 @@ export async function POST(req: Request) {
 
     const existingDraft = existingDraftData as MBGReportRow | null;
 
-    // --- CONDITION C: PERSETUJUAN 'YA' ---
-    if (existingDraft && messageText.trim().toUpperCase() === "YA") {
-      const groupId = process.env.WHATSAPP_GROUP_ID || sender;
+    // --- KONDISI C & D: HANYA UNTUK PERSONAL CHAT ---
+    if (!isFromGroup) {
+      // --- CONDITION C: PERSETUJUAN 'YA' ---
+      if (existingDraft && messageText.trim().toUpperCase() === "YA") {
+        const groupId = process.env.WHATSAPP_GROUP_ID || sender;
 
-      // Check if poster exists, otherwise generate it
-      let posterUrl = existingDraft.poster_url;
-      if (!posterUrl) {
-        posterUrl = await generatePoster(existingDraft.id);
-      }
+        // Check if poster exists, otherwise generate it
+        let posterUrl = existingDraft.poster_url;
+        if (!posterUrl) {
+          posterUrl = await generatePoster(existingDraft.id);
+        }
 
-      // Try to read nested gizi from JSONB extracted_data
-      const ext = (existingDraft.extracted_data || {}) as ExtractedMBGReport;
-      const besarRaw = ext["Porsi Besar"] || ext.porsi_besar;
-      const besar = (besarRaw && typeof besarRaw === "object") ? (besarRaw as ExtractedNutritionalInfo) : {};
-      const kecilRaw = ext["Porsi Kecil"] || ext.porsi_kecil;
-      const kecil = (kecilRaw && typeof kecilRaw === "object") ? (kecilRaw as ExtractedNutritionalInfo) : {};
+        // Try to read nested gizi from JSONB extracted_data
+        const ext = (existingDraft.extracted_data || {}) as ExtractedMBGReport;
+        const besarRaw = ext["Porsi Besar"] || ext.porsi_besar;
+        const besar = (besarRaw && typeof besarRaw === "object") ? (besarRaw as ExtractedNutritionalInfo) : {};
+        const kecilRaw = ext["Porsi Kecil"] || ext.porsi_kecil;
+        const kecil = (kecilRaw && typeof kecilRaw === "object") ? (kecilRaw as ExtractedNutritionalInfo) : {};
 
-      const energiBesar = besar.Energi || besar.energi || existingDraft.energi || 0;
-      const proteinBesar = besar.Protein || besar.protein || existingDraft.protein || 0;
-      const lemakBesar = besar.Lemak || besar.lemak || existingDraft.lemak || 0;
-      const karbohidratBesar = besar.Karbohidrat || besar.karbohidrat || existingDraft.karbohidrat || 0;
-      const seratBesar = besar.Serat || besar.serat || existingDraft.serat || 0;
+        const energiBesar = besar.Energi || besar.energi || existingDraft.energi || 0;
+        const proteinBesar = besar.Protein || besar.protein || existingDraft.protein || 0;
+        const lemakBesar = besar.Lemak || besar.lemak || existingDraft.lemak || 0;
+        const karbohidratBesar = besar.Karbohidrat || besar.karbohidrat || existingDraft.karbohidrat || 0;
+        const seratBesar = besar.Serat || besar.serat || existingDraft.serat || 0;
 
-      const energiKecil = kecil.Energi || kecil.energi || 0;
-      const proteinKecil = kecil.Protein || kecil.protein || 0;
-      const lemakKecil = kecil.Lemak || kecil.lemak || 0;
-      const karbohidratKecil = kecil.Karbohidrat || kecil.karbohidrat || 0;
-      const seratKecil = kecil.Serat || kecil.serat || 0;
+        const energiKecil = kecil.Energi || kecil.energi || 0;
+        const proteinKecil = kecil.Protein || kecil.protein || 0;
+        const lemakKecil = kecil.Lemak || kecil.lemak || 0;
+        const karbohidratKecil = kecil.Karbohidrat || kecil.karbohidrat || 0;
+        const seratKecil = kecil.Serat || kecil.serat || 0;
 
-      // Construct official report caption
-      const caption =
-        `📢 *LAPORAN RESMI MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
-        `📅 *Tanggal:* ${existingDraft.tanggal || "-"}\n` +
-        `🍴 *Menu:* ${existingDraft.menu || "-"}\n` +
-        `👥 *Jumlah Penerima:* ${(existingDraft.porsi_besar || 0) + (existingDraft.porsi_kecil || 0)} Anak\n` +
-        `   - Porsi Besar (SD-SMP): ${existingDraft.porsi_besar || 0} Anak\n` +
-        `   - Porsi Kecil (PAUD-TK): ${existingDraft.porsi_kecil || 0} Anak\n\n` +
-        `🍱 *Nilai Gizi Porsi Besar (SD-SMP):*\n` +
-        `   - Energi: ${energiBesar} kcal\n` +
-        `   - Protein: ${proteinBesar} g\n` +
-        `   - Lemak: ${lemakBesar} g\n` +
-        `   - Karbohidrat: ${karbohidratBesar} g\n` +
-        `   - Serat: ${seratBesar} g\n\n` +
-        `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK):*\n` +
-        `   - Energi: ${energiKecil} kcal\n` +
-        `   - Protein: ${proteinKecil} g\n` +
-        `   - Lemak: ${lemakKecil} g\n` +
-        `   - Karbohidrat: ${karbohidratKecil} g\n` +
-        `   - Serat: ${seratKecil} g\n\n` +
-        `✅ Laporan telah disetujui oleh Kepala SPPG.`;
+        // Construct official report caption
+        const caption =
+          `📢 *LAPORAN RESMI MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
+          `📅 *Tanggal:* ${existingDraft.tanggal || "-"}\n` +
+          `🍴 *Menu:* ${existingDraft.menu || "-"}\n` +
+          `👥 *Jumlah Penerima:* ${(existingDraft.porsi_besar || 0) + (existingDraft.porsi_kecil || 0)} Anak\n` +
+          `   - Porsi Besar (SD-SMP): ${existingDraft.porsi_besar || 0} Anak\n` +
+          `   - Porsi Kecil (PAUD-TK): ${existingDraft.porsi_kecil || 0} Anak\n\n` +
+          `🍱 *Nilai Gizi Porsi Besar (SD-SMP):*\n` +
+          `   - Energi: ${energiBesar} kcal\n` +
+          `   - Protein: ${proteinBesar} g\n` +
+          `   - Lemak: ${lemakBesar} g\n` +
+          `   - Karbohidrat: ${karbohidratBesar} g\n` +
+          `   - Serat: ${seratBesar} g\n\n` +
+          `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK):*\n` +
+          `   - Energi: ${energiKecil} kcal\n` +
+          `   - Protein: ${proteinKecil} g\n` +
+          `   - Lemak: ${lemakKecil} g\n` +
+          `   - Karbohidrat: ${karbohidratKecil} g\n` +
+          `   - Serat: ${seratKecil} g\n\n` +
+          `✅ Laporan telah disetujui oleh Kepala SPPG.`;
 
-      // Send poster to the Stakeholder Group via MPWA sendWhatsAppMedia
-      await sendWhatsAppMedia(groupId, posterUrl, caption);
+        // Send poster to the Stakeholder Group via MPWA sendWhatsAppMedia
+        await sendWhatsAppMedia(groupId, posterUrl, caption);
 
-      // Update status in the database to 'SENT'
-      await supabase
-        .from("mbg_reports")
-        .update({ status: "SENT" })
-        .eq("id", existingDraft.id);
+        // Update status in the database to 'SENT'
+        await supabase
+          .from("mbg_reports")
+          .update({ status: "SENT" })
+          .eq("id", existingDraft.id);
 
-      // Send success confirmation back to the sender
-      await sendWhatsAppMessage(
-        sender,
-        "✅ Laporan telah dikirim ke grup pemangku kepentingan. Terima kasih!"
-      );
-
-      return NextResponse.json({ status: "success", action: "confirmed" });
-    }
-
-    // --- CONDITION D: PEMBATALAN 'REVISI' ---
-    if (existingDraft && messageText.trim().toUpperCase() === "REVISI") {
-      // Mark active draft as CANCELLED
-      await supabase
-        .from("mbg_reports")
-        .update({ status: "CANCELLED" })
-        .eq("id", existingDraft.id);
-
-      await sendWhatsAppMessage(
-        sender,
-        "❌ Draf laporan Anda telah dibatalkan. Silakan kirimkan kembali teks laporan baru."
-      );
-
-      return NextResponse.json({ status: "success", action: "cancelled" });
-    }
-
-    // --- CONDITION B: INPUT FOTO (MEDIA UPLOAD) ---
-    if (imageUrl) {
-      if (!existingDraft) {
+        // Send success confirmation back to the sender
         await sendWhatsAppMessage(
           sender,
-          "⚠️ Silakan kirimkan teks laporan terlebih dahulu sebelum mengirimkan foto makanan."
+          "✅ Laporan telah dikirim ke grup pemangku kepentingan. Terima kasih!"
         );
-        return NextResponse.json({ status: "error", reason: "no_active_draft_for_photo" });
+
+        return NextResponse.json({ status: "success", action: "confirmed" });
       }
 
-      await sendWhatsAppMessage(sender, "📸 Foto diterima. Sedang mengunggah ke penyimpanan...");
+      // --- CONDITION D: PEMBATALAN 'REVISI' ---
+      if (existingDraft && messageText.trim().toUpperCase() === "REVISI") {
+        // Mark active draft as CANCELLED
+        await supabase
+          .from("mbg_reports")
+          .update({ status: "CANCELLED" })
+          .eq("id", existingDraft.id);
 
-      // 1. Download image from webhook and save to Supabase Storage posters bucket
-      const uploadedUrl = await uploadPhotoToStorage(imageUrl, existingDraft.id);
+        await sendWhatsAppMessage(
+          sender,
+          "❌ Draf laporan Anda telah dibatalkan. Silakan kirimkan kembali teks laporan baru."
+        );
 
-      // 2. Update existing draft photo_url in database
-      await supabase
-        .from("mbg_reports")
-        .update({ photo_url: uploadedUrl })
-        .eq("id", existingDraft.id);
+        return NextResponse.json({ status: "success", action: "cancelled" });
+      }
 
-      await sendWhatsAppMessage(sender, "🎨 Membuat draf poster laporan...");
+      // --- CONDITION B: INPUT FOTO (MEDIA UPLOAD) ---
+      if (imageUrl) {
+        if (!existingDraft) {
+          await sendWhatsAppMessage(
+            sender,
+            "⚠️ Silakan kirimkan teks laporan terlebih dahulu sebelum mengirimkan foto makanan."
+          );
+          return NextResponse.json({ status: "error", reason: "no_active_draft_for_photo" });
+        }
 
-      // 3. Generate poster dynamically via Satori service
-      const posterUrl = await generatePoster(existingDraft.id);
+        await sendWhatsAppMessage(sender, "📸 Foto diterima. Sedang mengunggah ke penyimpanan...");
 
-      // 4. Send poster preview back to user using sendWhatsAppMedia
-      await sendWhatsAppMedia(
-        sender,
-        posterUrl,
-        "Ini draf laporan Anda. Ketik *YA* untuk kirim ke Grup, atau *REVISI* untuk batal."
-      );
+        // 1. Download image from webhook and save to Supabase Storage posters bucket
+        const uploadedUrl = await uploadPhotoToStorage(imageUrl, existingDraft.id);
 
-      return NextResponse.json({ status: "success", action: "image_processed" });
+        // 2. Update existing draft photo_url in database
+        await supabase
+          .from("mbg_reports")
+          .update({ photo_url: uploadedUrl })
+          .eq("id", existingDraft.id);
+
+        await sendWhatsAppMessage(sender, "🎨 Membuat draf poster laporan...");
+
+        // 3. Generate poster dynamically via Satori service
+        const posterUrl = await generatePoster(existingDraft.id);
+
+        // 4. Send poster preview back to user using sendWhatsAppMedia
+        await sendWhatsAppMedia(
+          sender,
+          posterUrl,
+          "Ini draf laporan Anda. Ketik *YA* untuk kirim ke Grup, atau *REVISI* untuk batal."
+        );
+
+        return NextResponse.json({ status: "success", action: "image_processed" });
+      }
     }
 
     // --- CONDITION A: INPUT DATA BARU (TEXT EXTRACTION) ---
+    // Untuk grup: hanya format eksplisit (MANUAL_MBG / LAPORAN / MBG di awal)
+    // Untuk personal: keyword laporan biasa
     const isManualMBG = messageText.trim().startsWith("MANUAL_MBG");
-    const isReportKeyword =
-      isManualMBG ||
-      messageText.toUpperCase().includes("MBG") ||
-      messageText.toUpperCase().includes("LAPORAN");
+    const isReportKeyword = isFromGroup
+      ? (isManualMBG ||
+         messageText.trim().toUpperCase().startsWith("LAPORAN") ||
+         /^MBG\b/i.test(messageText.trim()))
+      : (isManualMBG ||
+         messageText.toUpperCase().includes("MBG") ||
+         messageText.toUpperCase().includes("LAPORAN"));
 
     if (isReportKeyword) {
       let extractedData: ExtractedMBGReport;

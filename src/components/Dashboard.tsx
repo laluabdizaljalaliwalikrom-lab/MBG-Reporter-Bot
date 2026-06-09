@@ -233,6 +233,8 @@ export default function Dashboard() {
     balita: number;
     bumil: number;
     busui: number;
+    kepala_sppg: string;
+    pengawas_gizi: string;
   }
   const [sppgList, setSppgList] = useState<SppgData[]>([]);
   const [loadingSppg, setLoadingSppg] = useState(false);
@@ -242,7 +244,9 @@ export default function Dashboard() {
     porsi_besar: 0,
     balita: 0,
     bumil: 0,
-    busui: 0
+    busui: 0,
+    kepala_sppg: "",
+    pengawas_gizi: ""
   });
   const [editingSppgId, setEditingSppgId] = useState<string | null>(null);
   const [sppgSearch, setSppgSearch] = useState("");
@@ -305,7 +309,8 @@ export default function Dashboard() {
   });
   
   const [formImageBase64, setFormImageBase64] = useState("");
-  const [formTargetNumber, setFormTargetNumber] = useState("");
+  const [formSendToKepala, setFormSendToKepala] = useState(false);
+  const [formSendToPengawas, setFormSendToPengawas] = useState(false);
   const [formIsSubmitting, setFormIsSubmitting] = useState(false);
   const [formPreviewData, setFormPreviewData] = useState<{ reportId: string; posterUrl: string; caption: string } | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -349,7 +354,9 @@ export default function Dashboard() {
           porsi_besar: 0,
           balita: 0,
           bumil: 0,
-          busui: 0
+          busui: 0,
+          kepala_sppg: "",
+          pengawas_gizi: ""
         });
         setEditingSppgId(null);
         fetchSppgList();
@@ -371,7 +378,9 @@ export default function Dashboard() {
       porsi_besar: sppg.porsi_besar,
       balita: sppg.balita,
       bumil: sppg.bumil,
-      busui: sppg.busui
+      busui: sppg.busui,
+      kepala_sppg: sppg.kepala_sppg || "",
+      pengawas_gizi: sppg.pengawas_gizi || ""
     });
   };
 
@@ -418,7 +427,10 @@ export default function Dashboard() {
           giziBesar: formGiziBesar,
           giziKecil: formGiziKecil,
           bufferImage: formImageBase64,
-          targetNumber: formTargetNumber
+          sendToKepala: formSendToKepala,
+          kepalaSppgPhone: sppgList.find(s => s.nama_sppg === formSppgName)?.kepala_sppg || "",
+          sendToPengawas: formSendToPengawas,
+          pengawasGiziPhone: sppgList.find(s => s.nama_sppg === formSppgName)?.pengawas_gizi || ""
         })
       });
 
@@ -451,7 +463,10 @@ export default function Dashboard() {
         body: JSON.stringify({
           action: confirmAction,
           reportId: formPreviewData.reportId,
-          targetNumber: formTargetNumber
+          sendToKepala: formSendToKepala,
+          kepalaSppgPhone: sppgList.find(s => s.nama_sppg === formSppgName)?.kepala_sppg || "",
+          sendToPengawas: formSendToPengawas,
+          pengawasGiziPhone: sppgList.find(s => s.nama_sppg === formSppgName)?.pengawas_gizi || ""
         })
       });
 
@@ -467,7 +482,6 @@ export default function Dashboard() {
           setFormBumil(0);
           setFormBusui(0);
           setFormImageBase64("");
-          setFormTargetNumber("");
         } else {
           showSettingsToast("Draf laporan berhasil dibatalkan/revisi.", "success");
         }
@@ -1236,7 +1250,7 @@ export default function Dashboard() {
 
                   {/* --- SECTION 6: FOTO MAKANAN & TUJUAN --- */}
                   <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
-                    <h4 className="text-sm font-semibold text-indigo-400">Media & Tujuan Pengiriman</h4>
+                    <h4 className="text-sm font-semibold text-indigo-400">Foto & Pengiriman ke Personal</h4>
                   </div>
 
                   <div className="space-y-2">
@@ -1254,38 +1268,46 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
+                  <div className="space-y-3">
+                    {/* Checkbox: Kirim juga ke Kepala SPPG */}
+                    {(() => {
+                      const selectedSppg = sppgList.find(s => s.nama_sppg === formSppgName);
+                      const kepalaPhone = selectedSppg?.kepala_sppg;
+                      return kepalaPhone ? (
+                        <label className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900/80 transition-colors mt-3">
+                          <input
+                            type="checkbox"
+                            checked={formSendToKepala}
+                            onChange={(e) => setFormSendToKepala(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-semibold text-slate-200">Kirim juga ke Kepala SPPG</span>
+                            <p className="text-[10px] text-slate-400">{kepalaPhone}</p>
+                          </div>
+                        </label>
+                      ) : null;
+                    })()}
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Tujuan Pengiriman Laporan</label>
-                    <select
-                      value={waGroups.some(g => g.id === formTargetNumber) ? formTargetNumber : (formTargetNumber ? "__custom__" : "")}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "__custom__") {
-                          setFormTargetNumber("");
-                        } else {
-                          setFormTargetNumber(val);
-                        }
-                      }}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs cursor-pointer mb-2"
-                    >
-                      <option value="">-- Kirim ke Grup Default (Environment) --</option>
-                      {waGroups.map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name}
-                        </option>
-                      ))}
-                      <option value="__custom__">Input Nomor/ID Manual...</option>
-                    </select>
-                    {(!waGroups.some(g => g.id === formTargetNumber) || formTargetNumber === "") && formTargetNumber !== undefined && (
-                      <input
-                        type="text"
-                        placeholder="Ketik nomor WA (misal: 62812...) atau ID Grup manual..."
-                        value={formTargetNumber}
-                        onChange={(e) => setFormTargetNumber(e.target.value)}
-                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                      />
-                    )}
+                    {/* Checkbox: Kirim juga ke Pengawas Gizi */}
+                    {(() => {
+                      const selectedSppg = sppgList.find(s => s.nama_sppg === formSppgName);
+                      const pengawasPhone = selectedSppg?.pengawas_gizi;
+                      return pengawasPhone ? (
+                        <label className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900/80 transition-colors mt-3">
+                          <input
+                            type="checkbox"
+                            checked={formSendToPengawas}
+                            onChange={(e) => setFormSendToPengawas(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-semibold text-slate-200">Kirim juga ke Pengawas Gizi</span>
+                            <p className="text-[10px] text-slate-400">{pengawasPhone}</p>
+                          </div>
+                        </label>
+                      ) : null;
+                    })()}
                   </div>
 
                   <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-800">
@@ -1299,7 +1321,6 @@ export default function Dashboard() {
                         setFormBumil(0);
                         setFormBusui(0);
                         setFormImageBase64("");
-                        setFormTargetNumber("");
                       }}
                       className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
                     >
@@ -1394,6 +1415,28 @@ export default function Dashboard() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">No. WhatsApp Kepala SPPG</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 6281234567890"
+                      value={sppgForm.kepala_sppg}
+                      onChange={(e) => setSppgForm({ ...sppgForm, kepala_sppg: e.target.value.replace(/\D/g, "") })}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">No. WhatsApp Pengawas Gizi</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 6281234567890"
+                      value={sppgForm.pengawas_gizi}
+                      onChange={(e) => setSppgForm({ ...sppgForm, pengawas_gizi: e.target.value.replace(/\D/g, "") })}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP)</label>
@@ -1465,7 +1508,9 @@ export default function Dashboard() {
                             porsi_besar: 0,
                             balita: 0,
                             bumil: 0,
-                            busui: 0
+                            busui: 0,
+                            kepala_sppg: "",
+                            pengawas_gizi: ""
                           });
                         }}
                         className="px-4 py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300"
@@ -1514,6 +1559,8 @@ export default function Dashboard() {
                       <thead>
                         <tr className="border-b border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider bg-slate-950/20">
                           <th className="py-3 px-4">Nama SPPG</th>
+                          <th className="py-3 px-4 text-center">Kepala SPPG</th>
+                          <th className="py-3 px-4 text-center">Pengawas Gizi</th>
                           <th className="py-3 px-4 text-center">Porsi Bsr / Kcl</th>
                           <th className="py-3 px-4 text-center">PMT (Balita/Bml/Bsi)</th>
                           <th className="py-3 px-4 text-center">Aksi</th>
@@ -1526,6 +1573,12 @@ export default function Dashboard() {
                             .map((sppg) => (
                               <tr key={sppg.id} className="text-xs text-slate-350 hover:bg-slate-900/20 transition-colors">
                                 <td className="py-3.5 px-4 font-semibold text-white">{sppg.nama_sppg}</td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span className="text-indigo-400 font-medium">{sppg.kepala_sppg || "-"}</span>
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <span className="text-emerald-400 font-medium">{sppg.pengawas_gizi || "-"}</span>
+                                </td>
                                 <td className="py-3.5 px-4 text-center">
                                   <span className="text-indigo-400 font-medium">{sppg.porsi_besar}</span>
                                   <span className="text-slate-500 mx-1">/</span>
@@ -1560,7 +1613,7 @@ export default function Dashboard() {
                             ))
                         ) : (
                           <tr>
-                            <td colSpan={4} className="py-8 px-4 text-center text-slate-500">
+                            <td colSpan={6} className="py-8 px-4 text-center text-slate-500">
                               Tidak ada data SPPG yang ditemukan.
                             </td>
                           </tr>

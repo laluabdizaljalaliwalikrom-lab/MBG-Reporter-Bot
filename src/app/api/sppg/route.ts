@@ -25,7 +25,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { nama_sppg, porsi_kecil = 0, porsi_besar = 0, balita = 0, bumil = 0, busui = 0 } = body;
+    const { nama_sppg, porsi_kecil = 0, porsi_besar = 0, balita = 0, bumil = 0, busui = 0, kepala_sppg = "", pengawas_gizi = "" } = body;
 
     if (!nama_sppg || !nama_sppg.trim()) {
       return NextResponse.json(
@@ -42,7 +42,9 @@ export async function POST(request: Request) {
         porsi_besar: Number(porsi_besar),
         balita: Number(balita),
         bumil: Number(bumil),
-        busui: Number(busui)
+        busui: Number(busui),
+        kepala_sppg: kepala_sppg.trim(),
+        pengawas_gizi: pengawas_gizi.trim()
       })
       .select()
       .single();
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, nama_sppg, porsi_kecil = 0, porsi_besar = 0, balita = 0, bumil = 0, busui = 0 } = body;
+    const { id, nama_sppg, porsi_kecil = 0, porsi_besar = 0, balita = 0, bumil = 0, busui = 0, kepala_sppg = "", pengawas_gizi = "" } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -94,7 +96,9 @@ export async function PUT(request: Request) {
         porsi_besar: Number(porsi_besar),
         balita: Number(balita),
         bumil: Number(bumil),
-        busui: Number(busui)
+        busui: Number(busui),
+        kepala_sppg: kepala_sppg.trim(),
+        pengawas_gizi: pengawas_gizi.trim()
       })
       .eq("id", id)
       .select()

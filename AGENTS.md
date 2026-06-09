@@ -82,6 +82,8 @@ test-webhook.js                          # Script test webhook lokal
 | nama_sppg | TEXT UNIQUE | Nama SPPG |
 | porsi_kecil/porsi_besar | INTEGER | Default 0 |
 | balita/bumil/busui | INTEGER | PMT B3, default 0 |
+| kepala_sppg | TEXT | Nomor WA Kepala SPPG (format 62xxx) |
+| pengawas_gizi | TEXT | Nomor WA Pengawas Gizi (format 62xxx) |
 
 ### Tabel `system_settings`
 Key-value store (key TEXT UNIQUE, value TEXT). Digunakan untuk `mpwa_sender`.
@@ -178,6 +180,12 @@ Jika nomor tidak dimulai dengan `62`, webhook return error `invalid_sender`.
 - "YA" di grup bisa diketik anggota lain dan salah mengirim draft milik orang lain
 - Foto di grup bisa memicu poster generation yang tidak diinginkan
 - Hanya teks yang jelas-jelas laporan (diawali `LAPORAN` atau `MBG`) diproses dari grup
+
+## Kepala SPPG & Pengawas Gizi
+- Tabel `sppg_data` punya kolom `kepala_sppg` (TEXT) dan `pengawas_gizi` (TEXT) — nomor WhatsApp (format 62xxx)
+- CRUD SPPG di Dashboard mencakup input untuk kedua nomor
+- Form laporan harian punya checkbox **"Kirim juga ke Kepala SPPG"** dan **"Kirim juga ke Pengawas Gizi"** yang muncul otomatis jika SPPG yang dipilih memiliki nomor masing-masing
+- Saat dikirim, poster + caption dikirim ke grup tujuan + nomor Kepala SPPG (jika dicentang) + nomor Pengawas Gizi (jika dicentang)
 
 ## Catatan Penting
 - Jangan edit `Dashboard.tsx` tanpa membaca seluruh komponen karena state management kompleks

@@ -45,7 +45,11 @@ export async function POST(request: Request) {
       giziBesar = {},
       giziKecil = {},
       bufferImage,
-      targetNumber
+      targetNumber,
+      sendToKepala = false,
+      kepalaSppgPhone = "",
+      sendToPengawas = false,
+      pengawasGiziPhone = ""
     } = body;
 
     // --- ACTION: CANCEL ---
@@ -96,29 +100,29 @@ export async function POST(request: Request) {
 
       // Construct official caption
       const caption =
-        `📢 *LAPORAN RESMI MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
+        `📢 *LAPORAN HARIAN MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
         `🏫 *SPPG:* ${ext.sppg_name || "SPPG Wilayah"}\n` +
         `📅 *Tanggal:* ${report.tanggal || "-"}\n` +
         `🍴 *Menu:* ${report.menu || "-"}\n` +
         `👥 *Jumlah Penerima:* ${totalPenerima} Orang\n` +
-        `   - Porsi Besar (SD-SMP): ${report.porsi_besar || 0} Anak\n` +
-        `   - Porsi Kecil (PAUD-TK): ${report.porsi_kecil || 0} Anak\n` +
+        `   - Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik): ${report.porsi_besar || 0} Orang\n` +
+        `   - Porsi Kecil (PAUD-TK, SD Kelas 1-3): ${report.porsi_kecil || 0} Orang\n` +
         `   - PMT B3 Balita: ${balitaVal} Anak\n` +
         `   - PMT B3 Bumil: ${bumilVal} Ibu\n` +
         `   - PMT B3 Busui: ${busuiVal} Ibu\n\n` +
-        `🍱 *Nilai Gizi Porsi Besar (SD-SMP):*\n` +
+        `🍱 *Nilai Gizi Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik):*\n` +
         `   - Energi: ${besar.Energi || report.energi || 0} kcal\n` +
         `   - Protein: ${besar.Protein || report.protein || 0} g\n` +
         `   - Lemak: ${besar.Lemak || report.lemak || 0} g\n` +
         `   - Karbohidrat: ${besar.Karbohidrat || report.karbohidrat || 0} g\n` +
         `   - Serat: ${besar.Serat || report.serat || 0} g\n\n` +
-        `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK):*\n` +
+        `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK, SD Kelas 1-3):*\n` +
         `   - Energi: ${kecil.Energi || 0} kcal\n` +
         `   - Protein: ${kecil.Protein || 0} g\n` +
         `   - Lemak: ${kecil.Lemak || 0} g\n` +
         `   - Karbohidrat: ${kecil.Karbohidrat || 0} g\n` +
         `   - Serat: ${kecil.Serat || 0} g\n\n` +
-        `✅ Laporan telah disetujui oleh Kepala SPPG.`;
+        `Dikirim dengan hormat untuk mewujudkan Generasi Emas Indonesia 2045.`;
 
       // Update status to SENT in Database
       await supabase
@@ -126,10 +130,22 @@ export async function POST(request: Request) {
         .update({ status: "SENT" })
         .eq("id", report.id);
 
-      // Dispatch to WhatsApp
-      const whatsappDestination = targetNumber || process.env.WHATSAPP_GROUP_ID || report.whatsapp_from || "";
-      if (whatsappDestination) {
-        await sendWhatsAppMedia(whatsappDestination, posterUrl, caption);
+      // Kirim ke Kepala SPPG jika dicentang
+      if (sendToKepala && kepalaSppgPhone) {
+        await sendWhatsAppMedia(
+          kepalaSppgPhone,
+          posterUrl,
+          caption
+        );
+      }
+
+      // Kirim juga ke Pengawas Gizi jika dicentang
+      if (sendToPengawas && pengawasGiziPhone) {
+        await sendWhatsAppMedia(
+          pengawasGiziPhone,
+          posterUrl,
+          caption
+        );
       }
 
       return NextResponse.json({
@@ -222,24 +238,24 @@ export async function POST(request: Request) {
       `📅 *Tanggal:* ${tanggal || "-"}\n` +
       `🍴 *Menu:* ${menu || "-"}\n` +
       `👥 *Jumlah Penerima:* ${totalPenerima} Orang\n` +
-      `   - Porsi Besar (SD-SMP): ${porsiBesar} Anak\n` +
-      `   - Porsi Kecil (PAUD-TK): ${porsiKecil} Anak\n` +
+      `   - Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik): ${porsiBesar} Orang\n` +
+      `   - Porsi Kecil (PAUD-TK, SD Kelas 1-3): ${porsiKecil} Orang\n` +
       `   - PMT B3 Balita: ${balita} Anak\n` +
       `   - PMT B3 Bumil: ${bumil} Ibu\n` +
       `   - PMT B3 Busui: ${busui} Ibu\n\n` +
-      `🍱 *Nilai Gizi Porsi Besar (SD-SMP):*\n` +
+      `🍱 *Nilai Gizi Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik):*\n` +
       `   - Energi: ${giziBesar.Energi || 0} kcal\n` +
       `   - Protein: ${giziBesar.Protein || 0} g\n` +
       `   - Lemak: ${giziBesar.Lemak || 0} g\n` +
       `   - Karbohidrat: ${giziBesar.Karbohidrat || 0} g\n` +
       `   - Serat: ${giziBesar.Serat || 0} g\n\n` +
-      `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK):*\n` +
+      `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK, SD Kelas 1-3):*\n` +
       `   - Energi: ${giziKecil.Energi || 0} kcal\n` +
       `   - Protein: ${giziKecil.Protein || 0} g\n` +
       `   - Lemak: ${giziKecil.Lemak || 0} g\n` +
       `   - Karbohidrat: ${giziKecil.Karbohidrat || 0} g\n` +
       `   - Serat: ${giziKecil.Serat || 0} g\n\n` +
-      `✅ Laporan telah disetujui dan dikirim via Dashboard.`;
+      `Dikirim dengan hormat untuk mewujudkan Generasi Emas Indonesia 2045.`;
 
     return NextResponse.json({
       status: "success",

@@ -35,7 +35,9 @@ CREATE TABLE IF NOT EXISTS sppg_data (
     porsi_besar INTEGER DEFAULT 0,
     balita INTEGER DEFAULT 0,
     bumil INTEGER DEFAULT 0,
-    busui INTEGER DEFAULT 0
+    busui INTEGER DEFAULT 0,
+    kepala_sppg TEXT DEFAULT '', -- Nomor WhatsApp Kepala SPPG (format 62xxx)
+    pengawas_gizi TEXT DEFAULT '' -- Nomor WhatsApp Pengawas Gizi (format 62xxx)
 );
 
 -- Disable RLS for sppg_data (matching mbg_reports behaviour)

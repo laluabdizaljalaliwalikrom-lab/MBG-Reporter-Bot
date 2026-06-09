@@ -5,6 +5,16 @@ import { sendWhatsAppMedia } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
+const hariIndonesia = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const bulanIndonesia = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+function formatTanggal(dateStr: string): string {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return dateStr;
+  return `${hariIndonesia[d.getDay()]} ${d.getDate()} ${bulanIndonesia[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 async function uploadPhotoToStorage(base64Data: string, reportId: string): Promise<string> {
   const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(cleanBase64, "base64");
@@ -102,7 +112,7 @@ export async function POST(request: Request) {
       const caption =
         `📢 *LAPORAN HARIAN MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
         `🏫 *SPPG:* ${ext.sppg_name || "SPPG Wilayah"}\n` +
-        `📅 *Tanggal:* ${report.tanggal || "-"}\n` +
+        `📅 *Tanggal:* ${formatTanggal(report.tanggal)}\n` +
         `🍴 *Menu:* ${report.menu || "-"}\n` +
         `👥 *Jumlah Penerima:* ${totalPenerima} Orang\n` +
         `   - Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik): ${report.porsi_besar || 0} Orang\n` +
@@ -235,7 +245,7 @@ export async function POST(request: Request) {
     const previewCaption =
       `📢 *LAPORAN HARIAN MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
       `🏫 *SPPG:* ${sppgName || "SPPG Wilayah"}\n` +
-      `📅 *Tanggal:* ${tanggal || "-"}\n` +
+      `📅 *Tanggal:* ${formatTanggal(tanggal)}\n` +
       `🍴 *Menu:* ${menu || "-"}\n` +
       `👥 *Jumlah Penerima:* ${totalPenerima} Orang\n` +
       `   - Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik): ${porsiBesar} Orang\n` +

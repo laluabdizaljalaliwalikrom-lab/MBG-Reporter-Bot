@@ -261,3 +261,167 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const {
+      reportId,
+      sppgName,
+      tanggal,
+      menu,
+      porsiBesar = 0,
+      porsiKecil = 0,
+      balita = 0,
+      bumil = 0,
+      busui = 0,
+      giziBesar = {},
+      giziKecil = {}
+    } = body;
+
+    if (!reportId) {
+      return NextResponse.json({ status: "error", message: "Report ID wajib disertakan untuk edit." }, { status: 400 });
+    }
+
+    if (!tanggal || !menu) {
+      return NextResponse.json({ status: "error", message: "Tanggal dan Menu Makanan wajib diisi." }, { status: 400 });
+    }
+
+    const extractedData = {
+      sppg_name: sppgName,
+      "Porsi Besar": giziBesar,
+      "Porsi Kecil": giziKecil,
+      "B3": {
+        Balita: Number(balita),
+        Bumil: Number(bumil),
+        Busui: Number(busui)
+      }
+    };
+
+    const { data: updated, error: updateError } = await supabase
+      .from("mbg_reports")
+      .update({
+        tanggal,
+        menu,
+        porsi_besar: Number(porsiBesar),
+        porsi_kecil: Number(porsiKecil),
+        energi: Number(giziBesar.Energi || 0),
+        protein: Number(giziBesar.Protein || 0),
+        lemak: Number(giziBesar.Lemak || 0),
+        karbohidrat: Number(giziBesar.Karbohidrat || 0),
+        serat: Number(giziBesar.Serat || 0),
+        extracted_data: extractedData
+      })
+      .eq("id", reportId)
+      .select()
+      .single();
+
+    if (updateError || !updated) {
+      console.error("Error updating report:", updateError);
+      return NextResponse.json({ status: "error", message: "Gagal memperbarui laporan." }, { status: 500 });
+    }
+
+    // Regenerate poster
+    let posterUrl = updated.poster_url || "";
+    try {
+      posterUrl = await generatePoster(reportId);
+      await supabase
+        .from("mbg_reports")
+        .update({ poster_url: posterUrl })
+        .eq("id", reportId);
+    } catch (err) {
+      console.error("Poster regeneration failed:", err);
+    }
+
+    // Rebuild caption
+    const ext = updated.extracted_data || {};
+    const besar = ext["Porsi Besar"] || {};
+    const kecil = ext["Porsi Kecil"] || {};
+    const b3 = ext["B3"] || {};
+    const totalPenerima = Number(porsiBesar) + Number(porsiKecil) + Number(balita) + Number(bumil) + Number(busui);
+
+    const caption =
+      `📢 *LAPORAN HARIAN MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
+      `🏫 *SPPG:* ${sppgName || "SPPG Wilayah"}\n` +
+      `📅 *Tanggal:* ${formatTanggal(tanggal)}\n` +
+      `🍴 *Menu:* ${menu || "-"}\n` +
+      `👥 *Jumlah Penerima:* ${totalPenerima} Orang\n` +
+      `   - Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik): ${porsiBesar} Orang\n` +
+      `   - Porsi Kecil (PAUD-TK, SD Kelas 1-3): ${porsiKecil} Orang\n` +
+      `   - PMT B3 Balita: ${b3.Balita || 0} Anak\n` +
+      `   - PMT B3 Bumil: ${b3.Bumil || 0} Ibu\n` +
+      `   - PMT B3 Busui: ${b3.Busui || 0} Ibu\n\n` +
+      `🍱 *Nilai Gizi Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik):*\n` +
+      `   - Energi: ${besar.Energi || 0} kcal\n` +
+      `   - Protein: ${besar.Protein || 0} g\n` +
+      `   - Lemak: ${besar.Lemak || 0} g\n` +
+      `   - Karbohidrat: ${besar.Karbohidrat || 0} g\n` +
+      `   - Serat: ${besar.Serat || 0} g\n\n` +
+      `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK, SD Kelas 1-3):*\n` +
+      `   - Energi: ${kecil.Energi || 0} kcal\n` +
+      `   - Protein: ${kecil.Protein || 0} g\n` +
+      `   - Lemak: ${kecil.Lemak || 0} g\n` +
+      `   - Karbohidrat: ${kecil.Karbohidrat || 0} g\n` +
+      `   - Serat: ${kecil.Serat || 0} g\n\n` +
+      `Dikirim dengan hormat untuk mewujudkan Generasi Emas Indonesia 2045.`;
+
+    return NextResponse.json({
+      status: "success",
+      message: "Laporan berhasil diperbarui!",
+      reportId: updated.id,
+      posterUrl,
+      caption
+    });
+  } catch (error: unknown) {
+    console.error("Error updating report:", error);
+    const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan internal server.";
+    return NextResponse.json({ status: "error", message: errorMessage }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ status: "error", message: "Report ID wajib disertakan." }, { status: 400 });
+    }
+
+    // Fetch report to get storage file URLs
+    const { data: report } = await supabase
+      .from("mbg_reports")
+      .select("poster_url, photo_url")
+      .eq("id", id)
+      .single();
+
+    // Cleanup storage files
+    if (report) {
+      const filesToDelete: string[] = [];
+      if (report.poster_url) {
+        const posterPath = report.poster_url.split("/").slice(-2).join("/");
+        if (posterPath) filesToDelete.push(posterPath);
+      }
+      if (report.photo_url) {
+        const photoPath = report.photo_url.split("/").slice(-2).join("/");
+        if (photoPath) filesToDelete.push(photoPath);
+      }
+      if (filesToDelete.length > 0) {
+        await supabase.storage.from("posters").remove(filesToDelete);
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from("mbg_reports")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) throw deleteError;
+
+    return NextResponse.json({ status: "success", message: "Laporan berhasil dihapus." });
+  } catch (error: unknown) {
+    console.error("Error deleting report:", error);
+    const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan internal server.";
+    return NextResponse.json({ status: "error", message: errorMessage }, { status: 500 });
+  }
+}

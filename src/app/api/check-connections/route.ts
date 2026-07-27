@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { checkGeminiConnection } from "@/lib/gemini";
-import { checkWhatsAppConnection } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const geminiConnected = await checkGeminiConnection();
-    const whatsappResult = await checkWhatsAppConnection();
 
     return NextResponse.json({
       gemini: {
@@ -15,12 +13,6 @@ export async function GET() {
         message: geminiConnected
           ? "Gemini Terhubung"
           : "Gagal menghubungkan ke Gemini. Silakan periksa kembali API Key Anda."
-      },
-      whatsapp: {
-        status: whatsappResult.success ? "OK" : "ERROR",
-        message: whatsappResult.success
-          ? whatsappResult.message
-          : `${whatsappResult.message}${whatsappResult.details ? `: ${whatsappResult.details}` : ""}`
       }
     });
   } catch (error: unknown) {

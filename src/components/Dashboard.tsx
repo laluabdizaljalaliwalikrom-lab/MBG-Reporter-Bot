@@ -26,9 +26,6 @@ import {
   Bell,
   User,
   Shield,
-  Locate,
-  Bot,
-  MessageSquare,
   RefreshCw,
   Database,
   Trash2,
@@ -131,61 +128,24 @@ export default function Dashboard() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  // WhatsApp Gateway Settings (MPWA) States
-  const [whatsappApiKey, setWhatsappApiKey] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return window.localStorage.getItem("mpwa_api_key") || "";
-    }
-    return "";
-  });
-  const [whatsappSender, setWhatsappSender] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return window.localStorage.getItem("mpwa_sender") || "";
-    }
-    return "";
-  });
-  const [showApiKey, setShowApiKey] = useState(false);
-
   // Toast notification state for settings
   const [settingsToast, setSettingsToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
     show: false, message: "", type: "success"
   });
-  const [savingSettings, setSavingSettings] = useState(false);
-
   const showSettingsToast = (message: string, type: "success" | "error" = "success") => {
     setSettingsToast({ show: true, message, type });
     setTimeout(() => setSettingsToast((prev) => ({ ...prev, show: false })), 4000);
   };
 
-  // Load mpwa_sender from server-side API on mount
-  useEffect(() => {
-    async function loadSenderFromDb() {
-      try {
-        const res = await fetch("/api/settings?key=mpwa_sender");
-        const data = await res.json();
-        if (res.ok && data.value) {
-          setWhatsappSender(data.value);
-        }
-      } catch (err) {
-        console.error("Failed to load mpwa_sender:", err);
-      }
-    }
-    loadSenderFromDb();
-  }, []);
-
-  // Connection Test States
+  // Connection Test States (Gemini only)
   const [checkingConnections, setCheckingConnections] = useState(false);
   const [geminiStatus, setGeminiStatus] = useState<"idle" | "OK" | "ERROR">("idle");
   const [geminiMessage, setGeminiMessage] = useState("");
-  const [whatsappStatus, setWhatsappStatus] = useState<"idle" | "OK" | "ERROR">("idle");
-  const [whatsappMessage, setWhatsappMessage] = useState("");
 
   const handleCheckConnections = async () => {
     setCheckingConnections(true);
     setGeminiStatus("idle");
-    setWhatsappStatus("idle");
     setGeminiMessage("Memeriksa...");
-    setWhatsappMessage("Memeriksa...");
 
     try {
       const response = await fetch("/api/check-connections");
@@ -199,26 +159,14 @@ export default function Dashboard() {
           setGeminiStatus("ERROR");
           setGeminiMessage("Tidak ada respons status Gemini.");
         }
-
-        if (data.whatsapp) {
-          setWhatsappStatus(data.whatsapp.status);
-          setWhatsappMessage(data.whatsapp.message);
-        } else {
-          setWhatsappStatus("ERROR");
-          setWhatsappMessage("Tidak ada respons status WhatsApp.");
-        }
       } else {
         setGeminiStatus("ERROR");
-        setWhatsappStatus("ERROR");
         setGeminiMessage(data.message || "Gagal mengambil status koneksi.");
-        setWhatsappMessage(data.message || "Gagal mengambil status koneksi.");
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Terjadi kesalahan jaringan.";
       setGeminiStatus("ERROR");
-      setWhatsappStatus("ERROR");
       setGeminiMessage(errorMsg);
-      setWhatsappMessage(errorMsg);
     } finally {
       setCheckingConnections(false);
     }
@@ -266,29 +214,12 @@ export default function Dashboard() {
     }
   }, []);
 
-  const [waGroups, setWaGroups] = useState<{ id: string; name: string }[]>([]);
-
-  const fetchWaGroups = useCallback(async () => {
-    try {
-      const storedApiKey = typeof window !== "undefined" ? window.localStorage.getItem("mpwa_api_key") || "" : "";
-      const storedSender = whatsappSender || "";
-      const res = await fetch(`/api/settings/groups?api_key=${encodeURIComponent(storedApiKey)}&sender=${encodeURIComponent(storedSender)}`);
-      const json = await res.json();
-      if (json.status === "success" && json.groups) {
-        setWaGroups(json.groups);
-      }
-    } catch (err) {
-      console.error("Gagal memuat grup WhatsApp:", err);
-    }
-  }, [whatsappSender]);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchSppgList();
-      fetchWaGroups();
     }, 0);
     return () => clearTimeout(timer);
-  }, [fetchSppgList, fetchWaGroups]);
+  }, [fetchSppgList]);
 
   // Form states for manual report submission
   const [formSppgName, setFormSppgName] = useState("");
@@ -473,7 +404,7 @@ export default function Dashboard() {
       const resData = await response.json();
       if (response.ok) {
         if (confirmAction === "confirm") {
-          showSettingsToast("Laporan sukses disetujui & dikirim ke WhatsApp!", "success");
+          showSettingsToast("Laporan berhasil disetujui! Silakan download poster & copy caption.", "success");
           // Reset form
           setFormMenu("");
           setFormPorsiBesar(0);
@@ -1723,207 +1654,60 @@ export default function Dashboard() {
 
               <div className="h-px bg-slate-800" />
 
-              {/* WhatsApp Gateway Settings (MPWA) */}
+              {/* Gemini Connection Check */}
               <div className="space-y-6">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Locate size={18} className="text-indigo-400" />
-                  <span>Pengaturan WhatsApp Gateway (MPWA)</span>
+                  <Sparkles size={18} className="text-indigo-400" />
+                  <span>Status Koneksi AI (Gemini)</span>
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-bold text-slate-400 uppercase">MPWA API Key</label>
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold"
-                      >
-                        {showApiKey ? "Sembunyikan" : "Tampilkan"}
-                      </button>
+                <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80">
+                  {geminiStatus !== "idle" ? (
+                    <div className="flex items-start gap-1.5">
+                      <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                        geminiStatus === "OK" ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-red-500 shadow-lg shadow-red-500/50"
+                      }`} />
+                      <span className={`text-xs font-medium leading-relaxed ${
+                        geminiStatus === "OK" ? "text-emerald-400" : "text-red-400"
+                      }`}>
+                        {geminiMessage}
+                      </span>
                     </div>
-                    <input
-                      type={showApiKey ? "text" : "password"}
-                      placeholder="Masukkan MPWA API Key..."
-                      value={whatsappApiKey}
-                      onChange={(e) => setWhatsappApiKey(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
-                    />
-                    <p className="text-[10px] text-slate-500">
-                      Jika dikosongkan, sistem akan menggunakan key dari environment variable (`WHATSAPP_API_KEY` / `MPWA_API_KEY`).
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Sender Phone ID / Number</label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: 6281234567890"
-                      value={whatsappSender}
-                      onChange={(e) => setWhatsappSender(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
-                    />
-                    <p className="text-[10px] text-slate-500">
-                      Nomor pengirim atau ID perangkat yang terdaftar di MPWA. Format angka lengkap beserta kode negara (misal: 6281234567890). Disimpan ke database Supabase.
-                    </p>
-                  </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Belum diperiksa</span>
+                  )}
                 </div>
+
+                <button
+                  type="button"
+                  disabled={checkingConnections}
+                  onClick={handleCheckConnections}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                >
+                  <RefreshCw size={14} className={checkingConnections ? "animate-spin" : ""} />
+                  <span>Periksa Koneksi Gemini</span>
+                </button>
               </div>
 
               <div className="h-px bg-slate-800" />
 
-              {/* API Connection Check */}
-              <div className="space-y-6">
+              {/* Pengaturan Pengiriman */}
+              <div className="space-y-4">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Shield size={18} className="text-indigo-400" />
-                  <span>Status Koneksi Integrasi</span>
+                  <Send size={18} className="text-indigo-400" />
+                  <span>Pengiriman Laporan</span>
                 </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Status AI (Gemini) */}
-                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 flex flex-col justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2.5 rounded-xl ${
-                        geminiStatus === "OK" 
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : geminiStatus === "ERROR"
-                          ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                          : "bg-slate-800/80 text-slate-400 border border-slate-700"
-                      }`}>
-                        <Bot size={20} />
-                      </div>
-                      <div className="space-y-0.5">
-                        <h4 className="text-xs font-bold text-white">Status AI (Gemini)</h4>
-                        <p className="text-[10px] text-slate-500">Koneksi model analisis AI Gemini</p>
-                      </div>
-                    </div>
-                    <div>
-                      {geminiStatus !== "idle" ? (
-                        <div className="flex items-start gap-1.5 mt-1">
-                          <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                            geminiStatus === "OK" ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-red-500 shadow-lg shadow-red-500/50"
-                          }`} />
-                          <span className={`text-xs font-medium leading-relaxed ${
-                            geminiStatus === "OK" ? "text-emerald-400" : "text-red-400"
-                          }`}>
-                            {geminiMessage}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Belum diperiksa</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Status Gateway (MPWA) */}
-                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 flex flex-col justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2.5 rounded-xl ${
-                        whatsappStatus === "OK" 
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : whatsappStatus === "ERROR"
-                          ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                          : "bg-slate-800/80 text-slate-400 border border-slate-700"
-                      }`}>
-                        <MessageSquare size={20} />
-                      </div>
-                      <div className="space-y-0.5">
-                        <h4 className="text-xs font-bold text-white">Status Gateway (MPWA)</h4>
-                        <p className="text-[10px] text-slate-500">Koneksi pengiriman pesan WhatsApp</p>
-                      </div>
-                    </div>
-                    <div>
-                      {whatsappStatus !== "idle" ? (
-                        <div className="flex items-start gap-1.5 mt-1">
-                          <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                            whatsappStatus === "OK" ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-red-500 shadow-lg shadow-red-500/50"
-                          }`} />
-                          <span className={`text-xs font-medium leading-relaxed ${
-                            whatsappStatus === "OK" ? "text-emerald-400" : "text-red-400"
-                          }`}>
-                            {whatsappMessage}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Belum diperiksa</span>
-                      )}
-                    </div>
-                  </div>
+                <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 space-y-3">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Laporan dikirim <span className="text-white font-bold">manual</span> ke grup WhatsApp melalui halaman Dashboard.
+                  </p>
+                  <ol className="list-decimal list-inside text-[11px] text-slate-400 space-y-1.5">
+                    <li>Buka tab <span className="text-white font-semibold">Laporan Harian</span>, isi form, klik <span className="text-white font-semibold">Buat Pratinjau</span>.</li>
+                    <li>Di modal pratinjau, klik <span className="text-white font-semibold">Download Poster</span> untuk menyimpan gambar poster.</li>
+                    <li>Klik <span className="text-white font-semibold">Copy Caption</span> untuk menyalin teks laporan.</li>
+                    <li>Buka WhatsApp, pilih grup tujuan, tempel caption, unggah poster, lalu kirim.</li>
+                  </ol>
                 </div>
-
-                <div className="flex justify-start">
-                  <button
-                    type="button"
-                    disabled={checkingConnections}
-                    onClick={handleCheckConnections}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
-                  >
-                    <RefreshCw size={14} className={checkingConnections ? "animate-spin" : ""} />
-                    <span>Segarkan Status Koneksi</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="h-px bg-slate-800" />
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (typeof window !== "undefined") {
-                      window.localStorage.removeItem("mpwa_api_key");
-                      window.localStorage.removeItem("mpwa_sender");
-                    }
-                    setWhatsappApiKey("");
-                    setWhatsappSender("");
-                    showSettingsToast("Pengaturan lokal di-reset ke nilai default.", "success");
-                  }}
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
-                >
-                  Reset Default
-                </button>
-                <button
-                  type="button"
-                  disabled={savingSettings}
-                  onClick={async () => {
-                    setSavingSettings(true);
-                    try {
-                      // Save API key to localStorage (client-side only)
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("mpwa_api_key", whatsappApiKey);
-                      }
-
-                      // Save sender via server-side API route
-                      const cleanedSender = whatsappSender.replace(/\D/g, "");
-                      if (cleanedSender) {
-                        const res = await fetch("/api/settings", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ key: "mpwa_sender", value: cleanedSender })
-                        });
-                        const result = await res.json();
-                        if (!res.ok) {
-                          throw new Error(result.error || "Gagal menyimpan ke database.");
-                        }
-                        setWhatsappSender(cleanedSender);
-                      }
-
-                      showSettingsToast("Pengaturan berhasil disimpan!", "success");
-                      fetchWaGroups();
-                    } catch (err: unknown) {
-                      const msg = err instanceof Error ? err.message
-                        : (typeof err === "object" && err !== null && "message" in err)
-                        ? String((err as { message: unknown }).message)
-                        : JSON.stringify(err);
-                      showSettingsToast(msg || "Gagal menyimpan pengaturan.", "error");
-                    } finally {
-                      setSavingSettings(false);
-                    }
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all"
-                >
-                  {savingSettings ? "Menyimpan..." : "Simpan Pengaturan"}
-                </button>
               </div>
             </div>
           )}
@@ -2111,7 +1895,7 @@ export default function Dashboard() {
             <div className="px-6 py-4 border-b border-slate-850 bg-slate-950/40 flex items-center justify-between">
               <div className="space-y-0.5">
                 <h3 className="font-bold text-white text-base">Pratinjau Poster & Teks Laporan</h3>
-                <p className="text-[10px] text-slate-500">Tinjau poster dan teks laporan sebelum dikirim ke grup pemangku kepentingan.</p>
+                <p className="text-[10px] text-slate-500">Tinjau poster dan caption. Setelah disetujui, download poster lalu copy caption untuk dikirim ke grup WhatsApp.</p>
               </div>
               <button
                 onClick={() => handleConfirmReport("cancel")}
@@ -2143,9 +1927,9 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Right Column: WhatsApp Caption Preview */}
+              {/* Right Column: Caption Preview */}
               <div className="space-y-2 flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Teks Laporan WhatsApp</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Caption / Teks Laporan</span>
                 <div className="flex-1 p-4 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] text-slate-350 overflow-y-auto whitespace-pre-wrap select-all leading-relaxed shadow-inner">
                   {formPreviewData.caption}
                 </div>
@@ -2153,26 +1937,73 @@ export default function Dashboard() {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-850 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                disabled={formIsConfirming}
-                onClick={() => handleConfirmReport("cancel")}
-                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
-              >
-                Revisi / Batal
-              </button>
-              <button
-                type="button"
-                disabled={formIsConfirming}
-                onClick={() => handleConfirmReport("confirm")}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${
-                  formIsConfirming ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-650 hover:bg-indigo-600 shadow-md"
-                }`}
-              >
-                {formIsConfirming && <RefreshCw size={14} className="animate-spin" />}
-                <span>{formIsConfirming ? "Mengirim..." : "Setujui & Kirim ke WhatsApp"}</span>
-              </button>
+            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-850 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={formIsConfirming || !formPreviewData.posterUrl}
+                  onClick={async () => {
+                    if (!formPreviewData.posterUrl) return;
+                    try {
+                      const res = await fetch(formPreviewData.posterUrl);
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `poster-mbg-${formPreviewData.reportId}.png`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                      showSettingsToast("Poster berhasil didownload!", "success");
+                    } catch {
+                      showSettingsToast("Gagal download poster.", "error");
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                  <span>Download Poster</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!formPreviewData.caption}
+                  onClick={async () => {
+                    if (!formPreviewData.caption) return;
+                    try {
+                      await navigator.clipboard.writeText(formPreviewData.caption);
+                      showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
+                    } catch {
+                      showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 border border-slate-600 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  <span>Copy Caption</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  disabled={formIsConfirming}
+                  onClick={() => handleConfirmReport("cancel")}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
+                >
+                  Revisi / Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={formIsConfirming}
+                  onClick={() => handleConfirmReport("confirm")}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${
+                    formIsConfirming ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-650 hover:bg-indigo-600 shadow-md"
+                  }`}
+                >
+                  {formIsConfirming && <RefreshCw size={14} className="animate-spin" />}
+                  <span>{formIsConfirming ? "Menyimpan..." : "Setujui & Simpan"}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { generatePoster } from "@/lib/poster-service";
-import { sendWhatsAppMedia } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -55,11 +54,7 @@ export async function POST(request: Request) {
       giziBesar = {},
       giziKecil = {},
       bufferImage,
-      targetNumber,
-      sendToKepala = false,
-      kepalaSppgPhone = "",
-      sendToPengawas = false,
-      pengawasGiziPhone = ""
+      targetNumber
     } = body;
 
     // --- ACTION: CANCEL ---
@@ -75,10 +70,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: "success", message: "Laporan berhasil dibatalkan." });
     }
 
-    // --- ACTION: CONFIRM (APPROVE & SEND) ---
+    // --- ACTION: CONFIRM (MARK AS SENT) ---
     if (action === "confirm") {
       if (!reportId) {
-        return NextResponse.json({ status: "error", message: "Report ID wajib disertakan untuk pengiriman." }, { status: 400 });
+        return NextResponse.json({ status: "error", message: "Report ID wajib disertakan untuk konfirmasi." }, { status: 400 });
       }
 
       // Fetch the draft report
@@ -134,35 +129,18 @@ export async function POST(request: Request) {
         `   - Serat: ${kecil.Serat || 0} g\n\n` +
         `Dikirim dengan hormat untuk mewujudkan Generasi Emas Indonesia 2045.`;
 
-      // Update status to SENT in Database
+      // Update status to SENT
       await supabase
         .from("mbg_reports")
         .update({ status: "SENT" })
         .eq("id", report.id);
 
-      // Kirim ke Kepala SPPG jika dicentang
-      if (sendToKepala && kepalaSppgPhone) {
-        await sendWhatsAppMedia(
-          kepalaSppgPhone,
-          posterUrl,
-          caption
-        );
-      }
-
-      // Kirim juga ke Pengawas Gizi jika dicentang
-      if (sendToPengawas && pengawasGiziPhone) {
-        await sendWhatsAppMedia(
-          pengawasGiziPhone,
-          posterUrl,
-          caption
-        );
-      }
-
       return NextResponse.json({
         status: "success",
-        message: "Laporan resmi berhasil disetujui dan dikirim ke WhatsApp!",
+        message: "Laporan berhasil disetujui dan ditandai sebagai terkirim!",
         reportId: report.id,
-        posterUrl
+        posterUrl,
+        caption
       });
     }
 

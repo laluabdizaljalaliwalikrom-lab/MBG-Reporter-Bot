@@ -51,6 +51,12 @@ interface Report {
   distributionTime: string;
   temperatureServed: string; // Celsius
   notes?: string;
+  posterUrl?: string;
+  balita?: number;
+  bumil?: number;
+  busui?: number;
+  giziBesar?: { Energi: number; Protein: number; Lemak: number; Karbohidrat: number; Serat: number };
+  giziKecil?: { Energi: number; Protein: number; Lemak: number; Karbohidrat: number; Serat: number };
 }
 
 // Realtime database data source
@@ -67,59 +73,92 @@ export default function Dashboard() {
 
       const large = r.porsi_besar || 0;
       const small = r.porsi_kecil || 0;
-      const total = large + small;
-
-      const cleanPhone = r.whatsapp_from ? r.whatsapp_from.replace("@c.us", "") : "";
-      const formattedPhone = cleanPhone ? `+${cleanPhone}` : "Unknown";
-
-      let sppgName = "SPPG Wilayah";
-      let location = "Operasional Lapangan";
-
-      if (cleanPhone.includes("812") || cleanPhone.includes("811")) {
-        sppgName = "SPPG Menteng Jaya";
-        location = "Jakarta Pusat";
-      } else if (cleanPhone.includes("821") || cleanPhone.includes("822")) {
-        sppgName = "SPPG Kebayoran Baru";
-        location = "Jakarta Selatan";
-      } else if (cleanPhone.includes("877") || cleanPhone.includes("878")) {
-        sppgName = "SPPG Pajajaran";
-        location = "Kota Bogor";
-      } else if (cleanPhone.includes("813") || cleanPhone.includes("814")) {
-        sppgName = "SPPG Margonda";
-        location = "Kota Depok";
-      } else if (cleanPhone.includes("852") || cleanPhone.includes("853")) {
-        sppgName = "SPPG Cisadane";
-        location = "Kota Tangerang";
-      } else if (cleanPhone.includes("819") || cleanPhone.includes("818")) {
-        sppgName = "SPPG Dago Elok";
-        location = "Kota Bandung";
-      }
+      const b3 = r.extracted_data?.B3 || {};
+      const balita = b3.Balita || 0;
+      const bumil = b3.Bumil || 0;
+      const busui = b3.Busui || 0;
+      const total = large + small + balita + bumil + busui;
 
       let dateStr = r.tanggal || "";
       if (!dateStr && r.created_at) {
         dateStr = r.created_at.split("T")[0];
       }
 
+      const sppgName = r.extracted_data?.sppg_name || "SPPG Wilayah";
+      const location = r.extracted_data?.sppg_address || "Operasional Lapangan";
+
       return {
         id: r.id,
         date: dateStr || new Date().toISOString().split("T")[0],
-        sppgName: `${sppgName} (${formattedPhone})`,
-        location: location,
+        sppgName,
+        location,
         totalBeneficiaries: total,
         largePortions: large,
         smallPortions: small,
         status: statusStr,
         menu: r.menu || "Belum ditentukan",
-        picName: r.extracted_data?.PIC || `Petugas (${formattedPhone})`,
-        picPhone: formattedPhone,
+        picName: r.extracted_data?.PIC || "Petugas",
+        picPhone: r.whatsapp_from || "Dashboard",
         distributionTime: r.created_at ? new Date(r.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB" : "11:30 WIB",
         temperatureServed: "62°C",
-        notes: r.raw_message || undefined
+        notes: r.raw_message || undefined,
+        posterUrl: r.poster_url || undefined,
+        balita,
+        bumil,
+        busui,
+        giziBesar: r.extracted_data?.gizi_besar || undefined,
+        giziKecil: r.extracted_data?.gizi_kecil || undefined
       };
     });
 
     return dbMapped;
   }, [dbReports]);
+
+  const generateReportCaption = useCallback((report: Report): string => {
+    const d = report.date ? new Date(report.date + "T00:00:00") : new Date();
+    const dateFormatted = d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    const balita = report.balita ?? 0;
+    const bumil = report.bumil ?? 0;
+    const busui = report.busui ?? 0;
+    const total = report.largePortions + report.smallPortions + balita + bumil + busui;
+    const gb = report.giziBesar;
+    const gk = report.giziKecil;
+
+    let caption =
+      `📢 *LAPORAN HARIAN MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
+      `🏫 *SPPG:* ${report.sppgName}\n` +
+      `📅 *Tanggal:* ${dateFormatted}\n` +
+      `🍴 *Menu:* ${report.menu}\n` +
+      `👥 *Jumlah Penerima:* ${total} Orang\n` +
+      `   - Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik): ${report.largePortions} Orang\n` +
+      `   - Porsi Kecil (PAUD-TK, SD Kelas 1-3): ${report.smallPortions} Orang\n` +
+      `   - PMT B3 Balita: ${balita} Anak\n` +
+      `   - PMT B3 Bumil: ${bumil} Ibu\n` +
+      `   - PMT B3 Busui: ${busui} Ibu\n\n`;
+
+    if (gb) {
+      caption +=
+        `🍱 *Nilai Gizi Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik):*\n` +
+        `   - Energi: ${gb.Energi || 0} kcal\n` +
+        `   - Protein: ${gb.Protein || 0} g\n` +
+        `   - Lemak: ${gb.Lemak || 0} g\n` +
+        `   - Karbohidrat: ${gb.Karbohidrat || 0} g\n` +
+        `   - Serat: ${gb.Serat || 0} g\n\n`;
+    }
+
+    if (gk) {
+      caption +=
+        `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK, SD Kelas 1-3):*\n` +
+        `   - Energi: ${gk.Energi || 0} kcal\n` +
+        `   - Protein: ${gk.Protein || 0} g\n` +
+        `   - Lemak: ${gk.Lemak || 0} g\n` +
+        `   - Karbohidrat: ${gk.Karbohidrat || 0} g\n` +
+        `   - Serat: ${gk.Serat || 0} g\n\n`;
+    }
+
+    caption += `Dikirim dengan hormat untuk mewujudkan Generasi Emas Indonesia 2045.`;
+    return caption;
+  }, []);
 
   // Derived state from reportsList
   const reports = reportsList;
@@ -1330,213 +1369,145 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider bg-slate-950/20">
-                        <th className="py-4 px-6">Tanggal</th>
-                        <th className="py-4 px-6">SPPG</th>
-                        <th className="py-4 px-6">Menu</th>
-                        <th className="py-4 px-6 text-right">Porsi B/K</th>
-                        <th className="py-4 px-6 text-center">Status</th>
-                        <th className="py-4 px-6 text-center">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {filteredReports.length > 0 ? (
-                        filteredReports.map((report) => {
-                          const dbRow = dbReports.find((r) => r.id === report.id);
-                          return (
-                            <tr key={report.id} className="text-xs text-slate-300 hover:bg-slate-900/30 transition-colors">
-                              <td className="py-4 px-6">
-                                <div className="font-semibold text-white">{report.date}</div>
-                                <div className="text-[10px] text-slate-500 mt-0.5 font-mono">{report.id.slice(0, 8)}...</div>
-                              </td>
-                              <td className="py-4 px-6">
-                                <div className="font-semibold text-slate-200">{report.sppgName.split(" (")[0]}</div>
-                              </td>
-                              <td className="py-4 px-6 max-w-[200px]">
-                                <div className="text-slate-400 truncate">{report.menu}</div>
-                              </td>
-                              <td className="py-4 px-6 text-right">
-                                <span className="text-indigo-400 font-medium">{report.largePortions}</span>
-                                <span className="text-slate-600 mx-1">/</span>
-                                <span className="text-emerald-400 font-medium">{report.smallPortions}</span>
-                              </td>
-                              <td className="py-4 px-6 text-center">
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                                  report.status === "Draft" && "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                } ${
-                                  report.status === "Approved" && "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                                } ${
-                                  report.status === "Sent" && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                }`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${
-                                    report.status === "Draft" && "bg-amber-400"
-                                  } ${report.status === "Approved" && "bg-indigo-400"} ${
-                                    report.status === "Sent" && "bg-emerald-400"
-                                  }`} />
-                                  <span>{report.status}</span>
-                                </span>
-                              </td>
-                              <td className="py-4 px-6">
-                                <div className="flex items-center justify-center gap-1">
-                                  {/* Detail */}
-                                  <button
-                                    onClick={() => setSelectedReport(report)}
-                                    className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-indigo-400 hover:text-indigo-300 rounded-lg transition-colors"
-                                    title="Detail"
-                                  >
-                                    <Eye size={12} />
-                                  </button>
-                                  {/* Edit */}
-                                  <button
-                                    onClick={() => {
-                                      if (!dbRow) return;
-                                      const ext = dbRow.extracted_data || {};
-                                      const besar = ext["Porsi Besar"] || {};
-                                      const kecil = ext["Porsi Kecil"] || {};
-                                      const b3 = ext["B3"] || {};
-                                      setFormSppgName(ext.sppg_name || "");
-                                      setFormTanggal(dbRow.tanggal || new Date().toISOString().split("T")[0]);
-                                      setFormMenu(dbRow.menu || "");
-                                      setFormPorsiBesar(dbRow.porsi_besar || 0);
-                                      setFormPorsiKecil(dbRow.porsi_kecil || 0);
-                                      setFormBalita(b3.Balita || 0);
-                                      setFormBumil(b3.Bumil || 0);
-                                      setFormBusui(b3.Busui || 0);
-                                      setFormGiziBesar({
-                                        Energi: besar.Energi || dbRow.energi || 0,
-                                        Protein: besar.Protein || dbRow.protein || 0,
-                                        Lemak: besar.Lemak || dbRow.lemak || 0,
-                                        Karbohidrat: besar.Karbohidrat || dbRow.karbohidrat || 0,
-                                        Serat: besar.Serat || dbRow.serat || 0
-                                      });
-                                      setFormGiziKecil({
-                                        Energi: kecil.Energi || 0,
-                                        Protein: kecil.Protein || 0,
-                                        Lemak: kecil.Lemak || 0,
-                                        Karbohidrat: kecil.Karbohidrat || 0,
-                                        Serat: kecil.Serat || 0
-                                      });
-                                      setFormImageBase64("");
-                                      setEditingReportId(dbRow.id);
-                                      setActiveTab("laporan");
-                                    }}
-                                    className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-amber-400 hover:text-amber-300 rounded-lg transition-colors"
-                                    title="Edit"
-                                  >
-                                    <Edit size={12} />
-                                  </button>
-                                  {/* Download Poster */}
-                                  <button
-                                    disabled={!dbRow?.poster_url}
-                                    onClick={async () => {
-                                      if (!dbRow?.poster_url) return;
-                                      try {
-                                        const res = await fetch(dbRow.poster_url);
-                                        const blob = await res.blob();
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement("a");
-                                        a.href = url;
-                                        a.download = `poster-mbg-${report.id}.png`;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        document.body.removeChild(a);
-                                        URL.revokeObjectURL(url);
-                                        showSettingsToast("Poster berhasil didownload!", "success");
-                                      } catch {
-                                        showSettingsToast("Gagal download poster.", "error");
-                                      }
-                                    }}
-                                    className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-emerald-400 hover:text-emerald-300 disabled:opacity-30 disabled:hover:bg-slate-900 rounded-lg transition-colors"
-                                    title="Download Poster"
-                                  >
-                                    <Download size={12} />
-                                  </button>
-                                  {/* Copy Caption */}
-                                  <button
-                                    disabled={!dbRow}
-                                    onClick={async () => {
-                                      if (!dbRow) return;
-                                      const ext = dbRow.extracted_data || {};
-                                      const besar = ext["Porsi Besar"] || {};
-                                      const kecil = ext["Porsi Kecil"] || {};
-                                      const b3 = ext["B3"] || {};
-                                      const total = (dbRow.porsi_besar || 0) + (dbRow.porsi_kecil || 0) + (b3.Balita || 0) + (b3.Bumil || 0) + (b3.Busui || 0);
-                                      const cap =
-                                        `📢 *LAPORAN HARIAN MBG (MAKANAN BERGIZI GRATIS)*\n\n` +
-                                        `🏫 *SPPG:* ${ext.sppg_name || "SPPG Wilayah"}\n` +
-                                        `📅 *Tanggal:* ${report.date}\n` +
-                                        `🍴 *Menu:* ${dbRow.menu || "-"}\n` +
-                                        `👥 *Jumlah Penerima:* ${total} Orang\n` +
-                                        `   - Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik): ${dbRow.porsi_besar || 0} Orang\n` +
-                                        `   - Porsi Kecil (PAUD-TK, SD Kelas 1-3): ${dbRow.porsi_kecil || 0} Orang\n` +
-                                        `   - PMT B3 Balita: ${b3.Balita || 0} Anak\n` +
-                                        `   - PMT B3 Bumil: ${b3.Bumil || 0} Ibu\n` +
-                                        `   - PMT B3 Busui: ${b3.Busui || 0} Ibu\n\n` +
-                                        `🍱 *Nilai Gizi Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru/Tendik):*\n` +
-                                        `   - Energi: ${besar.Energi || dbRow.energi || 0} kcal\n` +
-                                        `   - Protein: ${besar.Protein || dbRow.protein || 0} g\n` +
-                                        `   - Lemak: ${besar.Lemak || dbRow.lemak || 0} g\n` +
-                                        `   - Karbohidrat: ${besar.Karbohidrat || dbRow.karbohidrat || 0} g\n` +
-                                        `   - Serat: ${besar.Serat || dbRow.serat || 0} g\n\n` +
-                                        `🍱 *Nilai Gizi Porsi Kecil (PAUD-TK, SD Kelas 1-3):*\n` +
-                                        `   - Energi: ${kecil.Energi || 0} kcal\n` +
-                                        `   - Protein: ${kecil.Protein || 0} g\n` +
-                                        `   - Lemak: ${kecil.Lemak || 0} g\n` +
-                                        `   - Karbohidrat: ${kecil.Karbohidrat || 0} g\n` +
-                                        `   - Serat: ${kecil.Serat || 0} g\n\n` +
-                                        `Dikirim dengan hormat untuk mewujudkan Generasi Emas Indonesia 2045.`;
-                                      try {
-                                        await navigator.clipboard.writeText(cap);
-                                        showSettingsToast("Caption berhasil dicopy!", "success");
-                                      } catch {
-                                        showSettingsToast("Gagal copy caption.", "error");
-                                      }
-                                    }}
-                                    className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:hover:bg-slate-900 rounded-lg transition-colors"
-                                    title="Copy Caption"
-                                  >
-                                    <Copy size={12} />
-                                  </button>
-                                  {/* Delete */}
-                                  <button
-                                    onClick={async () => {
-                                      if (!confirm("Yakin ingin menghapus laporan ini? Tindakan ini tidak dapat dibatalkan.")) return;
-                                      try {
-                                        const res = await fetch(`/api/reports?id=${report.id}`, { method: "DELETE" });
-                                        const json = await res.json();
-                                        if (res.ok && json.status === "success") {
-                                          setDbReports((prev) => prev.filter((r) => r.id !== report.id));
-                                          showSettingsToast("Laporan berhasil dihapus.", "success");
-                                        } else {
-                                          alert("Gagal menghapus: " + json.message);
-                                        }
-                                      } catch {
-                                        alert("Terjadi kesalahan saat menghapus laporan.");
-                                      }
-                                    }}
-                                    className="p-1.5 bg-slate-900 hover:bg-red-950/40 border border-slate-800 hover:border-red-900/30 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
-                                    title="Hapus Laporan"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="py-12 px-6 text-center text-slate-500">
-                            Tidak ada laporan ditemukan.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                {/* Card Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                  {filteredReports.length > 0 ? (
+                    filteredReports.map((report) => {
+                      const dbRow = dbReports.find((r) => r.id === report.id);
+                      return (
+                        <div key={report.id} className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 space-y-3 transition-all duration-200 hover:shadow-lg hover:shadow-indigo-500/5">
+                          {/* Top: Date + Status */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                              <Calendar size={14} className="text-indigo-400" />
+                              <span>{report.date}</span>
+                            </div>
+                            <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                              report.status === "Draft" && "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                            } ${
+                              report.status === "Approved" && "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                            } ${
+                              report.status === "Sent" && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                report.status === "Draft" && "bg-amber-400"
+                              } ${report.status === "Approved" && "bg-indigo-400"} ${
+                                report.status === "Sent" && "bg-emerald-400"
+                              }`} />
+                              {report.status}
+                            </span>
+                          </div>
+
+                          {/* SPPG Name */}
+                          <p className="font-semibold text-white text-sm">{report.sppgName}</p>
+
+                          {/* Menu */}
+                          <p className="text-xs text-slate-400 truncate" title={report.menu}>
+                            Menu: {report.menu}
+                          </p>
+
+                          {/* Divider */}
+                          <div className="h-px bg-slate-800" />
+
+                          {/* Stats */}
+                          <div className="grid grid-cols-3 gap-3 text-center">
+                            <div>
+                              <p className="text-[10px] text-slate-500">Total</p>
+                              <p className="text-sm font-bold text-white">{report.totalBeneficiaries}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-slate-500">Besar</p>
+                              <p className="text-sm font-bold text-indigo-400">{report.largePortions}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-slate-500">Kecil</p>
+                              <p className="text-sm font-bold text-emerald-400">{report.smallPortions}</p>
+                            </div>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="h-px bg-slate-800" />
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center justify-center gap-2 pt-1">
+                            <button
+                              onClick={() => setSelectedReport(report)}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all"
+                              title="Lihat Detail"
+                            >
+                              <Eye size={14} />
+                              Lihat
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (!dbRow) return;
+                                const ext = dbRow.extracted_data || {};
+                                const besar = ext["Porsi Besar"] || {};
+                                const kecil = ext["Porsi Kecil"] || {};
+                                const b3 = ext["B3"] || {};
+                                setFormSppgName(ext.sppg_name || "");
+                                setFormTanggal(dbRow.tanggal || new Date().toISOString().split("T")[0]);
+                                setFormMenu(dbRow.menu || "");
+                                setFormPorsiBesar(dbRow.porsi_besar || 0);
+                                setFormPorsiKecil(dbRow.porsi_kecil || 0);
+                                setFormBalita(b3.Balita || 0);
+                                setFormBumil(b3.Bumil || 0);
+                                setFormBusui(b3.Busui || 0);
+                                setFormGiziBesar({
+                                  Energi: besar.Energi || dbRow.energi || 0,
+                                  Protein: besar.Protein || dbRow.protein || 0,
+                                  Lemak: besar.Lemak || dbRow.lemak || 0,
+                                  Karbohidrat: besar.Karbohidrat || dbRow.karbohidrat || 0,
+                                  Serat: besar.Serat || dbRow.serat || 0
+                                });
+                                setFormGiziKecil({
+                                  Energi: kecil.Energi || 0,
+                                  Protein: kecil.Protein || 0,
+                                  Lemak: kecil.Lemak || 0,
+                                  Karbohidrat: kecil.Karbohidrat || 0,
+                                  Serat: kecil.Serat || 0
+                                });
+                                setFormImageBase64("");
+                                setEditingReportId(dbRow.id);
+                                setActiveTab("laporan");
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/20 rounded-xl text-xs font-bold transition-all"
+                              title="Edit Laporan"
+                            >
+                              <Edit size={14} />
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm("Yakin ingin menghapus laporan ini? Tindakan ini tidak dapat dibatalkan.")) return;
+                                try {
+                                  const res = await fetch(`/api/reports?id=${report.id}`, { method: "DELETE" });
+                                  const json = await res.json();
+                                  if (res.ok && json.status === "success") {
+                                    setDbReports((prev) => prev.filter((r) => r.id !== report.id));
+                                    showSettingsToast("Laporan berhasil dihapus.", "success");
+                                  } else {
+                                    alert("Gagal menghapus: " + json.message);
+                                  }
+                                } catch {
+                                  alert("Terjadi kesalahan saat menghapus laporan.");
+                                }
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold transition-all"
+                              title="Hapus Laporan"
+                            >
+                              <Trash2 size={14} />
+                              Hapus
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="col-span-full py-12 px-6 text-center text-slate-500">
+                      Tidak ada laporan ditemukan.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2013,58 +1984,105 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Footer with Status Actions */}
-            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-800 flex items-center justify-between gap-3">
+            {/* Footer with Actions */}
+            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-800 flex flex-col gap-3">
+              {/* Action Buttons */}
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500 font-semibold uppercase">Status Saat Ini:</span>
-                <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full ${
-                  selectedReport.status === "Draft" && "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                } ${
-                  selectedReport.status === "Approved" && "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
-                } ${
-                  selectedReport.status === "Sent" && "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                }`}>
-                  {selectedReport.status}
-                </span>
+                <button
+                  disabled={!selectedReport.posterUrl}
+                  onClick={async () => {
+                    if (!selectedReport.posterUrl) return;
+                    try {
+                      const res = await fetch(selectedReport.posterUrl);
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `poster-mbg-${selectedReport.id}.png`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                      showSettingsToast("Poster berhasil didownload!", "success");
+                    } catch {
+                      showSettingsToast("Gagal download poster.", "error");
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all"
+                >
+                  <Download size={14} />
+                  Download Poster
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const caption = generateReportCaption(selectedReport);
+                      await navigator.clipboard.writeText(caption);
+                      showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
+                    } catch {
+                      showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-xl text-xs font-bold text-white transition-all"
+                >
+                  <Copy size={14} />
+                  Copy Caption
+                </button>
               </div>
 
-              <div className="flex items-center gap-2">
-                {selectedReport.status === "Draft" && (
-                  <button
-                    onClick={() => updateReportStatus(selectedReport.id, "Approved")}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all"
-                  >
-                    <CheckCircle2 size={14} />
-                    Approve
-                  </button>
-                )}
+              {/* Status Management */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Status Saat Ini:</span>
+                  <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full ${
+                    selectedReport.status === "Draft" && "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                  } ${
+                    selectedReport.status === "Approved" && "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+                  } ${
+                    selectedReport.status === "Sent" && "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  }`}>
+                    {selectedReport.status}
+                  </span>
+                </div>
 
-                {selectedReport.status === "Approved" && (
-                  <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  {selectedReport.status === "Draft" && (
                     <button
-                      onClick={() => updateReportStatus(selectedReport.id, "Draft")}
-                      className="px-3 py-2 bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl text-xs font-bold transition-all"
+                      onClick={() => updateReportStatus(selectedReport.id, "Approved")}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all"
                     >
-                      Kembalikan ke Draft
+                      <CheckCircle2 size={14} />
+                      Approve
                     </button>
-                    <button
-                      onClick={() => updateReportStatus(selectedReport.id, "Sent")}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
-                    >
-                      <Send size={14} />
-                      Kirim Laporan
-                    </button>
-                  </div>
-                )}
+                  )}
 
-                {selectedReport.status === "Sent" && (
-                  <button
-                    onClick={() => updateReportStatus(selectedReport.id, "Approved")}
-                    className="px-3 py-2 bg-slate-850 hover:bg-slate-800 text-slate-350 border border-slate-800 rounded-xl text-xs font-bold transition-all"
-                  >
-                    Batalkan Pengiriman
-                  </button>
-                )}
+                  {selectedReport.status === "Approved" && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateReportStatus(selectedReport.id, "Draft")}
+                        className="px-3 py-2 bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl text-xs font-bold transition-all"
+                      >
+                        Kembalikan ke Draft
+                      </button>
+                      <button
+                        onClick={() => updateReportStatus(selectedReport.id, "Sent")}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
+                      >
+                        <Send size={14} />
+                        Kirim Laporan
+                      </button>
+                    </div>
+                  )}
+
+                  {selectedReport.status === "Sent" && (
+                    <button
+                      onClick={() => updateReportStatus(selectedReport.id, "Approved")}
+                      className="px-3 py-2 bg-slate-850 hover:bg-slate-800 text-slate-350 border border-slate-800 rounded-xl text-xs font-bold transition-all"
+                    >
+                      Batalkan Pengiriman
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

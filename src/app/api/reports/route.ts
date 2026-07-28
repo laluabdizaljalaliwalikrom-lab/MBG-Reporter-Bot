@@ -389,11 +389,15 @@ export async function DELETE(request: Request) {
     }
 
     // Fetch report to get storage file URLs
-    const { data: report } = await supabase
+    const { data: report, error: fetchError } = await supabase
       .from("mbg_reports")
       .select("poster_url, photo_url")
       .eq("id", id)
-      .single();
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Error fetching report for delete:", fetchError);
+    }
 
     // Cleanup storage files (non-fatal — DB delete must proceed even if storage fails)
     if (report) {
@@ -421,6 +425,20 @@ export async function DELETE(request: Request) {
       .eq("id", id);
 
     if (deleteError) throw deleteError;
+
+    // Verify deletion by checking if row still exists
+    const { data: remaining } = await supabase
+      .from("mbg_reports")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (remaining) {
+      return NextResponse.json({
+        status: "error",
+        message: "Gagal menghapus: kemungkinan RLS (Row Level Security) aktif di tabel mbg_reports. Nonaktifkan RLS atau tambah policy DELETE untuk role anon di Supabase Dashboard."
+      }, { status: 403 });
+    }
 
     return NextResponse.json({ status: "success", message: "Laporan berhasil dihapus." });
   } catch (error: unknown) {

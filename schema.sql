@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS mbg_reports (
     poster_url TEXT
 );
 
--- Enable RLS if needed
--- ALTER TABLE mbg_reports ENABLE ROW LEVEL SECURITY;
+-- Disable RLS for mbg_reports (Supabase enables RLS by default on new projects)
+ALTER TABLE mbg_reports DISABLE ROW LEVEL SECURITY;
 
 -- Create the sppg_data table
 CREATE TABLE IF NOT EXISTS sppg_data (

@@ -395,19 +395,23 @@ export async function DELETE(request: Request) {
       .eq("id", id)
       .single();
 
-    // Cleanup storage files
+    // Cleanup storage files (non-fatal — DB delete must proceed even if storage fails)
     if (report) {
       const filesToDelete: string[] = [];
       if (report.poster_url) {
-        const posterPath = report.poster_url.split("/").slice(-2).join("/");
-        if (posterPath) filesToDelete.push(posterPath);
+        const fileName = report.poster_url.split("/").pop();
+        if (fileName) filesToDelete.push(fileName);
       }
       if (report.photo_url) {
-        const photoPath = report.photo_url.split("/").slice(-2).join("/");
-        if (photoPath) filesToDelete.push(photoPath);
+        const fileName = report.photo_url.split("/").pop();
+        if (fileName) filesToDelete.push(fileName);
       }
       if (filesToDelete.length > 0) {
-        await supabase.storage.from("posters").remove(filesToDelete);
+        try {
+          await supabase.storage.from("posters").remove(filesToDelete);
+        } catch (storageErr) {
+          console.error("Storage cleanup failed (non-fatal):", storageErr);
+        }
       }
     }
 

@@ -140,41 +140,6 @@ export default function Dashboard() {
     setTimeout(() => setSettingsToast((prev) => ({ ...prev, show: false })), 4000);
   };
 
-  // Connection Test States (Gemini only)
-  const [checkingConnections, setCheckingConnections] = useState(false);
-  const [geminiStatus, setGeminiStatus] = useState<"idle" | "OK" | "ERROR">("idle");
-  const [geminiMessage, setGeminiMessage] = useState("");
-
-  const handleCheckConnections = async () => {
-    setCheckingConnections(true);
-    setGeminiStatus("idle");
-    setGeminiMessage("Memeriksa...");
-
-    try {
-      const response = await fetch("/api/check-connections");
-      const data = await response.json();
-
-      if (response.ok && data) {
-        if (data.gemini) {
-          setGeminiStatus(data.gemini.status);
-          setGeminiMessage(data.gemini.message);
-        } else {
-          setGeminiStatus("ERROR");
-          setGeminiMessage("Tidak ada respons status Gemini.");
-        }
-      } else {
-        setGeminiStatus("ERROR");
-        setGeminiMessage(data.message || "Gagal mengambil status koneksi.");
-      }
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Terjadi kesalahan jaringan.";
-      setGeminiStatus("ERROR");
-      setGeminiMessage(errorMsg);
-    } finally {
-      setCheckingConnections(false);
-    }
-  };
-
   // SPPG States
   interface SppgData {
     id?: string;
@@ -243,8 +208,6 @@ export default function Dashboard() {
   });
   
   const [formImageBase64, setFormImageBase64] = useState("");
-  const [formSendToKepala, setFormSendToKepala] = useState(false);
-  const [formSendToPengawas, setFormSendToPengawas] = useState(false);
   const [formIsSubmitting, setFormIsSubmitting] = useState(false);
   const [formPreviewData, setFormPreviewData] = useState<{ reportId: string; posterUrl: string; caption: string } | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -363,11 +326,7 @@ export default function Dashboard() {
           busui: formBusui,
           giziBesar: formGiziBesar,
           giziKecil: formGiziKecil,
-          bufferImage: formImageBase64,
-          sendToKepala: formSendToKepala,
-          kepalaSppgPhone: sppgList.find(s => s.nama_sppg === formSppgName)?.kepala_sppg || "",
-          sendToPengawas: formSendToPengawas,
-          pengawasGiziPhone: sppgList.find(s => s.nama_sppg === formSppgName)?.pengawas_gizi || ""
+          bufferImage: formImageBase64
         })
       });
 
@@ -411,11 +370,7 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: confirmAction,
-          reportId: formPreviewData.reportId,
-          sendToKepala: formSendToKepala,
-          kepalaSppgPhone: sppgList.find(s => s.nama_sppg === formSppgName)?.kepala_sppg || "",
-          sendToPengawas: formSendToPengawas,
-          pengawasGiziPhone: sppgList.find(s => s.nama_sppg === formSppgName)?.pengawas_gizi || ""
+          reportId: formPreviewData.reportId
         })
       });
 
@@ -1238,48 +1193,6 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
-                  <div className="space-y-3">
-                    {/* Checkbox: Kirim juga ke Kepala SPPG */}
-                    {(() => {
-                      const selectedSppg = sppgList.find(s => s.nama_sppg === formSppgName);
-                      const kepalaPhone = selectedSppg?.kepala_sppg;
-                      return kepalaPhone ? (
-                        <label className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900/80 transition-colors mt-3">
-                          <input
-                            type="checkbox"
-                            checked={formSendToKepala}
-                            onChange={(e) => setFormSendToKepala(e.target.checked)}
-                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <div className="space-y-0.5">
-                            <span className="text-xs font-semibold text-slate-200">Kirim juga ke Kepala SPPG</span>
-                            <p className="text-[10px] text-slate-400">{kepalaPhone}</p>
-                          </div>
-                        </label>
-                      ) : null;
-                    })()}
-
-                    {/* Checkbox: Kirim juga ke Pengawas Gizi */}
-                    {(() => {
-                      const selectedSppg = sppgList.find(s => s.nama_sppg === formSppgName);
-                      const pengawasPhone = selectedSppg?.pengawas_gizi;
-                      return pengawasPhone ? (
-                        <label className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900/80 transition-colors mt-3">
-                          <input
-                            type="checkbox"
-                            checked={formSendToPengawas}
-                            onChange={(e) => setFormSendToPengawas(e.target.checked)}
-                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <div className="space-y-0.5">
-                            <span className="text-xs font-semibold text-slate-200">Kirim juga ke Pengawas Gizi</span>
-                            <p className="text-[10px] text-slate-400">{pengawasPhone}</p>
-                          </div>
-                        </label>
-                      ) : null;
-                    })()}
-                  </div>
-
                   <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-800">
                     <button
                       type="button"
@@ -1596,6 +1509,7 @@ export default function Dashboard() {
                                         const res = await fetch(`/api/reports?id=${report.id}`, { method: "DELETE" });
                                         const json = await res.json();
                                         if (res.ok && json.status === "success") {
+                                          setDbReports((prev) => prev.filter((r) => r.id !== report.id));
                                           showSettingsToast("Laporan berhasil dihapus.", "success");
                                         } else {
                                           alert("Gagal menghapus: " + json.message);
@@ -1957,43 +1871,6 @@ export default function Dashboard() {
                     </button>
                   </div>
                 </div>
-              </div>
-
-              <div className="h-px bg-slate-800" />
-
-              {/* Gemini Connection Check */}
-              <div className="space-y-6">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Sparkles size={18} className="text-indigo-400" />
-                  <span>Status Koneksi AI (Gemini)</span>
-                </h3>
-
-                <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80">
-                  {geminiStatus !== "idle" ? (
-                    <div className="flex items-start gap-1.5">
-                      <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                        geminiStatus === "OK" ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-red-500 shadow-lg shadow-red-500/50"
-                      }`} />
-                      <span className={`text-xs font-medium leading-relaxed ${
-                        geminiStatus === "OK" ? "text-emerald-400" : "text-red-400"
-                      }`}>
-                        {geminiMessage}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-slate-400 italic">Belum diperiksa</span>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={checkingConnections}
-                  onClick={handleCheckConnections}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
-                >
-                  <RefreshCw size={14} className={checkingConnections ? "animate-spin" : ""} />
-                  <span>Periksa Koneksi Gemini</span>
-                </button>
               </div>
 
               <div className="h-px bg-slate-800" />

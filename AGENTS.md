@@ -32,7 +32,7 @@ src/
 │   ├── layout.tsx                       # Root layout
 │   └── globals.css                      # Tailwind v4 imports
 ├── components/
-│   └── Dashboard.tsx                    # Komponen dashboard utama (2335 baris)
+│   └── Dashboard.tsx                    # Komponen dashboard utama (2229 baris)
 ├── lib/
 │   ├── hooks/useLaporanRealtime.ts      # Hook realtime Supabase
 │   ├── poster-service.ts                # Generate poster PNG via Satori
@@ -109,6 +109,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 - **Font poster:** `public/fonts/Poppins-Bold.ttf` (fallback fetch dari GitHub CDN)
 - **Nomor WA:** Simpan tanpa `@c.us`, format nomor Indonesia: `62` di awal, bukan `0`
 - **Status flow:** DRAFT → SENT (atau CANCELLED dari DRAFT)
+- **Riwayat laporan:** Card grid layout, bukan tabel
+- **Modal detail:** Download Poster (dari `poster_url`) + Copy Caption (via `generateReportCaption`)
 - **Semua API route** pakai `export const dynamic = "force-dynamic"` (no static render)
 - **Hooks:** `useLaporanRealtime` di client untuk subscribe INSERT/UPDATE/DELETE ke `mbg_reports`
 - **Ikon:** Import dari `lucide-react`
@@ -124,3 +126,5 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 - Jangan edit `Dashboard.tsx` tanpa membaca seluruh komponen karena state management kompleks
 - Saat menambah API route, tambahkan `export const dynamic = "force-dynamic"`
 - Supabase client support baik `NEXT_PUBLIC_` maupun non-prefixed env vars
+- **Hydration di Vercel:** Node.js di Vercel mungkin tidak punya ICU locale `id-ID`. `toLocaleDateString("id-ID")` akan fallback ke English, menyebabkan hydration mismatch dgn browser. Gunakan `suppressHydrationWarning` pada elemen kosmetik atau render tanggal via `useEffect` agar konsisten.
+- **Tidak ada WA/Gemini:** Webhook WhatsApp, Gemini AI, `parseManualInput.ts`, dan `whatsapp.ts` sudah dihapus. Aplikasi murni Dashboard-only.

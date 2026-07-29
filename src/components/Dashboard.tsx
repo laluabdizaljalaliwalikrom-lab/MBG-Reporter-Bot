@@ -32,7 +32,9 @@ import {
   Edit,
   Download,
   Copy,
-  Eye
+  Eye,
+  Camera,
+  Image as ImageIcon
 } from "lucide-react";
 
 // Interfaces
@@ -51,6 +53,7 @@ interface Report {
   distributionTime: string;
   temperatureServed: string; // Celsius
   notes?: string;
+  photoUrl?: string;
   posterUrl?: string;
   balita?: number;
   bumil?: number;
@@ -102,6 +105,7 @@ export default function Dashboard() {
         distributionTime: r.created_at ? new Date(r.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB" : "11:30 WIB",
         temperatureServed: "62°C",
         notes: r.raw_message || undefined,
+        photoUrl: r.photo_url || undefined,
         posterUrl: r.poster_url || undefined,
         balita,
         bumil,
@@ -1869,187 +1873,233 @@ export default function Dashboard() {
         </main>
       </div>
 
-      {/* --- REVIEW MODAL DETAIL DIALOG (GLASSMORPHISM PANEL) --- */}
+      {/* --- REVIEW MODAL DETAIL DIALOG --- */}
       {selectedReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Modal Backdrop overlay */}
-          <div
-            onClick={() => setSelectedReport(null)}
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
-          />
+          {/* Backdrop */}
+          <div onClick={() => setSelectedReport(null)} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
 
-          {/* Modal Body Card */}
-          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-10 transition-all">
+          {/* Modal */}
+          <div className="relative w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-2xl shadow-2xl shadow-indigo-500/5 overflow-hidden z-10">
             {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
-              <div>
-                <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20 uppercase tracking-wide">
-                  Detail Laporan SPPG
-                </span>
-                <h4 className="text-base font-bold text-white mt-1">{selectedReport.sppgName}</h4>
+            <div className="px-6 py-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
+                  <ClipboardList size={16} className="text-indigo-400" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/25 uppercase tracking-wider">
+                      Detail Laporan
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-bold text-white mt-0.5 truncate">{selectedReport.sppgName}</h4>
+                </div>
               </div>
               <button
                 onClick={() => setSelectedReport(null)}
-                className="p-1 rounded-lg text-slate-400 hover:bg-slate-850 hover:text-white transition-colors"
+                className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Content Body */}
-            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-              {/* ID & Date grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ID Laporan</span>
-                  <p className="text-xs font-semibold text-slate-200">{selectedReport.id}</p>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tanggal Distribusi</span>
-                  <p className="text-xs font-semibold text-slate-200">{selectedReport.date}</p>
-                </div>
-              </div>
-
-              <div className="h-px bg-slate-800" />
-
-              {/* Portion Metrics */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Jumlah Porsi Terdistribusi</span>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-xl text-center">
-                    <p className="text-[10px] font-medium text-slate-400">Total Penerima</p>
-                    <p className="text-base font-extrabold text-white mt-1">
-                      {selectedReport.totalBeneficiaries.toLocaleString("id-ID")}
-                    </p>
+            {/* Body */}
+            <div className="p-6 max-h-[75vh] overflow-y-auto">
+              <div className="flex gap-6">
+                {/* Left Column - Photos */}
+                <div className="flex-shrink-0 w-56 flex flex-col gap-4">
+                  {/* Food Photo */}
+                  <div className="group relative rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950/60 shadow-lg">
+                    {selectedReport.photoUrl ? (
+                      <img
+                        src={selectedReport.photoUrl}
+                        alt="Foto Makanan"
+                        className="w-full aspect-[4/3] object-cover"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800/50 to-slate-950/50">
+                        <Camera size={24} className="text-slate-600" />
+                        <span className="text-[10px] text-slate-500 font-medium">Foto belum tersedia</span>
+                      </div>
+                    )}
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white/90 tracking-wide">
+                      Foto Asli
+                    </div>
                   </div>
-                  <div className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-xl text-center">
-                    <p className="text-[10px] font-medium text-slate-400">Porsi Besar</p>
-                    <p className="text-base font-extrabold text-indigo-400 mt-1">
-                      {selectedReport.largePortions.toLocaleString("id-ID")}
-                    </p>
+
+                  {/* Poster Preview */}
+                  <div className="group relative rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950/60 shadow-lg">
+                    {selectedReport.posterUrl ? (
+                      <img
+                        src={selectedReport.posterUrl}
+                        alt="Poster Laporan"
+                        className="w-full aspect-[4/5] object-cover"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[4/5] flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800/50 to-slate-950/50">
+                        <ImageIcon size={24} className="text-slate-600" />
+                        <span className="text-[10px] text-slate-500 font-medium">Poster belum tersedia</span>
+                      </div>
+                    )}
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white/90 tracking-wide">
+                      Poster
+                    </div>
                   </div>
-                  <div className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-xl text-center">
-                    <p className="text-[10px] font-medium text-slate-400">Porsi Kecil</p>
-                    <p className="text-base font-extrabold text-emerald-400 mt-1">
-                      {selectedReport.smallPortions.toLocaleString("id-ID")}
-                    </p>
+                </div>
+
+                {/* Right Column - Info */}
+                <div className="flex-1 min-w-0 flex flex-col gap-5">
+                  {/* Date & Time row */}
+                  <div className="flex items-center gap-4 text-xs text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar size={13} className="text-indigo-400" />
+                      {(() => {
+                        const d = selectedReport.date ? new Date(selectedReport.date + "T00:00:00") : new Date();
+                        return d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+                      })()}
+                    </span>
+                    <span className="text-slate-700">|</span>
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={13} className="text-emerald-400" />
+                      {selectedReport.distributionTime}
+                    </span>
                   </div>
+
+                  {/* Menu */}
+                  <div className="p-4 bg-slate-950/40 border border-slate-800/50 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Utensils size={14} className="text-indigo-400" />
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Menu Makanan</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-200 leading-relaxed">{selectedReport.menu}</p>
+                  </div>
+
+                  {/* Portion Metrics */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users size={14} className="text-indigo-400" />
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Penerima Manfaat</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-4 bg-gradient-to-b from-slate-950/60 to-slate-950/30 border border-slate-800/50 rounded-xl text-center">
+                        <p className="text-[10px] font-medium text-slate-400">Total</p>
+                        <p className="text-xl font-extrabold text-white mt-1">{selectedReport.totalBeneficiaries.toLocaleString("id-ID")}</p>
+                      </div>
+                      <div className="p-4 bg-gradient-to-b from-indigo-950/30 to-slate-950/30 border border-indigo-800/30 rounded-xl text-center">
+                        <p className="text-[10px] font-medium text-slate-400">Porsi Besar</p>
+                        <p className="text-xl font-extrabold text-indigo-400 mt-1">{selectedReport.largePortions.toLocaleString("id-ID")}</p>
+                      </div>
+                      <div className="p-4 bg-gradient-to-b from-emerald-950/30 to-slate-950/30 border border-emerald-800/30 rounded-xl text-center">
+                        <p className="text-[10px] font-medium text-slate-400">Porsi Kecil</p>
+                        <p className="text-xl font-extrabold text-emerald-400 mt-1">{selectedReport.smallPortions.toLocaleString("id-ID")}</p>
+                      </div>
+                    </div>
+
+                    {/* B3 Pills */}
+                    {(selectedReport.balita ?? 0) > 0 || (selectedReport.bumil ?? 0) > 0 || (selectedReport.busui ?? 0) > 0 ? (
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mr-1">PMT B3:</span>
+                        {(selectedReport.balita ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-semibold text-amber-400">
+                            {selectedReport.balita} Balita
+                          </span>
+                        )}
+                        {(selectedReport.bumil ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] font-semibold text-rose-400">
+                            {selectedReport.bumil} Bumil
+                          </span>
+                        )}
+                        {(selectedReport.busui ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-semibold text-purple-400">
+                            {selectedReport.busui} Busui
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Notes */}
+                  {selectedReport.notes && (
+                    <div className="p-4 bg-slate-950/20 border border-slate-800/30 rounded-xl">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Catatan</span>
+                      </div>
+                      <p className="text-xs text-slate-400 italic leading-relaxed">&ldquo;{selectedReport.notes}&rdquo;</p>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Menu Details */}
-              <div className="space-y-1.5 p-4 bg-slate-950/30 border border-slate-800 rounded-xl">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Utensils size={12} className="text-indigo-400" /> Menu Makanan Bergizi
-                </span>
-                <p className="text-xs text-slate-350 leading-relaxed font-medium mt-1">{selectedReport.menu}</p>
-              </div>
-
-              {/* Extra log metrics */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Jam Distribusi</span>
-                  <p className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                    <Clock size={12} className="text-slate-400" />
-                    {selectedReport.distributionTime}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Suhu Makanan Saat Disajikan</span>
-                  <p className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                    <TrendingUp size={12} className="text-emerald-400" />
-                    {selectedReport.temperatureServed} (Sesuai Standar)
-                  </p>
-                </div>
-              </div>
-
-              {/* PIC Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama PIC Lapangan</span>
-                  <p className="text-xs font-semibold text-slate-200">{selectedReport.picName}</p>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kontak Telpon PIC</span>
-                  <p className="text-xs font-semibold text-indigo-450">{selectedReport.picPhone}</p>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {selectedReport.notes && (
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Catatan Lapangan</span>
-                  <p className="text-xs text-slate-400 italic">&ldquo;{selectedReport.notes}&rdquo;</p>
-                </div>
-              )}
             </div>
 
-            {/* Footer with Actions */}
-            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-800 flex flex-col gap-3">
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={!selectedReport.posterUrl}
-                  onClick={async () => {
-                    if (!selectedReport.posterUrl) return;
-                    try {
-                      const res = await fetch(selectedReport.posterUrl);
-                      const blob = await res.blob();
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `poster-mbg-${selectedReport.id}.png`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                      showSettingsToast("Poster berhasil didownload!", "success");
-                    } catch {
-                      showSettingsToast("Gagal download poster.", "error");
-                    }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all"
-                >
-                  <Download size={14} />
-                  Download Poster
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      const caption = generateReportCaption(selectedReport);
-                      await navigator.clipboard.writeText(caption);
-                      showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
-                    } catch {
-                      showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
-                    }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-xl text-xs font-bold text-white transition-all"
-                >
-                  <Copy size={14} />
-                  Copy Caption
-                </button>
-              </div>
-
-              {/* Status Management */}
-              <div className="flex items-center justify-between gap-3">
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-800/80">
+              <div className="flex items-center justify-between gap-4">
+                {/* Action buttons */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Status Saat Ini:</span>
-                  <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full ${
-                    selectedReport.status === "Draft" && "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                  } ${
-                    selectedReport.status === "Approved" && "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
-                  } ${
-                    selectedReport.status === "Sent" && "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                  }`}>
-                    {selectedReport.status}
-                  </span>
+                  <button
+                    disabled={!selectedReport.posterUrl}
+                    onClick={async () => {
+                      if (!selectedReport.posterUrl) return;
+                      try {
+                        const res = await fetch(selectedReport.posterUrl);
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `poster-mbg-${selectedReport.id}.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showSettingsToast("Poster berhasil didownload!", "success");
+                      } catch {
+                        showSettingsToast("Gagal download poster.", "error");
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-xs font-bold text-white shadow-lg shadow-emerald-900/30 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Download size={14} />
+                    Download Poster
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const caption = generateReportCaption(selectedReport);
+                        await navigator.clipboard.writeText(caption);
+                        showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
+                      } catch {
+                        showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-xl text-xs font-bold text-slate-200 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Copy size={14} />
+                    Copy Caption
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* Status */}
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold ${
+                    selectedReport.status === "Draft" && "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  } ${
+                    selectedReport.status === "Approved" && "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                  } ${
+                    selectedReport.status === "Sent" && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      selectedReport.status === "Draft" && "bg-amber-400"
+                    } ${selectedReport.status === "Approved" && "bg-indigo-400"} ${
+                      selectedReport.status === "Sent" && "bg-emerald-400"
+                    }`} />
+                    {selectedReport.status}
+                  </span>
+
                   {selectedReport.status === "Draft" && (
                     <button
                       onClick={() => updateReportStatus(selectedReport.id, "Approved")}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all"
+                      className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-900/30 transition-all hover:scale-105 active:scale-95"
                     >
                       <CheckCircle2 size={14} />
                       Approve
@@ -2057,16 +2107,16 @@ export default function Dashboard() {
                   )}
 
                   {selectedReport.status === "Approved" && (
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => updateReportStatus(selectedReport.id, "Draft")}
-                        className="px-3 py-2 bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl text-xs font-bold transition-all"
+                        className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
                       >
                         Kembalikan ke Draft
                       </button>
                       <button
                         onClick={() => updateReportStatus(selectedReport.id, "Sent")}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
+                        className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-900/30 transition-all hover:scale-105 active:scale-95"
                       >
                         <Send size={14} />
                         Kirim Laporan
@@ -2077,7 +2127,7 @@ export default function Dashboard() {
                   {selectedReport.status === "Sent" && (
                     <button
                       onClick={() => updateReportStatus(selectedReport.id, "Approved")}
-                      className="px-3 py-2 bg-slate-850 hover:bg-slate-800 text-slate-350 border border-slate-800 rounded-xl text-xs font-bold transition-all"
+                      className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-350 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
                     >
                       Batalkan Pengiriman
                     </button>

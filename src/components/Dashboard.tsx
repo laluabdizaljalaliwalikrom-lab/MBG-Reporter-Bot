@@ -33,8 +33,10 @@ import {
   Camera,
   Image as ImageIcon,
   Phone,
-  Plus
+  Plus,
+  FileText
 } from "lucide-react";
+import WeeklyReportView from "@/components/WeeklyReportView";
 
 // Interfaces
 interface Report {
@@ -62,6 +64,21 @@ interface Report {
 }
 
 // Realtime database data source
+
+function toTitleCase(str: string): string {
+  if (!str) return "";
+  const acronyms = ["SPPG", "BGN", "PAUD", "TK", "SD", "SMP", "SMA", "PMT", "B3"];
+  return str
+    .split(" ")
+    .map((word) => {
+      const cleanWord = word.trim();
+      if (!cleanWord) return "";
+      const upper = cleanWord.toUpperCase();
+      if (acronyms.includes(upper)) return upper;
+      return cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
 
 export default function Dashboard() {
   const { reports: dbReports, setReports: setDbReports, loading: reportsLoading, error: reportsError } = useLaporanRealtime();
@@ -166,7 +183,7 @@ export default function Dashboard() {
   // Derived state from reportsList
   const reports = reportsList;
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "pengaturan" | "sppg" | "riwayat">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "mingguan" | "pengaturan" | "sppg" | "riwayat">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -275,6 +292,8 @@ export default function Dashboard() {
   const [formIsConfirming, setFormIsConfirming] = useState(false);
   const [previewLoadingAction, setPreviewLoadingAction] = useState<"download" | "copy" | null>(null);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("1");
+  const [isGeneratingPosterTemplate, setIsGeneratingPosterTemplate] = useState<boolean>(false);
 
   // Helper to handle image file input to base64 conversion
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -644,6 +663,21 @@ export default function Dashboard() {
               <ClipboardList size={18} />
               <span>Laporan Harian</span>
             </button>
+
+            <button
+              onClick={() => {
+                setActiveTab("mingguan");
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeTab === "mingguan"
+                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+              }`}
+            >
+              <FileText size={18} />
+              <span>Laporan Mingguan</span>
+            </button>
             <button
               onClick={() => {
                 setActiveTab("sppg");
@@ -1005,7 +1039,8 @@ export default function Dashboard() {
                       type="date"
                       value={formTanggal}
                       onChange={(e) => setFormTanggal(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                      onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs [color-scheme:dark] cursor-pointer"
                     />
                   </div>
 
@@ -1394,69 +1429,69 @@ export default function Dashboard() {
                   {filteredReports.length > 0 ? (
                     filteredReports.map((report) => {
                       const dbRow = dbReports.find((r) => r.id === report.id);
+                      const photoUrl = dbRow?.photo_url || report.photoUrl;
+
                       return (
-                        <div key={report.id} className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 space-y-3 transition-all duration-200 hover:shadow-lg hover:shadow-indigo-500/5">
-                          {/* Top: Date + Status */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
-                              <Calendar size={14} className="text-indigo-400" />
+                        <div
+                          key={report.id}
+                          className="group bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 hover:border-indigo-500/40 rounded-2xl p-4 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between space-y-3"
+                        >
+                          {/* Elegant Image Frame */}
+                          <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-slate-950 border border-slate-800/90 group-hover:border-slate-700 transition-colors shadow-inner flex items-center justify-center">
+                            {photoUrl ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={photoUrl}
+                                alt={`Foto ${report.menu}`}
+                                loading="lazy"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center gap-1.5 text-slate-600">
+                                <UtensilsCrossed size={26} className="text-slate-700" />
+                                <span className="text-[10px] font-medium italic text-slate-500">Tidak ada foto</span>
+                              </div>
+                            )}
+
+                            {/* Status Badge Top Right */}
+                            <div className="absolute top-2.5 right-2.5 backdrop-blur-md bg-slate-950/75 border border-slate-800/80 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-slate-200 flex items-center gap-1.5 shadow-md">
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                report.status === "Draft" ? "bg-amber-400" : report.status === "Approved" ? "bg-indigo-400" : "bg-emerald-400"
+                              }`} />
+                              <span>{report.status}</span>
+                            </div>
+
+                            {/* Subtle Overlay Gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent pointer-events-none" />
+                          </div>
+
+                          {/* Date & Menu Title */}
+                          <div className="space-y-1 px-0.5">
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-400">
+                              <Calendar size={13} className="shrink-0 text-indigo-400" />
                               <span>{report.date}</span>
                             </div>
-                            <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                              report.status === "Draft" && "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                            } ${
-                              report.status === "Approved" && "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                            } ${
-                              report.status === "Sent" && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${
-                                report.status === "Draft" && "bg-amber-400"
-                              } ${report.status === "Approved" && "bg-indigo-400"} ${
-                                report.status === "Sent" && "bg-emerald-400"
-                              }`} />
-                              {report.status}
-                            </span>
+
+                            <h5 className="font-bold text-white text-sm leading-snug line-clamp-2 group-hover:text-indigo-300 transition-colors" title={report.menu}>
+                              {toTitleCase(report.menu || "-")}
+                            </h5>
+
+                            {report.sppgName && (
+                              <p className="text-[11px] text-slate-400 font-medium truncate pt-0.5">
+                                {report.sppgName}
+                              </p>
+                            )}
                           </div>
-
-                          {/* SPPG Name */}
-                          <p className="font-semibold text-white text-sm">{report.sppgName}</p>
-
-                          {/* Menu */}
-                          <p className="text-xs text-slate-400 truncate" title={report.menu}>
-                            Menu: {report.menu}
-                          </p>
-
-                          {/* Divider */}
-                          <div className="h-px bg-slate-800" />
-
-                          {/* Stats */}
-                          <div className="grid grid-cols-3 gap-3 text-center">
-                            <div>
-                              <p className="text-[10px] text-slate-500">Total</p>
-                              <p className="text-sm font-bold text-white">{report.totalBeneficiaries}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-slate-500">Besar</p>
-                              <p className="text-sm font-bold text-indigo-400">{report.largePortions}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-slate-500">Kecil</p>
-                              <p className="text-sm font-bold text-emerald-400">{report.smallPortions}</p>
-                            </div>
-                          </div>
-
-                          {/* Divider */}
-                          <div className="h-px bg-slate-800" />
 
                           {/* Action Buttons */}
-                          <div className="flex items-center justify-center gap-2 pt-1">
+                          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
                             <button
                               onClick={() => setSelectedReport(report)}
-                              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all"
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all active:scale-95"
                               title="Lihat Detail"
                             >
                               <Eye size={14} />
-                              Lihat
+                              <span>Lihat</span>
                             </button>
                             <button
                               onClick={() => {
@@ -1491,11 +1526,10 @@ export default function Dashboard() {
                                 setEditingReportId(dbRow.id);
                                 setActiveTab("laporan");
                               }}
-                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/20 rounded-xl text-xs font-bold transition-all"
+                              className="p-2 bg-slate-900 hover:bg-amber-600/20 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-amber-500/30 rounded-xl text-xs transition-all active:scale-95"
                               title="Edit Laporan"
                             >
                               <Edit size={14} />
-                              Edit
                             </button>
                             <button
                               onClick={async () => {
@@ -1513,11 +1547,10 @@ export default function Dashboard() {
                                   alert("Terjadi kesalahan saat menghapus laporan.");
                                 }
                               }}
-                              className="flex items-center gap-1.5 px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold transition-all"
+                              className="p-2 bg-slate-900 hover:bg-red-600/20 text-slate-400 hover:text-red-400 border border-slate-800 hover:border-red-500/30 rounded-xl text-xs transition-all active:scale-95"
                               title="Hapus Laporan"
                             >
                               <Trash2 size={14} />
-                              Hapus
                             </button>
                           </div>
                         </div>
@@ -1646,6 +1679,11 @@ export default function Dashboard() {
             </div>
           )}
 
+
+          {/* TAB: LAPORAN MINGGUAN */}
+          {activeTab === "mingguan" && (
+            <WeeklyReportView reports={dbReports} sppgList={sppgList} />
+          )}
 
           {/* TAB 4: PENGATURAN */}
           {activeTab === "pengaturan" && (
@@ -1841,6 +1879,54 @@ export default function Dashboard() {
                     <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white/90 tracking-wide">
                       Poster
                     </div>
+                  </div>
+
+                  {/* Template Selector Dropdown in Detail Modal */}
+                  <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Ganti Template Poster</span>
+                      {isGeneratingPosterTemplate && (
+                        <span className="text-[9px] text-indigo-400 font-bold animate-pulse flex items-center gap-1">
+                          <RefreshCw size={9} className="animate-spin" /> Process...
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={selectedTemplate}
+                      disabled={isGeneratingPosterTemplate}
+                      onChange={async (e) => {
+                        const tId = e.target.value;
+                        setSelectedTemplate(tId);
+                        if (!selectedReport?.id) return;
+                        setIsGeneratingPosterTemplate(true);
+                        try {
+                          const res = await fetch(`/api/generate-poster?id=${selectedReport.id}&template=${tId}`);
+                          const json = await res.json();
+                          if (json.success && json.url) {
+                            setSelectedReport({
+                              ...selectedReport,
+                              posterUrl: json.url
+                            });
+                            setDbReports((prev) =>
+                              prev.map((r) => (r.id === selectedReport.id ? { ...r, poster_url: json.url } : r))
+                            );
+                            showSettingsToast(`Poster diperbarui ke Template ${tId}!`, "success");
+                          }
+                        } catch {
+                          showSettingsToast("Gagal merubah template poster.", "error");
+                        } finally {
+                          setIsGeneratingPosterTemplate(false);
+                        }
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700/60 focus:border-indigo-500 rounded-lg px-2 py-1 text-[11px] font-bold text-indigo-300 outline-none cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="1">🎨 Template 1: Modern Classic (Teal & Royal Blue - Default)</option>
+                      <option value="2">📋 Template 2: Classic Beige & Sticky Note</option>
+                      <option value="3">📊 Template 3: Sky Blue Grid & Yellow Gizi Table</option>
+                      <option value="4">⭐ Template 4: Bold Royal Blue & Starburst Badge</option>
+                      <option value="5">🌿 Template 5: Eco Green Fresh & Nutrition Grid</option>
+                      <option value="6">🏆 Template 6: Executive Gold & 5 Column Stat Pills</option>
+                    </select>
                   </div>
                   </div>
                 </div>
@@ -2060,8 +2146,54 @@ export default function Dashboard() {
             {/* Modal Content */}
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[65vh] overflow-y-auto">
               {/* Left Column: Poster Image Preview */}
-              <div className="space-y-2 flex flex-col items-center">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider self-start">Draft Poster Laporan</span>
+              <div className="space-y-3 flex flex-col items-center">
+                <div className="w-full flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Draft Poster Laporan</span>
+                  {isGeneratingPosterTemplate && (
+                    <span className="text-[10px] text-indigo-400 font-bold animate-pulse flex items-center gap-1">
+                      <RefreshCw size={10} className="animate-spin" /> Merubah...
+                    </span>
+                  )}
+                </div>
+
+                {/* Template Selector Dropdown */}
+                <div className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-semibold block">Pilih Template Poster (5 Variasi)</span>
+                  <select
+                    value={selectedTemplate}
+                    disabled={isGeneratingPosterTemplate}
+                    onChange={async (e) => {
+                      const tId = e.target.value;
+                      setSelectedTemplate(tId);
+                      if (!formPreviewData?.reportId) return;
+                      setIsGeneratingPosterTemplate(true);
+                      try {
+                        const res = await fetch(`/api/generate-poster?id=${formPreviewData.reportId}&template=${tId}`);
+                        const json = await res.json();
+                        if (json.success && json.url) {
+                          setFormPreviewData({
+                            ...formPreviewData,
+                            posterUrl: json.url
+                          });
+                          showSettingsToast(`Poster diperbarui ke Template ${tId}!`, "success");
+                        }
+                      } catch {
+                        showSettingsToast("Gagal merubah template poster.", "error");
+                      } finally {
+                        setIsGeneratingPosterTemplate(false);
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700/60 focus:border-indigo-500 rounded-lg px-2.5 py-1.5 text-xs font-bold text-indigo-300 outline-none cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="1">🎨 Template 1: Modern Classic (Teal & Royal Blue - Default)</option>
+                    <option value="2">📋 Template 2: Classic Beige & Sticky Note</option>
+                    <option value="3">📊 Template 3: Sky Blue Grid & Yellow Gizi Table</option>
+                    <option value="4">⭐ Template 4: Bold Royal Blue & Starburst Badge</option>
+                    <option value="5">🌿 Template 5: Eco Green Fresh & Nutrition Grid</option>
+                    <option value="6">🏆 Template 6: Executive Gold & 5 Column Stat Pills</option>
+                  </select>
+                </div>
+
                 <div className="w-full max-w-[400px] aspect-[800/1100] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
                   {formPreviewData.posterUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
@@ -2213,27 +2345,27 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                      <Phone size={11} className="text-slate-500" />
-                      Kepala SPPG
+                      <User size={11} className="text-slate-500" />
+                      Nama Kepala SPPG
                     </label>
                     <input
                       type="text"
-                      placeholder="6281234567890"
+                      placeholder="Nama Kepala SPPG..."
                       value={sppgForm.kepala_sppg}
-                      onChange={(e) => setSppgForm({ ...sppgForm, kepala_sppg: e.target.value.replace(/\D/g, "") })}
+                      onChange={(e) => setSppgForm({ ...sppgForm, kepala_sppg: e.target.value })}
                       className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                      <Phone size={11} className="text-slate-500" />
-                      Pengawas Gizi
+                      <User size={11} className="text-slate-500" />
+                      Nama Pengawas Gizi
                     </label>
                     <input
                       type="text"
-                      placeholder="6281234567890"
+                      placeholder="Nama Pengawas Gizi..."
                       value={sppgForm.pengawas_gizi}
-                      onChange={(e) => setSppgForm({ ...sppgForm, pengawas_gizi: e.target.value.replace(/\D/g, "") })}
+                      onChange={(e) => setSppgForm({ ...sppgForm, pengawas_gizi: e.target.value })}
                       className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
@@ -2335,7 +2467,7 @@ export default function Dashboard() {
       )}
 
       {/* Settings Toast Notification */}
-      <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border bg-slate-950/90 backdrop-blur-md shadow-2xl transition-all duration-300 transform ${
+      <div className={`print:hidden fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border bg-slate-950/90 backdrop-blur-md shadow-2xl transition-all duration-300 transform ${
         settingsToast.show ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95 pointer-events-none"
       } ${
         settingsToast.type === "success" ? "border-emerald-500/20" : "border-red-500/20"
@@ -2349,7 +2481,7 @@ export default function Dashboard() {
       </div>
 
       {/* --- BOTTOM NAV BAR (MOBILE ONLY) --- */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 pb-[env(safe-area-inset-bottom)]">
+      <nav className="print:hidden lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around h-16 px-2">
           <button
             onClick={() => setActiveTab("dashboard")}

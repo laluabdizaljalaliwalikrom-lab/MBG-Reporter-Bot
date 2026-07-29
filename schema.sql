@@ -36,9 +36,13 @@ CREATE TABLE IF NOT EXISTS sppg_data (
     balita INTEGER DEFAULT 0,
     bumil INTEGER DEFAULT 0,
     busui INTEGER DEFAULT 0,
-    kepala_sppg TEXT DEFAULT '', -- Nomor WhatsApp Kepala SPPG (format 62xxx)
-    pengawas_gizi TEXT DEFAULT '' -- Nomor WhatsApp Pengawas Gizi (format 62xxx)
+    kepala_sppg TEXT DEFAULT '',  -- Nama Kepala SPPG (e.g. Drs. Ahmad Hidayat, M.Si)
+    pengawas_gizi TEXT DEFAULT '' -- Nama Pengawas Gizi (e.g. Ns. Fatimah, S.Gz)
 );
+
+-- Migration query to add columns if table already exists in Supabase:
+ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS kepala_sppg TEXT DEFAULT '';
+ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS pengawas_gizi TEXT DEFAULT '';
 
 -- Disable RLS for sppg_data (matching mbg_reports behaviour)
 ALTER TABLE sppg_data DISABLE ROW LEVEL SECURITY;

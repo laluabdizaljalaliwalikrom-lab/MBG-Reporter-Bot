@@ -7,17 +7,19 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const template = searchParams.get('template') || '1';
 
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    const publicUrl = await generatePoster(id);
+    const publicUrl = await generatePoster(id, template);
 
     return NextResponse.json({ 
       success: true,
       url: publicUrl,
-      id: id
+      id: id,
+      template: template
     });
 
   } catch (error: unknown) {

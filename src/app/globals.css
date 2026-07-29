@@ -38,3 +38,93 @@ body {
   font-weight: 700;
   font-display: swap;
 }
+
+/* Printable Document CSS Override */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide every single element in the DOM by default during print */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Force display: none on fixed navs, sidebars, headers, toasts, overlays */
+  aside,
+  header,
+  nav,
+  button,
+  footer,
+  .print\:hidden,
+  [role="dialog"],
+  [class*="backdrop"],
+  [class*="gradient-to-"],
+  [class*="bottom-"],
+  [class*="fixed"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Make ONLY the printable report container and its children visible */
+  #printable-weekly-report,
+  #printable-weekly-report * {
+    visibility: visible !important;
+  }
+
+  #printable-weekly-report tr {
+    display: table-row !important;
+  }
+
+  #printable-weekly-report td,
+  #printable-weekly-report th {
+    display: table-cell !important;
+  }
+
+  #printable-weekly-report table {
+    display: table !important;
+  }
+
+  #printable-weekly-report img {
+    display: inline-block !important;
+  }
+
+  #printable-weekly-report {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  table, th, td {
+    border-color: #000000 !important;
+    background-color: #ffffff !important;
+  }
+
+  img {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

@@ -726,7 +726,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-2 bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
                     <Calendar className="text-indigo-400" size={16} />
-                    <span className="text-xs font-semibold text-slate-300">
+                    <span className="text-xs font-semibold text-slate-300" suppressHydrationWarning>
                       {new Date().toLocaleDateString("id-ID", {
                         weekday: "long",
                         year: "numeric",

@@ -209,6 +209,8 @@ export default function Dashboard() {
   const [editingSppgId, setEditingSppgId] = useState<string | null>(null);
   const [showSppgModal, setShowSppgModal] = useState(false);
   const [sppgSearch, setSppgSearch] = useState("");
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   const fetchSppgList = useCallback(async () => {
     setLoadingSppg(true);
@@ -231,6 +233,19 @@ export default function Dashboard() {
     }, 0);
     return () => clearTimeout(timer);
   }, [fetchSppgList]);
+
+  // PWA install prompt
+  useEffect(() => {
+    const onBeforeInstall = (e: Event) => { e.preventDefault(); setDeferredPrompt(e); };
+    const onInstalled = () => { setDeferredPrompt(null); setIsStandalone(true); };
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onInstalled);
+    if (window.matchMedia("(display-mode: standalone)").matches) setIsStandalone(true);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
   // Form states for manual report submission
   const [formSppgName, setFormSppgName] = useState("");
@@ -711,9 +726,24 @@ export default function Dashboard() {
               <span>Sistem Terhubung</span>
             </div>
 
-            <button className="p-2.5 rounded-xl bg-slate-800/85 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors relative">
-              <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
+            <button
+              onClick={async () => {
+                if (deferredPrompt) {
+                  deferredPrompt.prompt();
+                  const { outcome } = await deferredPrompt.userChoice;
+                  if (outcome === "accepted") { setDeferredPrompt(null); setIsStandalone(true); }
+                }
+              }}
+              className="p-2.5 rounded-xl bg-slate-800/85 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors relative"
+            >
+              {deferredPrompt ? <Download size={18} /> : <Bell size={18} />}
+              {deferredPrompt ? (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-[8px] font-bold text-white shadow-lg shadow-emerald-500/30 animate-pulse">
+                  +
+                </span>
+              ) : (
+                !isStandalone && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
+              )}
             </button>
 
             <div className="h-10 w-px bg-slate-800 hidden sm:block" />
@@ -1692,14 +1722,14 @@ export default function Dashboard() {
 
       {/* --- REVIEW MODAL DETAIL DIALOG --- */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+        <div className="fixed inset-0 bottom-16 md:inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center p-0 md:p-4">
           {/* Backdrop */}
           <div onClick={() => setSelectedReport(null)} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
 
           {/* Modal */}
-          <div className="relative w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 overflow-hidden z-10">
+          <div className="relative w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-t-2xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 z-10 flex flex-col max-h-[90dvh] md:max-h-[85vh]">
             {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
+            <div className="shrink-0 px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
                   <ClipboardList size={16} className="text-indigo-400" />
@@ -1722,7 +1752,7 @@ export default function Dashboard() {
             </div>
 
             {/* Body */}
-            <div className="p-4 sm:p-6 max-h-[85vh] md:max-h-[75vh] overflow-y-auto">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Left Column - Photos */}
                 <div className="flex-shrink-0 w-full md:w-56">
@@ -1854,7 +1884,7 @@ export default function Dashboard() {
             </div>
 
             {/* Footer */}
-            <div className="px-4 sm:px-6 py-4 bg-slate-950/50 border-t border-slate-800/80">
+            <div className="shrink-0 px-4 sm:px-6 py-4 bg-slate-950/50 border-t border-slate-800/80">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
@@ -2085,15 +2115,15 @@ export default function Dashboard() {
 
       {/* --- SPPG MODAL --- */}
       {showSppgModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+        <div className="fixed inset-0 bottom-16 md:inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center p-0 md:p-4">
           <div onClick={() => {
             setShowSppgModal(false);
             setEditingSppgId(null);
             setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
           }} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
-          <div className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 overflow-hidden z-10">
+          <div className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-t-2xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 z-10 flex flex-col max-h-[90dvh] md:max-h-[85vh]">
             {/* Header */}
-            <div className="px-4 sm:px-6 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
+            <div className="shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
                   <Database size={16} className="text-indigo-400" />
@@ -2115,7 +2145,7 @@ export default function Dashboard() {
             </div>
 
             {/* Body */}
-            <div className="p-4 sm:p-6 max-h-[75vh] overflow-y-auto">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <form onSubmit={handleSaveSppg} className="space-y-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-400 uppercase">Nama SPPG</label>

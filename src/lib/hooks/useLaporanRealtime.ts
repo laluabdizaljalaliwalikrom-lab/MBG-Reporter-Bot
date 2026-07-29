@@ -64,7 +64,6 @@ export function useLaporanRealtime() {
           table: "mbg_reports"
         },
         (payload) => {
-          console.log("useLaporanRealtime: Realtime database payload received:", payload);
           const { eventType, new: newRow, old: oldRow } = payload;
 
           if (eventType === "INSERT") {

@@ -64,7 +64,7 @@ interface Report {
 // Realtime database data source
 
 export default function Dashboard() {
-  const { reports: dbReports, setReports: setDbReports } = useLaporanRealtime();
+  const { reports: dbReports, setReports: setDbReports, loading: reportsLoading, error: reportsError } = useLaporanRealtime();
 
   // Map DB reports to local Report structure, fallback to mock data if empty
   const reportsList = useMemo<Report[]>(() => {
@@ -171,6 +171,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [detailLoadingAction, setDetailLoadingAction] = useState<"download" | "copy" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   // Toast notification state for settings
@@ -208,6 +209,7 @@ export default function Dashboard() {
   });
   const [editingSppgId, setEditingSppgId] = useState<string | null>(null);
   const [showSppgModal, setShowSppgModal] = useState(false);
+  const [sppgSubmitting, setSppgSubmitting] = useState(false);
   const [sppgSearch, setSppgSearch] = useState("");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -222,6 +224,7 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error("Gagal mengambil data SPPG:", err);
+      showSettingsToast("Gagal memuat data SPPG. Periksa koneksi.", "error");
     } finally {
       setLoadingSppg(false);
     }
@@ -270,6 +273,7 @@ export default function Dashboard() {
   const [formPreviewData, setFormPreviewData] = useState<{ reportId: string; posterUrl: string; caption: string } | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [formIsConfirming, setFormIsConfirming] = useState(false);
+  const [previewLoadingAction, setPreviewLoadingAction] = useState<"download" | "copy" | null>(null);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
 
   // Helper to handle image file input to base64 conversion
@@ -279,6 +283,9 @@ export default function Dashboard() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormImageBase64(reader.result as string);
+      };
+      reader.onerror = () => {
+        showSettingsToast("Gagal membaca file gambar. Coba pilih file lain.", "error");
       };
       reader.readAsDataURL(file);
     }
@@ -290,7 +297,7 @@ export default function Dashboard() {
       alert("Nama SPPG harus diisi!");
       return;
     }
-
+    setSppgSubmitting(true);
     try {
       const method = editingSppgId ? "PUT" : "POST";
       const res = await fetch("/api/sppg", {
@@ -322,7 +329,9 @@ export default function Dashboard() {
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan internal.";
-      alert("Error: " + errMsg);
+      showSettingsToast(errMsg, "error");
+    } finally {
+      setSppgSubmitting(false);
     }
   };
 
@@ -365,6 +374,14 @@ export default function Dashboard() {
   const handleSubmitReport = async () => {
     if (!formMenu.trim()) {
       alert("Detail Menu Makanan harus diisi!");
+      return;
+    }
+    if (!formSppgName.trim()) {
+      alert("SPPG harus dipilih atau diisi!");
+      return;
+    }
+    if (!formTanggal) {
+      alert("Tanggal laporan harus diisi!");
       return;
     }
     setFormIsSubmitting(true);
@@ -521,13 +538,18 @@ export default function Dashboard() {
           .eq("id", id);
         
         if (dbError) throw dbError;
+
+        // Generate poster when status changes to Sent or Approved
+        if (dbStatus === "SENT" || dbStatus === "APPROVED") {
+          try { await fetch(`/api/generate-poster?id=${id}`); } catch { /* non-critical */ }
+        }
       }
 
       // Update selectedReport state so modal changes instantly
       setSelectedReport((prev) => (prev && prev.id === id ? { ...prev, status: nextStatus } : prev));
     } catch (err) {
       console.error("Failed to update status in Supabase:", err);
-      alert("Gagal memperbarui status di database.");
+      showSettingsToast("Gagal memperbarui status di database.", "error");
     }
   };
 
@@ -873,7 +895,16 @@ export default function Dashboard() {
                     Lihat Semua &rarr;
                   </button>
                 </div>
-                {reports.length > 0 ? (
+                {reportsLoading ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map((i) => (
+                      <div key={i} className="w-full p-3 bg-slate-900/50 border border-slate-800 rounded-xl animate-pulse">
+                        <div className="h-3 bg-slate-800 rounded w-2/3 mb-2" />
+                        <div className="h-2 bg-slate-800 rounded w-1/3" />
+                      </div>
+                    ))}
+                  </div>
+                ) : reports.length > 0 ? (
                   <div className="space-y-2">
                     {[...reports]
                       .sort((a, b) => b.date.localeCompare(a.date))
@@ -947,7 +978,7 @@ export default function Dashboard() {
                           }
                         }
                       }}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs cursor-pointer mb-2"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs cursor-pointer mb-2"
                     >
                       <option value="">-- Pilih SPPG --</option>
                       {sppgList.map((sppg) => (
@@ -963,7 +994,7 @@ export default function Dashboard() {
                         placeholder="Ketik nama SPPG manual..."
                         value={formSppgName}
                         onChange={(e) => setFormSppgName(e.target.value)}
-                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     )}
                   </div>
@@ -974,7 +1005,7 @@ export default function Dashboard() {
                       type="date"
                       value={formTanggal}
                       onChange={(e) => setFormTanggal(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
 
@@ -985,7 +1016,7 @@ export default function Dashboard() {
                       rows={3}
                       value={formMenu}
                       onChange={(e) => setFormMenu(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
 
@@ -1000,8 +1031,9 @@ export default function Dashboard() {
                       type="number"
                       placeholder="0"
                       value={formPorsiBesar || ""}
-                      onChange={(e) => setFormPorsiBesar(Number(e.target.value))}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      onChange={(e) => setFormPorsiBesar(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                      min="0"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
 
@@ -1011,8 +1043,9 @@ export default function Dashboard() {
                       type="number"
                       placeholder="0"
                       value={formPorsiKecil || ""}
-                      onChange={(e) => setFormPorsiKecil(Number(e.target.value))}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      onChange={(e) => setFormPorsiKecil(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                      min="0"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
 
@@ -1027,8 +1060,9 @@ export default function Dashboard() {
                       type="number"
                       placeholder="0"
                       value={formBalita || ""}
-                      onChange={(e) => setFormBalita(Number(e.target.value))}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      onChange={(e) => setFormBalita(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                      min="0"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
 
@@ -1038,8 +1072,9 @@ export default function Dashboard() {
                       type="number"
                       placeholder="0"
                       value={formBumil || ""}
-                      onChange={(e) => setFormBumil(Number(e.target.value))}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      onChange={(e) => setFormBumil(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                      min="0"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
 
@@ -1049,14 +1084,15 @@ export default function Dashboard() {
                       type="number"
                       placeholder="0"
                       value={formBusui || ""}
-                      onChange={(e) => setFormBusui(Number(e.target.value))}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      onChange={(e) => setFormBusui(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                      min="0"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Total Penerima Manfaat (Otomatis)</label>
-                    <div className="w-full p-3 bg-slate-950/80 border border-slate-850 rounded-xl text-indigo-400 font-extrabold text-sm shadow-inner">
+                    <div className="w-full p-3 bg-slate-950/80 border border-slate-700/30 rounded-xl text-indigo-400 font-extrabold text-sm shadow-inner">
                       {(formPorsiBesar || 0) + (formPorsiKecil || 0) + (formBalita || 0) + (formBumil || 0) + (formBusui || 0)} Orang
                     </div>
                   </div>
@@ -1072,9 +1108,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziBesar.Energi || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Energi: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Energi: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1082,9 +1119,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziBesar.Protein || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Protein: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Protein: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1092,9 +1130,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziBesar.Lemak || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Lemak: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Lemak: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1102,9 +1141,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziBesar.Karbohidrat || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Karbohidrat: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Karbohidrat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1112,9 +1152,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziBesar.Serat || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Serat: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Serat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                   </div>
@@ -1130,9 +1171,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziKecil.Energi || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Energi: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Energi: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1140,9 +1182,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziKecil.Protein || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Protein: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Protein: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1150,9 +1193,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziKecil.Lemak || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Lemak: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Lemak: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1160,9 +1204,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziKecil.Karbohidrat || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Karbohidrat: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Karbohidrat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1170,9 +1215,10 @@ export default function Dashboard() {
                       <input
                         type="number"
                         value={formGiziKecil.Serat || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Serat: Number(e.target.value) })}
+                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Serat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
+                        min="0"
+                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                   </div>
@@ -1188,7 +1234,7 @@ export default function Dashboard() {
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 outline-none text-xs cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-650 file:text-white hover:file:bg-indigo-600"
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-600"
                     />
                     {formImageBase64 && (
                       <>
@@ -1219,7 +1265,7 @@ export default function Dashboard() {
                         setFormBusui(0);
                         setFormImageBase64("");
                       }}
-                      className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
+                      className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
                     >
                       {editingReportId ? "Batal Edit" : "Reset Form"}
                     </button>
@@ -1228,7 +1274,7 @@ export default function Dashboard() {
                       disabled={formIsSubmitting}
                       onClick={handleSubmitReport}
                       className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${
-                        formIsSubmitting ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-650 hover:bg-indigo-600 shadow-md shadow-indigo-600/10"
+                        formIsSubmitting ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-600 shadow-md shadow-indigo-600/10"
                       }`}
                     >
                       {formIsSubmitting && <RefreshCw size={14} className="animate-spin" />}
@@ -1307,7 +1353,7 @@ export default function Dashboard() {
                         placeholder="Cari SPPG..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 w-full sm:w-60 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none transition-colors"
+                        className="pl-10 pr-4 py-2 w-full sm:w-60 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none transition-colors"
                       />
                       {searchQuery && (
                         <button
@@ -1323,7 +1369,7 @@ export default function Dashboard() {
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-indigo-500 outline-none cursor-pointer appearance-none"
+                        className="pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 outline-none cursor-pointer appearance-none"
                       >
                         <option value="All">Semua Status</option>
                         <option value="Draft">Draft</option>
@@ -1505,7 +1551,7 @@ export default function Dashboard() {
                         placeholder="Cari SPPG..."
                         value={sppgSearch}
                         onChange={(e) => setSppgSearch(e.target.value)}
-                        className="pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none w-full sm:w-56"
+                        className="pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none w-full sm:w-56"
                       />
                     </div>
                     <button
@@ -1617,7 +1663,7 @@ export default function Dashboard() {
                       type="text"
                       value={userProfile.name}
                       onChange={(e) => setUserProfile({ ...userProfile, name: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1626,7 +1672,7 @@ export default function Dashboard() {
                       type="email"
                       value={userProfile.email}
                       onChange={(e) => setUserProfile({ ...userProfile, email: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1635,7 +1681,7 @@ export default function Dashboard() {
                       type="text"
                       value={userProfile.region}
                       onChange={(e) => setUserProfile({ ...userProfile, region: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none"
                     />
                   </div>
                 </div>
@@ -1889,9 +1935,10 @@ export default function Dashboard() {
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
-                    disabled={!selectedReport.posterUrl}
+                    disabled={!selectedReport.posterUrl || detailLoadingAction !== null}
                     onClick={async () => {
                       if (!selectedReport.posterUrl) return;
+                      setDetailLoadingAction("download");
                       try {
                         const res = await fetch(selectedReport.posterUrl);
                         const blob = await res.blob();
@@ -1906,27 +1953,29 @@ export default function Dashboard() {
                         showSettingsToast("Poster berhasil didownload!", "success");
                       } catch {
                         showSettingsToast("Gagal download poster.", "error");
-                      }
+                      } finally { setDetailLoadingAction(null); }
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-xs font-bold text-white shadow-lg shadow-emerald-900/30 transition-all hover:scale-105 active:scale-95"
                   >
-                    <Download size={14} />
-                    Download Poster
+                    {detailLoadingAction === "download" ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                    {detailLoadingAction === "download" ? "Mengunduh..." : "Download Poster"}
                   </button>
                   <button
+                    disabled={detailLoadingAction !== null}
                     onClick={async () => {
+                      setDetailLoadingAction("copy");
                       try {
                         const caption = generateReportCaption(selectedReport);
                         await navigator.clipboard.writeText(caption);
                         showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
                       } catch {
                         showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
-                      }
+                      } finally { setDetailLoadingAction(null); }
                     }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-xl text-xs font-bold text-slate-200 transition-all hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-700/50 rounded-xl text-xs font-bold text-slate-200 transition-all hover:scale-105 active:scale-95"
                   >
-                    <Copy size={14} />
-                    Copy Caption
+                    {detailLoadingAction === "copy" ? <RefreshCw size={14} className="animate-spin" /> : <Copy size={14} />}
+                    {detailLoadingAction === "copy" ? "Menyalin..." : "Copy Caption"}
                   </button>
                 </div>
 
@@ -1978,7 +2027,7 @@ export default function Dashboard() {
                   {selectedReport.status === "Sent" && (
                     <button
                       onClick={() => updateReportStatus(selectedReport.id, "Approved")}
-                      className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-350 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
+                      className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
                     >
                       Batalkan Pengiriman
                     </button>
@@ -1995,14 +2044,14 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-5xl w-full overflow-hidden shadow-2xl flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-850 bg-slate-950/40 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-slate-700/50 bg-slate-950/40 flex items-center justify-between">
               <div className="space-y-0.5">
                 <h3 className="font-bold text-white text-base">Pratinjau Poster & Teks Laporan</h3>
                 <p className="text-[10px] text-slate-500">Tinjau poster dan caption. Setelah disetujui, download poster lalu copy caption untuk dikirim ke grup WhatsApp.</p>
               </div>
               <button
                 onClick={() => handleConfirmReport("cancel")}
-                className="p-1 rounded-lg text-slate-400 hover:bg-slate-850 hover:text-white transition-colors"
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
               >
                 <X size={18} />
               </button>
@@ -2034,20 +2083,21 @@ export default function Dashboard() {
               {/* Right Column: Caption Preview */}
               <div className="space-y-2 flex flex-col">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Caption / Teks Laporan</span>
-                <div className="flex-1 p-4 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] text-slate-350 overflow-y-auto whitespace-pre-wrap select-all leading-relaxed shadow-inner">
+                <div className="flex-1 p-4 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] text-slate-400 overflow-y-auto whitespace-pre-wrap select-all leading-relaxed shadow-inner">
                   {formPreviewData.caption}
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-850 flex flex-wrap items-center justify-between gap-3">
+            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-700/50 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled={formIsConfirming || !formPreviewData.posterUrl}
+                  disabled={formIsConfirming || !formPreviewData.posterUrl || previewLoadingAction !== null}
                   onClick={async () => {
                     if (!formPreviewData.posterUrl) return;
+                    setPreviewLoadingAction("download");
                     try {
                       const res = await fetch(formPreviewData.posterUrl);
                       const blob = await res.blob();
@@ -2062,29 +2112,30 @@ export default function Dashboard() {
                       showSettingsToast("Poster berhasil didownload!", "success");
                     } catch {
                       showSettingsToast("Gagal download poster.", "error");
-                    }
+                    } finally { setPreviewLoadingAction(null); }
                   }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all shadow-md"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  <span>Download Poster</span>
+                  {previewLoadingAction === "download" ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{previewLoadingAction === "download" ? "Mengunduh..." : "Download Poster"}</span>
                 </button>
                 <button
                   type="button"
-                  disabled={!formPreviewData.caption}
+                  disabled={!formPreviewData.caption || previewLoadingAction !== null}
                   onClick={async () => {
                     if (!formPreviewData.caption) return;
+                    setPreviewLoadingAction("copy");
                     try {
                       await navigator.clipboard.writeText(formPreviewData.caption);
                       showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
                     } catch {
                       showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
-                    }
+                    } finally { setPreviewLoadingAction(null); }
                   }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 border border-slate-600 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 border border-slate-600 rounded-xl text-xs font-bold text-white transition-all shadow-md"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                  <span>Copy Caption</span>
+                  {previewLoadingAction === "copy" ? <RefreshCw size={14} className="animate-spin" /> : <Copy size={14} />}
+                  <span>{previewLoadingAction === "copy" ? "Menyalin..." : "Copy Caption"}</span>
                 </button>
               </div>
               <div className="flex items-center gap-3">
@@ -2092,7 +2143,7 @@ export default function Dashboard() {
                   type="button"
                   disabled={formIsConfirming}
                   onClick={() => handleConfirmReport("cancel")}
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
                 >
                   Revisi / Batal
                 </button>
@@ -2101,7 +2152,7 @@ export default function Dashboard() {
                   disabled={formIsConfirming}
                   onClick={() => handleConfirmReport("confirm")}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${
-                    formIsConfirming ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-650 hover:bg-indigo-600 shadow-md"
+                    formIsConfirming ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-600 shadow-md"
                   }`}
                 >
                   {formIsConfirming && <RefreshCw size={14} className="animate-spin" />}
@@ -2154,7 +2205,7 @@ export default function Dashboard() {
                     placeholder="Contoh: SPPG Lombok Timur"
                     value={sppgForm.nama_sppg}
                     onChange={(e) => setSppgForm({ ...sppgForm, nama_sppg: e.target.value })}
-                    className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     required
                   />
                 </div>
@@ -2170,7 +2221,7 @@ export default function Dashboard() {
                       placeholder="6281234567890"
                       value={sppgForm.kepala_sppg}
                       onChange={(e) => setSppgForm({ ...sppgForm, kepala_sppg: e.target.value.replace(/\D/g, "") })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -2183,7 +2234,7 @@ export default function Dashboard() {
                       placeholder="6281234567890"
                       value={sppgForm.pengawas_gizi}
                       onChange={(e) => setSppgForm({ ...sppgForm, pengawas_gizi: e.target.value.replace(/\D/g, "") })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
                 </div>
@@ -2195,8 +2246,9 @@ export default function Dashboard() {
                       type="number"
                       placeholder="0"
                       value={sppgForm.porsi_besar || ""}
-                      onChange={(e) => setSppgForm({ ...sppgForm, porsi_besar: Number(e.target.value) })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      onChange={(e) => setSppgForm({ ...sppgForm, porsi_besar: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                      min="0"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -2205,8 +2257,9 @@ export default function Dashboard() {
                       type="number"
                       placeholder="0"
                       value={sppgForm.porsi_kecil || ""}
-                      onChange={(e) => setSppgForm({ ...sppgForm, porsi_kecil: Number(e.target.value) })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      onChange={(e) => setSppgForm({ ...sppgForm, porsi_kecil: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                      min="0"
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                     />
                   </div>
                 </div>
@@ -2223,8 +2276,9 @@ export default function Dashboard() {
                         type="number"
                         placeholder="0"
                         value={sppgForm.balita || ""}
-                        onChange={(e) => setSppgForm({ ...sppgForm, balita: Number(e.target.value) })}
-                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                        onChange={(e) => setSppgForm({ ...sppgForm, balita: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                        min="0"
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -2233,8 +2287,9 @@ export default function Dashboard() {
                         type="number"
                         placeholder="0"
                         value={sppgForm.bumil || ""}
-                        onChange={(e) => setSppgForm({ ...sppgForm, bumil: Number(e.target.value) })}
-                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                        onChange={(e) => setSppgForm({ ...sppgForm, bumil: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                        min="0"
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -2243,8 +2298,9 @@ export default function Dashboard() {
                         type="number"
                         placeholder="0"
                         value={sppgForm.busui || ""}
-                        onChange={(e) => setSppgForm({ ...sppgForm, busui: Number(e.target.value) })}
-                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                        onChange={(e) => setSppgForm({ ...sppgForm, busui: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                        min="0"
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
                       />
                     </div>
                   </div>
@@ -2265,10 +2321,11 @@ export default function Dashboard() {
                   </button>
                   <button
                     type="submit"
-                    className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-white shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition-colors"
+                    disabled={sppgSubmitting}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-semibold text-white shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <CheckCircle2 size={14} />
-                    <span>{editingSppgId ? "Simpan Perubahan" : "Tambah SPPG"}</span>
+                    {sppgSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                    <span>{sppgSubmitting ? "Menyimpan..." : editingSppgId ? "Simpan Perubahan" : "Tambah SPPG"}</span>
                   </button>
                 </div>
               </form>

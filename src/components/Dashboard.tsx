@@ -16,11 +16,8 @@ import {
   Filter,
   CheckCircle2,
   Send,
-  TrendingUp,
   Clock,
-  MapPin,
   Calendar,
-  Sparkles,
   ArrowUpDown,
   LogOut,
   Bell,
@@ -34,7 +31,9 @@ import {
   Copy,
   Eye,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Phone,
+  Plus
 } from "lucide-react";
 
 // Interfaces
@@ -208,6 +207,7 @@ export default function Dashboard() {
     pengawas_gizi: ""
   });
   const [editingSppgId, setEditingSppgId] = useState<string | null>(null);
+  const [showSppgModal, setShowSppgModal] = useState(false);
   const [sppgSearch, setSppgSearch] = useState("");
 
   const fetchSppgList = useCallback(async () => {
@@ -244,10 +244,10 @@ export default function Dashboard() {
   
   // Nutrition states
   const [formGiziBesar, setFormGiziBesar] = useState({
-    Energi: 650, Protein: 30, Lemak: 15, Karbohidrat: 90, Serat: 6
+    Energi: 0, Protein: 0, Lemak: 0, Karbohidrat: 0, Serat: 0
   });
   const [formGiziKecil, setFormGiziKecil] = useState({
-    Energi: 450, Protein: 25, Lemak: 12, Karbohidrat: 60, Serat: 4
+    Energi: 0, Protein: 0, Lemak: 0, Karbohidrat: 0, Serat: 0
   });
   
   const [formImageBase64, setFormImageBase64] = useState("");
@@ -300,6 +300,7 @@ export default function Dashboard() {
           pengawas_gizi: ""
         });
         setEditingSppgId(null);
+        setShowSppgModal(false);
         fetchSppgList();
       } else {
         alert("Gagal menyimpan data SPPG: " + json.message);
@@ -323,6 +324,7 @@ export default function Dashboard() {
       kepala_sppg: sppg.kepala_sppg || "",
       pengawas_gizi: sppg.pengawas_gizi || ""
     });
+    setShowSppgModal(true);
   };
 
   const handleDeleteSppg = async (id: string) => {
@@ -468,6 +470,20 @@ export default function Dashboard() {
     );
   }, [reports]);
 
+  const todayCount = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    return reports.filter(r => r.date === today).length;
+  }, [reports]);
+  const activeSppgCount = useMemo(() => new Set(reports.map(r => r.sppgName)).size, [reports]);
+  const b3Totals = useMemo(() => reports.reduce(
+    (acc, r) => ({
+      balita: acc.balita + (r.balita ?? 0),
+      bumil: acc.bumil + (r.bumil ?? 0),
+      busui: acc.busui + (r.busui ?? 0),
+    }),
+    { balita: 0, bumil: 0, busui: 0 }
+  ), [reports]);
+
   // Handle report status transition from Modal Review and write to DB
   const updateReportStatus = async (id: string, nextStatus: "Draft" | "Approved" | "Sent") => {
     try {
@@ -524,7 +540,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex font-sans overflow-x-hidden antialiased">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex font-sans antialiased">
       {/* Dynamic Futuristic Gradient Background Overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.12),transparent_45%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_40%)] pointer-events-none" />
@@ -710,248 +726,153 @@ export default function Dashboard() {
         </header>
 
         {/* --- MAIN MAIN CONTENT AREA --- */}
-        <main className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl w-full mx-auto pb-24 lg:pb-0">
           {/* TAB 1: DASHBOARD UTAMA */}
           {activeTab === "dashboard" && (
             <>
-              {/* Top Welcome Banner */}
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900/60 to-slate-900 border border-indigo-500/20 relative overflow-hidden shadow-xl">
-                <div className="absolute right-0 top-0 w-96 h-full opacity-10 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.6),transparent_70%)] pointer-events-none" />
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                      <Sparkles size={12} />
-                      Dashboard Operasional
-                    </span>
-                    <h3 className="text-2xl font-bold text-white">Selamat Datang, Koordinator Wilayah</h3>
-                    <p className="text-sm text-slate-400">
-                      Berikut ringkasan statistik harian program Makanan Bergizi Gratis (MBG) hari ini.
-                    </p>
+              {/* ROW 1: KEY METRICS */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
+                  <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+                    <Users size={18} />
                   </div>
-                  <div className="flex items-center gap-2 bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-                    <Calendar className="text-indigo-400" size={16} />
-                    <span className="text-xs font-semibold text-slate-300" suppressHydrationWarning>
-                      {new Date().toLocaleDateString("id-ID", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric"
-                      })}
-                    </span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Penerima</p>
+                    <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{metrics.total.toLocaleString("id-ID")}</h4>
+                  </div>
+                </div>
+                <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                    <ClipboardList size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Laporan Hari Ini</p>
+                    <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{todayCount}</h4>
+                  </div>
+                </div>
+                <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
+                  <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+                    <Database size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">SPPG Aktif</p>
+                    <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{activeSppgCount}</h4>
+                  </div>
+                </div>
+                <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+                    <UtensilsCrossed size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Total Porsi</p>
+                    <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{(metrics.large + metrics.small).toLocaleString("id-ID")}</h4>
                   </div>
                 </div>
               </div>
 
-              {/* THREE METRICS CARDS WITH GLASSMORPHISM */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Total Penerima */}
-                <div className="relative group overflow-hidden rounded-2xl backdrop-blur-md bg-slate-900/40 hover:bg-slate-900/60 border border-slate-800 hover:border-indigo-500/40 p-6 transition-all duration-300 hover:scale-[1.02] shadow-xl">
-                  {/* Subtle card glow */}
-                  <div className="absolute -right-10 -bottom-10 w-24 h-24 rounded-full bg-blue-500/5 blur-xl group-hover:bg-indigo-500/10 transition-colors pointer-events-none" />
-                  <div className="flex items-start justify-between">
+              {/* ROW 2: BREAKDOWN */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Portion breakdown */}
+                <div className="p-4 sm:p-5 bg-slate-950/40 border border-slate-800 rounded-2xl">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Distribusi Porsi</h4>
+                  <div className="space-y-3">
                     <div>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Penerima</p>
-                      <h4 className="text-3xl font-extrabold text-white mt-2">
-                        {metrics.total.toLocaleString("id-ID")}
-                      </h4>
-                      <p className="text-xs text-indigo-400 mt-2 flex items-center gap-1">
-                        <TrendingUp size={14} />
-                        <span>+8.2% dari minggu lalu</span>
-                      </p>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold text-indigo-400">Porsi Besar (SD-SMP)</span>
+                        <span className="text-xs font-bold text-white">{metrics.large.toLocaleString("id-ID")}</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                          style={{ width: `${metrics.large + metrics.small > 0 ? (metrics.large / (metrics.large + metrics.small)) * 100 : 0}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-inner group-hover:scale-110 transition-transform">
-                      <Users size={22} />
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold text-emerald-400">Porsi Kecil (PAUD-TK)</span>
+                        <span className="text-xs font-bold text-white">{metrics.small.toLocaleString("id-ID")}</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                          style={{ width: `${metrics.large + metrics.small > 0 ? (metrics.small / (metrics.large + metrics.small)) * 100 : 0}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Porsi Besar */}
-                <div className="relative group overflow-hidden rounded-2xl backdrop-blur-md bg-slate-900/40 hover:bg-slate-900/60 border border-slate-800 hover:border-indigo-500/40 p-6 transition-all duration-300 hover:scale-[1.02] shadow-xl">
-                  <div className="absolute -right-10 -bottom-10 w-24 h-24 rounded-full bg-indigo-500/5 blur-xl group-hover:bg-indigo-500/10 transition-colors pointer-events-none" />
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Porsi Besar (SD-SMP)</p>
-                      <h4 className="text-3xl font-extrabold text-white mt-2">
-                        {metrics.large.toLocaleString("id-ID")}
-                      </h4>
-                      <p className="text-xs text-indigo-400 mt-2 flex items-center gap-1">
-                        <span>Porsi tinggi kalori & protein</span>
-                      </p>
+                {/* PMT B3 breakdown */}
+                <div className="p-4 sm:p-5 bg-slate-950/40 border border-slate-800 rounded-2xl">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">PMT B3</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-400" />
+                        <span className="text-xs font-semibold text-slate-200">Balita</span>
+                      </div>
+                      <span className="text-sm font-bold text-white">{b3Totals.balita.toLocaleString("id-ID")}</span>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner group-hover:scale-110 transition-transform">
-                      <UtensilsCrossed size={22} />
+                    <div className="flex items-center justify-between p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-2 h-2 rounded-full bg-rose-400" />
+                        <span className="text-xs font-semibold text-slate-200">Bumil</span>
+                      </div>
+                      <span className="text-sm font-bold text-white">{b3Totals.bumil.toLocaleString("id-ID")}</span>
                     </div>
-                  </div>
-                </div>
-
-                {/* Porsi Kecil */}
-                <div className="relative group overflow-hidden rounded-2xl backdrop-blur-md bg-slate-900/40 hover:bg-slate-900/60 border border-slate-800 hover:border-emerald-500/40 p-6 transition-all duration-300 hover:scale-[1.02] shadow-xl">
-                  <div className="absolute -right-10 -bottom-10 w-24 h-24 rounded-full bg-emerald-500/5 blur-xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Porsi Kecil (PAUD-TK)</p>
-                      <h4 className="text-3xl font-extrabold text-white mt-2">
-                        {metrics.small.toLocaleString("id-ID")}
-                      </h4>
-                      <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
-                        <span>Porsi ramah balita & nutrisi mikro</span>
-                      </p>
-                    </div>
-                    <div className="p-3.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-inner group-hover:scale-110 transition-transform">
-                      <Utensils size={22} />
+                    <div className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-2 h-2 rounded-full bg-purple-400" />
+                        <span className="text-xs font-semibold text-slate-200">Busui</span>
+                      </div>
+                      <span className="text-sm font-bold text-white">{b3Totals.busui.toLocaleString("id-ID")}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* TABLE CONTAINER: RIWAYAT LAPORAN HARIAN */}
-              <div className="bg-slate-950/40 backdrop-blur-md border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                {/* Search & Filter Header Panel */}
-                <div className="p-5 border-b border-slate-800 bg-slate-950/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-white text-base">Riwayat Laporan SPPG</h4>
-                    <p className="text-xs text-slate-400">Daftar laporan harian distribusi makanan bergizi gratis.</p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    {/* Search Bar */}
-                    <div className="relative">
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                      <input
-                        type="text"
-                        placeholder="Cari SPPG..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 w-full sm:w-60 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none transition-colors"
-                      />
-                      {searchQuery && (
+              {/* ROW 3: RECENT REPORTS */}
+              <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Laporan Terbaru</h4>
+                  <button
+                    onClick={() => setActiveTab("riwayat")}
+                    className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    Lihat Semua &rarr;
+                  </button>
+                </div>
+                {reports.length > 0 ? (
+                  <div className="space-y-2">
+                    {[...reports]
+                      .sort((a, b) => b.date.localeCompare(a.date))
+                      .slice(0, 5)
+                      .map((report) => (
                         <button
-                          onClick={() => setSearchQuery("")}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                          key={report.id}
+                          onClick={() => setSelectedReport(report)}
+                          className="w-full flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-900/70 border border-slate-800 hover:border-slate-700 rounded-xl transition-all text-left"
                         >
-                          <X size={14} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-white truncate">{report.sppgName}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">{report.date} &middot; {report.totalBeneficiaries.toLocaleString("id-ID")} penerima</p>
+                          </div>
+                          <span className={`shrink-0 ml-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            report.status === "Draft" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                            report.status === "Approved" ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" :
+                            "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          }`}>
+                            {report.status}
+                          </span>
                         </button>
-                      )}
-                    </div>
-
-                    {/* Status Dropdown */}
-                    <div className="relative flex items-center">
-                      <Filter className="absolute left-3 text-slate-500 pointer-events-none" size={14} />
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-indigo-500 outline-none cursor-pointer appearance-none"
-                      >
-                        <option value="All">Semua Status</option>
-                        <option value="Draft">Draft</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Sent">Sent</option>
-                      </select>
-                      {/* Custom dropdown caret */}
-                      <div className="absolute right-3 pointer-events-none border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-400" />
-                    </div>
-
-                    {/* Sort Order Toggle */}
-                    <button
-                      onClick={toggleSort}
-                      className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center gap-1.5 text-xs font-medium"
-                      title="Urutkan Tanggal"
-                    >
-                      <ArrowUpDown size={14} />
-                      <span className="hidden sm:inline">
-                        {sortDirection === "asc" ? "Terlama" : "Terbaru"}
-                      </span>
-                    </button>
+                      ))}
                   </div>
-                </div>
-
-                {/* Table Data list */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider bg-slate-950/20">
-                        <th className="py-4 px-6">ID / Tanggal</th>
-                        <th className="py-4 px-6">Satuan Pelayanan (SPPG)</th>
-                        <th className="py-4 px-6 text-right">Penerima</th>
-                        <th className="py-4 px-6 text-right">Porsi Besar</th>
-                        <th className="py-4 px-6 text-right">Porsi Kecil</th>
-                        <th className="py-4 px-6 text-center">Status</th>
-                        <th className="py-4 px-6 text-center">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {filteredReports.length > 0 ? (
-                        filteredReports.map((report) => (
-                          <tr
-                            key={report.id}
-                            className="text-xs text-slate-300 hover:bg-slate-900/30 transition-colors"
-                          >
-                            <td className="py-4 px-6">
-                              <div className="font-semibold text-white">{report.id}</div>
-                              <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
-                                <Calendar size={10} />
-                                <span>{report.date}</span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6">
-                              <div className="font-semibold text-slate-200">{report.sppgName}</div>
-                              <div className="text-[10px] text-indigo-400 mt-0.5 flex items-center gap-1">
-                                <MapPin size={10} />
-                                <span>{report.location}</span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 text-right font-medium text-white">
-                              {report.totalBeneficiaries.toLocaleString("id-ID")}
-                            </td>
-                            <td className="py-4 px-6 text-right text-slate-400">
-                              {report.largePortions.toLocaleString("id-ID")}
-                            </td>
-                            <td className="py-4 px-6 text-right text-slate-400">
-                              {report.smallPortions.toLocaleString("id-ID")}
-                            </td>
-                            <td className="py-4 px-6 text-center">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                                  report.status === "Draft" &&
-                                  "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                } ${
-                                  report.status === "Approved" &&
-                                  "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                                } ${
-                                  report.status === "Sent" &&
-                                  "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                }`}
-                              >
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    report.status === "Draft" && "bg-amber-400"
-                                  } ${report.status === "Approved" && "bg-indigo-400"} ${
-                                    report.status === "Sent" && "bg-emerald-400"
-                                  }`}
-                                />
-                                <span>{report.status}</span>
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 text-center">
-                              <button
-                                onClick={() => setSelectedReport(report)}
-                                className="px-3 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-700 text-indigo-400 hover:text-indigo-300 rounded-lg text-xs font-semibold tracking-wide transition-all"
-                              >
-                                Review
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={7} className="py-12 px-6 text-center text-slate-500">
-                            Tidak ada laporan yang sesuai filter.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-xs text-slate-500">Belum ada laporan tersedia.</p>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -1115,13 +1036,14 @@ export default function Dashboard() {
                     <h4 className="text-sm font-semibold text-indigo-400">Nilai Gizi Porsi Besar (SD-SMP)</h4>
                   </div>
 
-                  <div className="grid grid-cols-5 gap-2 md:col-span-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:col-span-2">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase">Energi (kcal)</label>
                       <input
                         type="number"
                         value={formGiziBesar.Energi || ""}
                         onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Energi: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1131,6 +1053,7 @@ export default function Dashboard() {
                         type="number"
                         value={formGiziBesar.Protein || ""}
                         onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Protein: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1140,6 +1063,7 @@ export default function Dashboard() {
                         type="number"
                         value={formGiziBesar.Lemak || ""}
                         onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Lemak: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1149,6 +1073,7 @@ export default function Dashboard() {
                         type="number"
                         value={formGiziBesar.Karbohidrat || ""}
                         onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Karbohidrat: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1158,6 +1083,7 @@ export default function Dashboard() {
                         type="number"
                         value={formGiziBesar.Serat || ""}
                         onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Serat: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1168,13 +1094,14 @@ export default function Dashboard() {
                     <h4 className="text-sm font-semibold text-indigo-400">Nilai Gizi Porsi Kecil (PAUD-TK)</h4>
                   </div>
 
-                  <div className="grid grid-cols-5 gap-2 md:col-span-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:col-span-2">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase">Energi (kcal)</label>
                       <input
                         type="number"
                         value={formGiziKecil.Energi || ""}
                         onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Energi: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1184,6 +1111,7 @@ export default function Dashboard() {
                         type="number"
                         value={formGiziKecil.Protein || ""}
                         onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Protein: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1193,6 +1121,7 @@ export default function Dashboard() {
                         type="number"
                         value={formGiziKecil.Lemak || ""}
                         onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Lemak: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1202,6 +1131,7 @@ export default function Dashboard() {
                         type="number"
                         value={formGiziKecil.Karbohidrat || ""}
                         onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Karbohidrat: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1211,6 +1141,7 @@ export default function Dashboard() {
                         type="number"
                         value={formGiziKecil.Serat || ""}
                         onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Serat: Number(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none text-xs"
                       />
                     </div>
@@ -1230,10 +1161,19 @@ export default function Dashboard() {
                       className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 outline-none text-xs cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-650 file:text-white hover:file:bg-indigo-600"
                     />
                     {formImageBase64 && (
-                      <div className="mt-2 text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                        <CheckCircle2 size={12} />
-                        <span>Gambar siap diunggah</span>
-                      </div>
+                      <>
+                        <div className="mt-2 flex items-start gap-3">
+                          <img
+                            src={formImageBase64}
+                            alt="Preview"
+                            className="w-16 h-16 object-cover rounded-lg border border-emerald-500/30 shadow-sm"
+                          />
+                          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                            <CheckCircle2 size={12} />
+                            <span>Gambar siap diunggah</span>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                   <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-800">
@@ -1519,159 +1459,36 @@ export default function Dashboard() {
 
           {/* TAB 3: MASTER DATA SPPG */}
           {activeTab === "sppg" && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Form SPPG */}
-              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl h-fit">
-                <h3 className="text-lg font-bold text-white mb-2">
-                  {editingSppgId ? "Edit Data SPPG" : "Tambah SPPG Baru"}
-                </h3>
-                <p className="text-xs text-slate-400 mb-6">
-                  Input data master SPPG beserta jumlah penerima manfaat bawaannya.
-                </p>
-
-                <form onSubmit={handleSaveSppg} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Nama SPPG</label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: SPPG Lombok Timur"
-                      value={sppgForm.nama_sppg}
-                      onChange={(e) => setSppgForm({ ...sppgForm, nama_sppg: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">No. WhatsApp Kepala SPPG</label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: 6281234567890"
-                      value={sppgForm.kepala_sppg}
-                      onChange={(e) => setSppgForm({ ...sppgForm, kepala_sppg: e.target.value.replace(/\D/g, "") })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">No. WhatsApp Pengawas Gizi</label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: 6281234567890"
-                      value={sppgForm.pengawas_gizi}
-                      onChange={(e) => setSppgForm({ ...sppgForm, pengawas_gizi: e.target.value.replace(/\D/g, "") })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP)</label>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={sppgForm.porsi_besar || ""}
-                        onChange={(e) => setSppgForm({ ...sppgForm, porsi_besar: Number(e.target.value) })}
-                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Porsi Kecil (PAUD-TK)</label>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={sppgForm.porsi_kecil || ""}
-                        onChange={(e) => setSppgForm({ ...sppgForm, porsi_kecil: Number(e.target.value) })}
-                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="border-t border-slate-800 pt-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase block mb-3">PMT B3</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-slate-400 uppercase">Balita</label>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          value={sppgForm.balita || ""}
-                          onChange={(e) => setSppgForm({ ...sppgForm, balita: Number(e.target.value) })}
-                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-250 outline-none focus:border-indigo-500 text-xs"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-slate-400 uppercase">Bumil</label>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          value={sppgForm.bumil || ""}
-                          onChange={(e) => setSppgForm({ ...sppgForm, bumil: Number(e.target.value) })}
-                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-250 outline-none focus:border-indigo-500 text-xs"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-slate-400 uppercase">Busui</label>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          value={sppgForm.busui || ""}
-                          onChange={(e) => setSppgForm({ ...sppgForm, busui: Number(e.target.value) })}
-                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-250 outline-none focus:border-indigo-500 text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-                    {editingSppgId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingSppgId(null);
-                          setSppgForm({
-                            nama_sppg: "",
-                            porsi_kecil: 0,
-                            porsi_besar: 0,
-                            balita: 0,
-                            bumil: 0,
-                            busui: 0,
-                            kepala_sppg: "",
-                            pengawas_gizi: ""
-                          });
-                        }}
-                        className="px-4 py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300"
-                      >
-                        Batal
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 rounded-xl text-xs font-semibold text-white shadow-md shadow-indigo-600/10 flex items-center gap-1.5"
-                    >
-                      <CheckCircle2 size={14} />
-                      <span>{editingSppgId ? "Simpan Perubahan" : "Tambah SPPG"}</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
+            <div className="space-y-6">
               {/* Tabel SPPG */}
-              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl lg:col-span-2">
+              <div className="bg-slate-950/40 border border-slate-800 p-4 sm:p-6 rounded-2xl">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div>
-                    <h3 className="text-lg font-bold text-white">Daftar SPPG</h3>
-                    <p className="text-xs text-slate-400">Total terdaftar: {sppgList.length} SPPG</p>
+                    <h3 className="text-base sm:text-lg font-bold text-white">Daftar SPPG</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Total terdaftar: {sppgList.length} SPPG</p>
                   </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                    <input
-                      type="text"
-                      placeholder="Cari SPPG..."
-                      value={sppgSearch}
-                      onChange={(e) => setSppgSearch(e.target.value)}
-                      className="pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none w-full sm:w-56"
-                    />
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                      <input
+                        type="text"
+                        placeholder="Cari SPPG..."
+                        value={sppgSearch}
+                        onChange={(e) => setSppgSearch(e.target.value)}
+                        className="pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-200 text-xs outline-none w-full sm:w-56"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditingSppgId(null);
+                        setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
+                        setShowSppgModal(true);
+                      }}
+                      className="shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition-colors shadow-md shadow-indigo-600/10"
+                    >
+                      <Plus size={14} />
+                      <span className="hidden sm:inline">Tambah SPPG</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1698,7 +1515,7 @@ export default function Dashboard() {
                           sppgList
                             .filter(s => s.nama_sppg.toLowerCase().includes(sppgSearch.toLowerCase()))
                             .map((sppg) => (
-                              <tr key={sppg.id} className="text-xs text-slate-350 hover:bg-slate-900/20 transition-colors">
+                              <tr key={sppg.id} className="text-xs text-slate-300 hover:bg-slate-900/20 transition-colors">
                                 <td className="py-3.5 px-4 font-semibold text-white">{sppg.nama_sppg}</td>
                                 <td className="py-3.5 px-4 text-center">
                                   <span className="text-indigo-400 font-medium">{sppg.kepala_sppg || "-"}</span>
@@ -1875,12 +1692,12 @@ export default function Dashboard() {
 
       {/* --- REVIEW MODAL DETAIL DIALOG --- */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
           {/* Backdrop */}
           <div onClick={() => setSelectedReport(null)} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
 
           {/* Modal */}
-          <div className="relative w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-2xl shadow-2xl shadow-indigo-500/5 overflow-hidden z-10">
+          <div className="relative w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 overflow-hidden z-10">
             {/* Header */}
             <div className="px-6 py-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
               <div className="flex items-center gap-3 min-w-0">
@@ -1905,16 +1722,18 @@ export default function Dashboard() {
             </div>
 
             {/* Body */}
-            <div className="p-6 max-h-[75vh] overflow-y-auto">
-              <div className="flex gap-6">
+            <div className="p-4 sm:p-6 max-h-[85vh] md:max-h-[75vh] overflow-y-auto">
+              <div className="flex flex-col md:flex-row gap-6">
                 {/* Left Column - Photos */}
-                <div className="flex-shrink-0 w-56 flex flex-col gap-4">
+                <div className="flex-shrink-0 w-full md:w-56">
+                  <div className="grid grid-cols-2 md:flex md:flex-col gap-4">
                   {/* Food Photo */}
                   <div className="group relative rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950/60 shadow-lg">
                     {selectedReport.photoUrl ? (
                       <img
                         src={selectedReport.photoUrl}
                         alt="Foto Makanan"
+                        loading="lazy"
                         className="w-full aspect-[4/3] object-cover"
                       />
                     ) : (
@@ -1934,6 +1753,7 @@ export default function Dashboard() {
                       <img
                         src={selectedReport.posterUrl}
                         alt="Poster Laporan"
+                        loading="lazy"
                         className="w-full aspect-[4/5] object-cover"
                       />
                     ) : (
@@ -1945,6 +1765,7 @@ export default function Dashboard() {
                     <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white/90 tracking-wide">
                       Poster
                     </div>
+                  </div>
                   </div>
                 </div>
 
@@ -2033,10 +1854,10 @@ export default function Dashboard() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-800/80">
-              <div className="flex items-center justify-between gap-4">
+            <div className="px-4 sm:px-6 py-4 bg-slate-950/50 border-t border-slate-800/80">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
                 {/* Action buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     disabled={!selectedReport.posterUrl}
                     onClick={async () => {
@@ -2080,7 +1901,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Status */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold ${
                     selectedReport.status === "Draft" && "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                   } ${
@@ -2107,7 +1928,7 @@ export default function Dashboard() {
                   )}
 
                   {selectedReport.status === "Approved" && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
                         onClick={() => updateReportStatus(selectedReport.id, "Draft")}
                         className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
@@ -2168,6 +1989,7 @@ export default function Dashboard() {
                     <img 
                       src={formPreviewData.posterUrl} 
                       alt="Laporan Poster" 
+                      loading="lazy"
                       className="w-full h-full object-contain"
                     />
                   ) : (
@@ -2261,6 +2083,170 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* --- SPPG MODAL --- */}
+      {showSppgModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div onClick={() => {
+            setShowSppgModal(false);
+            setEditingSppgId(null);
+            setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
+          }} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 overflow-hidden z-10">
+            {/* Header */}
+            <div className="px-4 sm:px-6 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
+                  <Database size={16} className="text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">{editingSppgId ? "Edit Data SPPG" : "Tambah SPPG Baru"}</h3>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSppgModal(false);
+                  setEditingSppgId(null);
+                  setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
+                }}
+                className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-6 max-h-[75vh] overflow-y-auto">
+              <form onSubmit={handleSaveSppg} className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Nama SPPG</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: SPPG Lombok Timur"
+                    value={sppgForm.nama_sppg}
+                    onChange={(e) => setSppgForm({ ...sppgForm, nama_sppg: e.target.value })}
+                    className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                      <Phone size={11} className="text-slate-500" />
+                      Kepala SPPG
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="6281234567890"
+                      value={sppgForm.kepala_sppg}
+                      onChange={(e) => setSppgForm({ ...sppgForm, kepala_sppg: e.target.value.replace(/\D/g, "") })}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                      <Phone size={11} className="text-slate-500" />
+                      Pengawas Gizi
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="6281234567890"
+                      value={sppgForm.pengawas_gizi}
+                      onChange={(e) => setSppgForm({ ...sppgForm, pengawas_gizi: e.target.value.replace(/\D/g, "") })}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP)</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={sppgForm.porsi_besar || ""}
+                      onChange={(e) => setSppgForm({ ...sppgForm, porsi_besar: Number(e.target.value) })}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Porsi Kecil (PAUD-TK)</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={sppgForm.porsi_kecil || ""}
+                      onChange={(e) => setSppgForm({ ...sppgForm, porsi_kecil: Number(e.target.value) })}
+                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-800 pt-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-3">
+                    <Users size={12} className="text-slate-500" />
+                    PMT B3
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase">Balita</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={sppgForm.balita || ""}
+                        onChange={(e) => setSppgForm({ ...sppgForm, balita: Number(e.target.value) })}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase">Bumil</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={sppgForm.bumil || ""}
+                        onChange={(e) => setSppgForm({ ...sppgForm, bumil: Number(e.target.value) })}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase">Busui</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={sppgForm.busui || ""}
+                        onChange={(e) => setSppgForm({ ...sppgForm, busui: Number(e.target.value) })}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSppgModal(false);
+                      setEditingSppgId(null);
+                      setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
+                    }}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-white shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <CheckCircle2 size={14} />
+                    <span>{editingSppgId ? "Simpan Perubahan" : "Tambah SPPG"}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Settings Toast Notification */}
       <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border bg-slate-950/90 backdrop-blur-md shadow-2xl transition-all duration-300 transform ${
         settingsToast.show ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95 pointer-events-none"
@@ -2274,6 +2260,65 @@ export default function Dashboard() {
         )}
         <span className="text-xs font-semibold text-slate-200">{settingsToast.message}</span>
       </div>
+
+      {/* --- BOTTOM NAV BAR (MOBILE ONLY) --- */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 pb-[env(safe-area-inset-bottom)]">
+        <div className="flex items-center justify-around h-16 px-2">
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
+              activeTab === "dashboard" ? "text-indigo-400" : "text-slate-500"
+            }`}
+          >
+            <LayoutDashboard size={20} />
+            <span className="text-[9px] font-semibold">Dashboard</span>
+            {activeTab === "dashboard" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("sppg")}
+            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
+              activeTab === "sppg" ? "text-indigo-400" : "text-slate-500"
+            }`}
+          >
+            <Database size={20} />
+            <span className="text-[9px] font-semibold">SPPG</span>
+            {activeTab === "sppg" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("laporan"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+            className="flex flex-col items-center justify-center flex-none w-14 -mt-4"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 hover:shadow-indigo-500/50">
+              <Plus size={24} strokeWidth={3} />
+            </div>
+            <span className="text-[8px] font-bold text-indigo-400 mt-1 tracking-tight">Tambah</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("riwayat")}
+            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
+              activeTab === "riwayat" ? "text-indigo-400" : "text-slate-500"
+            }`}
+          >
+            <Clock size={20} />
+            <span className="text-[9px] font-semibold">Riwayat</span>
+            {activeTab === "riwayat" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("pengaturan")}
+            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
+              activeTab === "pengaturan" ? "text-indigo-400" : "text-slate-500"
+            }`}
+          >
+            <Settings size={20} />
+            <span className="text-[9px] font-semibold">Atur</span>
+            {activeTab === "pengaturan" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

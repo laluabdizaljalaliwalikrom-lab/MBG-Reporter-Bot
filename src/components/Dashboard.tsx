@@ -34,9 +34,11 @@ import {
   Image as ImageIcon,
   Phone,
   Plus,
-  FileText
+  FileText,
+  Printer
 } from "lucide-react";
 import WeeklyReportView from "@/components/WeeklyReportView";
+import StickerPrintSheet from "@/components/StickerPrintSheet";
 
 // Interfaces
 interface Report {
@@ -183,13 +185,72 @@ export default function Dashboard() {
   // Derived state from reportsList
   const reports = reportsList;
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "mingguan" | "pengaturan" | "sppg" | "riwayat">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "mingguan" | "pengaturan" | "sppg" | "riwayat" | "stiker">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [detailLoadingAction, setDetailLoadingAction] = useState<"download" | "copy" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  // Standalone Stiker Tab States
+  const [standaloneStikerSelectedReportId, setStandaloneStikerSelectedReportId] = useState<string>("");
+  const [standaloneStikerCapacity, setStandaloneStikerCapacity] = useState<12 | 16 | 24>(12);
+  const [standaloneStikerSppg, setStandaloneStikerSppg] = useState<string>("SPPG Wilayah");
+  const [standaloneStikerMenu, setStandaloneStikerMenu] = useState<string>("Nasi Putih, Ayam Goreng, Tumis Buncis, Buah");
+  const [standaloneStikerMode, setStandaloneStikerMode] = useState<"all_besar" | "all_kecil" | "split">("split");
+  const [standaloneStikerCountBesar, setStandaloneStikerCountBesar] = useState<number>(6);
+  const [standaloneStikerTanggal, setStandaloneStikerTanggal] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [standaloneStikerJamSelesai, setStandaloneStikerJamSelesai] = useState<string>("06:00 WITA");
+  const [standaloneStikerJamBatas, setStandaloneStikerJamBatas] = useState<string>("10:00 WITA");
+  const [standaloneStikerGiziBesar, setStandaloneStikerGiziBesar] = useState({ energi: "650", protein: "22", lemak: "18", karbohidrat: "85", serat: "6" });
+  const [standaloneStikerGiziKecil, setStandaloneStikerGiziKecil] = useState({ energi: "450", protein: "15", lemak: "12", karbohidrat: "60", serat: "4" });
+
+  // Load a report into the standalone sticker form, then switch to the Stiker tab
+  const loadReportIntoSticker = useCallback((rep: Report) => {
+    setStandaloneStikerSppg(rep.sppgName || "SPPG Wilayah");
+    setStandaloneStikerMenu(rep.menu || "");
+    setStandaloneStikerTanggal(rep.date || new Date().toISOString().split("T")[0]);
+
+    const gBesar = rep.giziBesar;
+    const gKecil = rep.giziKecil;
+    if (gBesar) {
+      setStandaloneStikerGiziBesar({
+        energi: String(gBesar.Energi || 0),
+        protein: String(gBesar.Protein || 0),
+        lemak: String(gBesar.Lemak || 0),
+        karbohidrat: String(gBesar.Karbohidrat || 0),
+        serat: String(gBesar.Serat || 0)
+      });
+    }
+    if (gKecil) {
+      setStandaloneStikerGiziKecil({
+        energi: String(gKecil.Energi || 0),
+        protein: String(gKecil.Protein || 0),
+        lemak: String(gKecil.Lemak || 0),
+        karbohidrat: String(gKecil.Karbohidrat || 0),
+        serat: String(gKecil.Serat || 0)
+      });
+    }
+
+    const l = rep.largePortions || 0;
+    const s = rep.smallPortions || 0;
+    if (l > 0 && s === 0) {
+      setStandaloneStikerMode("all_besar");
+    } else if (s > 0 && l === 0) {
+      setStandaloneStikerMode("all_kecil");
+    } else {
+      setStandaloneStikerMode("split");
+      setStandaloneStikerCountBesar(Math.floor(standaloneStikerCapacity / 2));
+    }
+  }, [standaloneStikerCapacity]);
+
+  const openStickerFromReport = useCallback((rep: Report) => {
+    loadReportIntoSticker(rep);
+    setStandaloneStikerSelectedReportId(rep.id);
+    setActiveTab("stiker");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [loadReportIntoSticker]);
 
   // Toast notification state for settings
   const [settingsToast, setSettingsToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
@@ -596,7 +657,13 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex font-sans antialiased">
+    <>
+    <div
+      id="app-root"
+      className={`min-h-screen bg-slate-900 text-slate-100 flex font-sans antialiased ${
+        activeTab === "stiker" ? "print:hidden" : ""
+      }`}
+    >
       {/* Dynamic Futuristic Gradient Background Overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.12),transparent_45%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_40%)] pointer-events-none" />
@@ -710,6 +777,21 @@ export default function Dashboard() {
 
             <button
               onClick={() => {
+                setActiveTab("stiker");
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeTab === "stiker"
+                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+              }`}
+            >
+              <Printer size={18} />
+              <span>Stiker Ompreng</span>
+            </button>
+
+            <button
+              onClick={() => {
                 setActiveTab("pengaturan");
                 setSidebarOpen(false);
               }}
@@ -768,6 +850,7 @@ export default function Dashboard() {
                 {activeTab === "pengaturan" && "Pengaturan Sistem"}
                 {activeTab === "sppg" && "Data Master SPPG"}
                 {activeTab === "riwayat" && "Riwayat Laporan"}
+                {activeTab === "stiker" && "Generator Stiker Ompreng"}
               </h2>
               <p className="text-xs text-slate-400 hidden sm:block">
                 Sistem Pemantauan Makanan Bergizi Gratis (MBG) & Satuan Pelayanan Peningkatan Gizi (SPPG)
@@ -1494,6 +1577,13 @@ export default function Dashboard() {
                               <span>Lihat</span>
                             </button>
                             <button
+                              onClick={() => openStickerFromReport(report)}
+                              className="p-2 bg-slate-900 hover:bg-indigo-600/20 text-slate-400 hover:text-indigo-400 border border-slate-800 hover:border-indigo-500/30 rounded-xl text-xs transition-all active:scale-95"
+                              title="Cetak Stiker Ompreng"
+                            >
+                              <Printer size={14} />
+                            </button>
+                            <button
                               onClick={() => {
                                 if (!dbRow) return;
                                 const ext = dbRow.extracted_data || {};
@@ -1689,41 +1779,6 @@ export default function Dashboard() {
           {activeTab === "pengaturan" && (
             <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-8">
               {/* Profile Config */}
-              <div>
-                <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                  <User size={18} className="text-indigo-400" />
-                  <span>Profil Pengguna & Wilayah Tugas</span>
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Nama Lengkap</label>
-                    <input
-                      type="text"
-                      value={userProfile.name}
-                      onChange={(e) => setUserProfile({ ...userProfile, name: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Email Sistem</label>
-                    <input
-                      type="email"
-                      value={userProfile.email}
-                      onChange={(e) => setUserProfile({ ...userProfile, email: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Wilayah Penugasan</label>
-                    <input
-                      type="text"
-                      value={userProfile.region}
-                      onChange={(e) => setUserProfile({ ...userProfile, region: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
 
               <div className="h-px bg-slate-800" />
 
@@ -1801,9 +1856,295 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-        </main>
-      </div>
 
+          {/* TAB: STIKER OMPRENG STANDALONE */}
+          {activeTab === "stiker" && (
+            <div className="space-y-6">
+              {/* Standalone Control Panel */}
+              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                  <div>
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Printer size={18} className="text-indigo-400" />
+                      <span>Generator Label Stiker Ompreng MBG</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Buat dan cetak stiker label untuk ompreng MBG. Pilih dari data laporan atau masukkan data secara manual.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Printer size={16} />
+                    <span>Cetak Label Stiker (A4)</span>
+                  </button>
+                </div>
+
+                {/* Report Selector Dropdown */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <FileText size={13} className="text-indigo-400" />
+                    <span>Pilih Data dari Laporan (Opsional)</span>
+                  </label>
+                  <select
+                    value={standaloneStikerSelectedReportId}
+                    onChange={(e) => {
+                      const repId = e.target.value;
+                      setStandaloneStikerSelectedReportId(repId);
+                      if (!repId) return;
+                      const rep = reports.find((r) => r.id === repId);
+                      if (rep) {
+                        loadReportIntoSticker(rep);
+                        showSettingsToast("Data laporan berhasil dimuat ke Form Stiker!", "success");
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-200 outline-none"
+                  >
+                    <option value="">-- Mode Input Manual / Pilih Laporan --</option>
+                    {reports.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.date} — {r.sppgName} ({r.menu})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Config Controls Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 pt-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Header SPPG</label>
+                    <input
+                      type="text"
+                      value={standaloneStikerSppg}
+                      onChange={(e) => setStandaloneStikerSppg(e.target.value)}
+                      placeholder="Nama SPPG..."
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Nama Menu</label>
+                    <input
+                      type="text"
+                      value={standaloneStikerMenu}
+                      onChange={(e) => setStandaloneStikerMenu(e.target.value)}
+                      placeholder="Menu makanan..."
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Tanggal Produksi</label>
+                    <input
+                      type="date"
+                      value={standaloneStikerTanggal}
+                      onChange={(e) => setStandaloneStikerTanggal(e.target.value)}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Jumlah Label/A4</label>
+                    <select
+                      value={standaloneStikerCapacity}
+                      onChange={(e) => {
+                        const cap = parseInt(e.target.value) as 12 | 16 | 24;
+                        setStandaloneStikerCapacity(cap);
+                        setStandaloneStikerCountBesar(Math.floor(cap / 2));
+                      }}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-indigo-300 outline-none focus:border-indigo-500 cursor-pointer"
+                    >
+                      <option value="12">12 Label / A4 (⭐ Rekomendasi Jelas)</option>
+                      <option value="16">16 Label / A4 (2×8)</option>
+                      <option value="24">24 Label / A4 (3×8)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Komposisi Porsi</label>
+                    <select
+                      value={standaloneStikerMode}
+                      onChange={(e) => setStandaloneStikerMode(e.target.value as "all_besar" | "all_kecil" | "split")}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
+                    >
+                      <option value="all_besar">Semua Porsi Besar</option>
+                      <option value="all_kecil">Semua Porsi Kecil</option>
+                      <option value="split">Campuran (Porsi Besar & Kecil)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Additional Settings: Time & Split Count */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-800/80">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Waktu Pengolahan</label>
+                    <input
+                      type="text"
+                      value={standaloneStikerJamSelesai}
+                      onChange={(e) => setStandaloneStikerJamSelesai(e.target.value)}
+                      placeholder="06:00 WITA"
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Baik Dikonsumsi Sebelum</label>
+                    <input
+                      type="text"
+                      value={standaloneStikerJamBatas}
+                      onChange={(e) => setStandaloneStikerJamBatas(e.target.value)}
+                      placeholder="10:00 WITA"
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  {standaloneStikerMode === "split" && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Jumlah Porsi Besar (Sisanya Porsi Kecil)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max={standaloneStikerCapacity - 1}
+                        value={standaloneStikerCountBesar}
+                        onChange={(e) => setStandaloneStikerCountBesar(Math.min(standaloneStikerCapacity - 1, Math.max(1, parseInt(e.target.value) || Math.floor(standaloneStikerCapacity / 2))))}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Nutrition Editor */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-800/80">
+                  {/* Porsi Besar Nutrition */}
+                  <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+                    <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Nilai Gizi Porsi Besar</h4>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Energi (kcal)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziBesar.energi}
+                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, energi: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Protein (g)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziBesar.protein}
+                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, protein: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Lemak (g)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziBesar.lemak}
+                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, lemak: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Karbo (g)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziBesar.karbohidrat}
+                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, karbohidrat: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Serat (g)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziBesar.serat}
+                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, serat: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Porsi Kecil Nutrition */}
+                  <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+                    <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Nilai Gizi Porsi Kecil</h4>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Energi (kcal)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziKecil.energi}
+                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, energi: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Protein (g)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziKecil.protein}
+                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, protein: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Lemak (g)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziKecil.lemak}
+                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, lemak: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Karbo (g)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziKecil.karbohidrat}
+                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, karbohidrat: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-semibold text-slate-500 block">Serat (g)</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerGiziKecil.serat}
+                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, serat: e.target.value })}
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live A4 Print Sheet Preview */}
+              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Printer size={16} className="text-indigo-400" />
+                    <span>Pratinjau Lembar A4 ({standaloneStikerCapacity} Label Stiker)</span>
+                  </h4>
+                  <span className="text-xs text-slate-400">Siap Cetak / Print-Ready</span>
+                </div>
+                <div className="overflow-x-auto p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex justify-center">
+                  <StickerPrintSheet
+                    capacity={standaloneStikerCapacity}
+                    mode={standaloneStikerMode}
+                    countBesar={standaloneStikerCountBesar}
+                    sppgName={standaloneStikerSppg}
+                    menu={standaloneStikerMenu}
+                    tanggal={standaloneStikerTanggal}
+                    jamSelesai={standaloneStikerJamSelesai}
+                    jamBatas={standaloneStikerJamBatas}
+                    giziBesar={standaloneStikerGiziBesar}
+                    giziKecil={standaloneStikerGiziKecil}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+        </main>
       {/* --- REVIEW MODAL DETAIL DIALOG --- */}
       {selectedReport && (
         <div className="fixed inset-0 bottom-16 md:inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center p-0 md:p-4">
@@ -2062,6 +2403,13 @@ export default function Dashboard() {
                   >
                     {detailLoadingAction === "copy" ? <RefreshCw size={14} className="animate-spin" /> : <Copy size={14} />}
                     {detailLoadingAction === "copy" ? "Menyalin..." : "Copy Caption"}
+                  </button>
+                  <button
+                    onClick={() => selectedReport && openStickerFromReport(selectedReport)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/40 rounded-xl text-xs font-bold text-white shadow-lg shadow-indigo-900/30 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Printer size={14} />
+                    <span>Stiker Ompreng</span>
                   </button>
                 </div>
 
@@ -2527,6 +2875,17 @@ export default function Dashboard() {
           </button>
 
           <button
+            onClick={() => setActiveTab("stiker")}
+            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
+              activeTab === "stiker" ? "text-indigo-400" : "text-slate-500"
+            }`}
+          >
+            <Printer size={20} />
+            <span className="text-[9px] font-semibold">Stiker</span>
+            {activeTab === "stiker" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+          </button>
+
+          <button
             onClick={() => setActiveTab("pengaturan")}
             className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
               activeTab === "pengaturan" ? "text-indigo-400" : "text-slate-500"
@@ -2538,6 +2897,27 @@ export default function Dashboard() {
           </button>
         </div>
       </nav>
+      </div>
     </div>
+
+    {/* Print-only sticker sheet — body-level SIBLING of #app-root (must NOT be
+        inside it, since #app-root is display:none during sticker print) */}
+    {activeTab === "stiker" && (
+      <div id="sticker-print-root" className="hidden print:block">
+        <StickerPrintSheet
+          capacity={standaloneStikerCapacity}
+          mode={standaloneStikerMode}
+          countBesar={standaloneStikerCountBesar}
+          sppgName={standaloneStikerSppg}
+          menu={standaloneStikerMenu}
+          tanggal={standaloneStikerTanggal}
+          jamSelesai={standaloneStikerJamSelesai}
+          jamBatas={standaloneStikerJamBatas}
+          giziBesar={standaloneStikerGiziBesar}
+          giziKecil={standaloneStikerGiziKecil}
+        />
+      </div>
+    )}
+    </>
   );
 }

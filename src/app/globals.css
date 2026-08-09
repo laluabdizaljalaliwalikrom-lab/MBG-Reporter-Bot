@@ -41,9 +41,11 @@ body {
 
 /* Printable Document CSS Override */
 @media print {
+  /* Zero page margins for everything. Weekly report and sticker sheet each
+     emulate their own insets internally (see rules below). */
   @page {
     size: A4 portrait;
-    margin: 1.5cm;
+    margin: 0;
   }
 
   html,
@@ -111,11 +113,35 @@ body {
     top: 0 !important;
     width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 1.5cm !important;
+    box-sizing: border-box !important;
     background: #ffffff !important;
     color: #000000 !important;
     box-shadow: none !important;
     border: none !important;
+  }
+
+  /* Sticker ompreng A4 sheet: print the dedicated body-level print root only.
+     It sits outside #app-root (which is display:none when printing stickers),
+     so it is the only thing rendered. Absolutely positioned at the top-left of
+     the zero-margin page. The sheet carries its own size/styles inline (the
+     same ones the on-screen preview uses), so print output matches the
+     preview exactly. 296mm height avoids a mm->px rounding spill that would
+     add a blank second page. */
+  #sticker-print-root,
+  #sticker-print-root * {
+    visibility: visible !important;
+  }
+
+  #sticker-print-root {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    box-shadow: none !important;
   }
 
   table, th, td {
@@ -123,7 +149,9 @@ body {
     background-color: #ffffff !important;
   }
 
-  img {
+  /* Force browsers to paint background colors / badges exactly like the
+     screen preview (Chrome drops backgrounds by default in print). */
+  * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }

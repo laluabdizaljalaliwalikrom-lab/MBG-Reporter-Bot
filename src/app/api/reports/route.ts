@@ -276,7 +276,8 @@ export async function PUT(request: Request) {
       bumil = 0,
       busui = 0,
       giziBesar = {},
-      giziKecil = {}
+      giziKecil = {},
+      bufferImage
     } = body;
 
     if (!reportId) {
@@ -319,6 +320,19 @@ export async function PUT(request: Request) {
     if (updateError || !updated) {
       console.error("Error updating report:", updateError);
       return NextResponse.json({ status: "error", message: "Gagal memperbarui laporan." }, { status: 500 });
+    }
+
+    // Replace photo if a new one was uploaded (otherwise keep existing)
+    if (bufferImage) {
+      try {
+        const uploadedPhotoUrl = await uploadPhotoToStorage(bufferImage, reportId);
+        await supabase
+          .from("mbg_reports")
+          .update({ photo_url: uploadedPhotoUrl })
+          .eq("id", reportId);
+      } catch (err) {
+        console.error("Photo upload failed during edit:", err);
+      }
     }
 
     // Regenerate poster

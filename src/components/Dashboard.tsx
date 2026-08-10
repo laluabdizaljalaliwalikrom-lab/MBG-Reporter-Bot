@@ -353,8 +353,26 @@ export default function Dashboard() {
   const [formIsConfirming, setFormIsConfirming] = useState(false);
   const [previewLoadingAction, setPreviewLoadingAction] = useState<"download" | "copy" | null>(null);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
+  const [editingExistingPhotoUrl, setEditingExistingPhotoUrl] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("1");
   const [isGeneratingPosterTemplate, setIsGeneratingPosterTemplate] = useState<boolean>(false);
+
+  // Reset the manual report form to its initial state
+  const resetReportForm = useCallback(() => {
+    setFormSppgName("");
+    setFormTanggal(new Date().toISOString().split("T")[0]);
+    setFormMenu("");
+    setFormPorsiBesar(0);
+    setFormPorsiKecil(0);
+    setFormBalita(0);
+    setFormBumil(0);
+    setFormBusui(0);
+    setFormGiziBesar({ Energi: 0, Protein: 0, Lemak: 0, Karbohidrat: 0, Serat: 0 });
+    setFormGiziKecil({ Energi: 0, Protein: 0, Lemak: 0, Karbohidrat: 0, Serat: 0 });
+    setFormImageBase64("");
+    setEditingExistingPhotoUrl("");
+    setEditingReportId(null);
+  }, []);
 
   // Helper to handle image file input to base64 conversion
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -491,14 +509,7 @@ export default function Dashboard() {
       if (response.ok && (resData.action === "preview_ready" || resData.status === "success")) {
         if (isEditing) {
           showSettingsToast("Laporan berhasil diperbarui!", "success");
-          setEditingReportId(null);
-          setFormMenu("");
-          setFormPorsiBesar(0);
-          setFormPorsiKecil(0);
-          setFormBalita(0);
-          setFormBumil(0);
-          setFormBusui(0);
-          setFormImageBase64("");
+          resetReportForm();
         } else {
           setFormPreviewData({
             reportId: resData.reportId,
@@ -536,13 +547,7 @@ export default function Dashboard() {
         if (confirmAction === "confirm") {
           showSettingsToast("Laporan berhasil disetujui! Silakan download poster & copy caption.", "success");
           // Reset form
-          setFormMenu("");
-          setFormPorsiBesar(0);
-          setFormPorsiKecil(0);
-          setFormBalita(0);
-          setFormBumil(0);
-          setFormBusui(0);
-          setFormImageBase64("");
+          resetReportForm();
         } else {
           showSettingsToast("Draf laporan berhasil dibatalkan/revisi.", "success");
         }
@@ -1354,35 +1359,37 @@ export default function Dashboard() {
                       onChange={handleImageChange}
                       className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-600"
                     />
-                    {formImageBase64 && (
-                      <>
-                        <div className="mt-2 flex items-start gap-3">
-                          <img
-                            src={formImageBase64}
-                            alt="Preview"
-                            className="w-16 h-16 object-cover rounded-lg border border-emerald-500/30 shadow-sm"
-                          />
-                          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                            <CheckCircle2 size={12} />
-                            <span>Gambar siap diunggah</span>
-                          </div>
+                    {formImageBase64 ? (
+                      <div className="mt-2 flex items-start gap-3">
+                        <img
+                          src={formImageBase64}
+                          alt="Preview"
+                          className="w-16 h-16 object-cover rounded-lg border border-emerald-500/30 shadow-sm"
+                        />
+                        <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                          <CheckCircle2 size={12} />
+                          <span>Gambar baru siap diunggah</span>
                         </div>
-                      </>
-                    )}
+                      </div>
+                    ) : editingExistingPhotoUrl ? (
+                      <div className="mt-2 flex items-start gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={editingExistingPhotoUrl}
+                          alt="Foto saat ini"
+                          className="w-16 h-16 object-cover rounded-lg border border-slate-600/50 shadow-sm"
+                        />
+                        <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                          <CheckCircle2 size={12} />
+                          <span>Foto saat ini dipertahankan (pilih file untuk mengganti)</span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-800">
                     <button
                       type="button"
-                      onClick={() => {
-                        setEditingReportId(null);
-                        setFormMenu("");
-                        setFormPorsiBesar(0);
-                        setFormPorsiKecil(0);
-                        setFormBalita(0);
-                        setFormBumil(0);
-                        setFormBusui(0);
-                        setFormImageBase64("");
-                      }}
+                      onClick={resetReportForm}
                       className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
                     >
                       {editingReportId ? "Batal Edit" : "Reset Form"}
@@ -1613,6 +1620,7 @@ export default function Dashboard() {
                                   Serat: kecil.Serat || 0
                                 });
                                 setFormImageBase64("");
+                                setEditingExistingPhotoUrl(dbRow.photo_url || "");
                                 setEditingReportId(dbRow.id);
                                 setActiveTab("laporan");
                               }}

@@ -26,6 +26,10 @@ export default function StickerPrintSheet(props: StickerPrintSheetProps) {
 
   const isCapacity12 = capacity === 12;
   const fmtDate = tanggal ? tanggal.split("-").reverse().join("/") : "-";
+  const formatTime = (t: string) => {
+    if (!t) return "-";
+    return t.toUpperCase().includes("WITA") ? t : `${t} WITA`;
+  };
 
   return (
     <div
@@ -119,8 +123,8 @@ export default function StickerPrintSheet(props: StickerPrintSheetProps) {
 
               {/* Times */}
               <div style={{ fontSize: isCapacity12 ? "6.8pt" : "5.5pt", display: "flex", justifyContent: "space-between", gap: "4px", margin: "2px 0", borderTop: "0.5px solid #cbd5e1", borderBottom: "0.5px solid #cbd5e1", padding: "1.5px 0", color: "#334155" }}>
-                <span>Waktu Pengolahan: <strong>{jamSelesai}</strong></span>
-                <span style={{ color: "#991b1b", fontWeight: 700 }}>Baik dikonsumsi sebelum: <strong>{jamBatas}</strong></span>
+                <span>Selesai Produksi: <strong>{formatTime(jamSelesai)}</strong></span>
+                <span style={{ color: "#991b1b", fontWeight: 700 }}>Baik dikonsumsi sebelum: <strong>{formatTime(jamBatas)}</strong></span>
               </div>
 
               {/* Warnings */}

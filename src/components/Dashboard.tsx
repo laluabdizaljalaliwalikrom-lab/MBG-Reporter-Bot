@@ -196,19 +196,19 @@ export default function Dashboard() {
   // Standalone Stiker Tab States
   const [standaloneStikerSelectedReportId, setStandaloneStikerSelectedReportId] = useState<string>("");
   const [standaloneStikerCapacity, setStandaloneStikerCapacity] = useState<12 | 16 | 24>(12);
-  const [standaloneStikerSppg, setStandaloneStikerSppg] = useState<string>("SPPG Wilayah");
+  const [standaloneStikerSppg, setStandaloneStikerSppg] = useState<string>("SPPG Lombok Timur Sikur Sikur 2");
   const [standaloneStikerMenu, setStandaloneStikerMenu] = useState<string>("Nasi Putih, Ayam Goreng, Tumis Buncis, Buah");
   const [standaloneStikerMode, setStandaloneStikerMode] = useState<"all_besar" | "all_kecil" | "split">("split");
   const [standaloneStikerCountBesar, setStandaloneStikerCountBesar] = useState<number>(6);
   const [standaloneStikerTanggal, setStandaloneStikerTanggal] = useState<string>(() => new Date().toISOString().split("T")[0]);
-  const [standaloneStikerJamSelesai, setStandaloneStikerJamSelesai] = useState<string>("06:00 WITA");
-  const [standaloneStikerJamBatas, setStandaloneStikerJamBatas] = useState<string>("10:00 WITA");
+  const [standaloneStikerJamSelesai, setStandaloneStikerJamSelesai] = useState<string>("05:30");
+  const [standaloneStikerJamBatas, setStandaloneStikerJamBatas] = useState<string>("10:30");
   const [standaloneStikerGiziBesar, setStandaloneStikerGiziBesar] = useState({ energi: "650", protein: "22", lemak: "18", karbohidrat: "85", serat: "6" });
   const [standaloneStikerGiziKecil, setStandaloneStikerGiziKecil] = useState({ energi: "450", protein: "15", lemak: "12", karbohidrat: "60", serat: "4" });
 
   // Load a report into the standalone sticker form, then switch to the Stiker tab
   const loadReportIntoSticker = useCallback((rep: Report) => {
-    setStandaloneStikerSppg(rep.sppgName || "SPPG Wilayah");
+    setStandaloneStikerSppg(rep.sppgName || "SPPG Lombok Timur Sikur Sikur 2");
     setStandaloneStikerMenu(rep.menu || "");
     setStandaloneStikerTanggal(rep.date || new Date().toISOString().split("T")[0]);
 
@@ -1947,7 +1947,7 @@ export default function Dashboard() {
                       type="date"
                       value={standaloneStikerTanggal}
                       onChange={(e) => setStandaloneStikerTanggal(e.target.value)}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -1983,23 +1983,21 @@ export default function Dashboard() {
                 {/* Additional Settings: Time & Split Count */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-800/80">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-400">Waktu Pengolahan</label>
+                    <label className="text-xs font-semibold text-slate-400">Selesai Produksi</label>
                     <input
-                      type="text"
+                      type="time"
                       value={standaloneStikerJamSelesai}
                       onChange={(e) => setStandaloneStikerJamSelesai(e.target.value)}
-                      placeholder="06:00 WITA"
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-400">Baik Dikonsumsi Sebelum</label>
                     <input
-                      type="text"
+                      type="time"
                       value={standaloneStikerJamBatas}
                       onChange={(e) => setStandaloneStikerJamBatas(e.target.value)}
-                      placeholder="10:00 WITA"
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
                     />
                   </div>
                   {standaloneStikerMode === "split" && (
@@ -2029,6 +2027,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziBesar.energi}
                           onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, energi: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2038,6 +2037,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziBesar.protein}
                           onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, protein: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2047,6 +2047,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziBesar.lemak}
                           onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, lemak: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2056,6 +2057,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziBesar.karbohidrat}
                           onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, karbohidrat: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2065,6 +2067,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziBesar.serat}
                           onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, serat: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2081,6 +2084,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziKecil.energi}
                           onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, energi: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2090,6 +2094,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziKecil.protein}
                           onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, protein: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2099,6 +2104,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziKecil.lemak}
                           onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, lemak: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2108,6 +2114,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziKecil.karbohidrat}
                           onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, karbohidrat: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>
@@ -2117,6 +2124,7 @@ export default function Dashboard() {
                           type="text"
                           value={standaloneStikerGiziKecil.serat}
                           onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, serat: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
                         />
                       </div>

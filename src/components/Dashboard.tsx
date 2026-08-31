@@ -32,13 +32,21 @@ import {
   Eye,
   Camera,
   Image as ImageIcon,
-  Phone,
   Plus,
   FileText,
   Printer
 } from "lucide-react";
 import WeeklyReportView from "@/components/WeeklyReportView";
 import StickerPrintSheet from "@/components/StickerPrintSheet";
+
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: "accepted" | "dismissed";
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
 
 // Interfaces
 interface Report {
@@ -83,7 +91,7 @@ function toTitleCase(str: string): string {
 }
 
 export default function Dashboard() {
-  const { reports: dbReports, setReports: setDbReports, loading: reportsLoading, error: reportsError } = useLaporanRealtime();
+  const { reports: dbReports, setReports: setDbReports, loading: reportsLoading } = useLaporanRealtime();
 
   // Map DB reports to local Report structure, fallback to mock data if empty
   const reportsList = useMemo<Report[]>(() => {
@@ -195,7 +203,8 @@ export default function Dashboard() {
 
   // Standalone Stiker Tab States
   const [standaloneStikerSelectedReportId, setStandaloneStikerSelectedReportId] = useState<string>("");
-  const [standaloneStikerCapacity, setStandaloneStikerCapacity] = useState<12 | 16 | 24>(12);
+  const [standaloneStikerPaperSize, setStandaloneStikerPaperSize] = useState<"a4" | "f4" | "a3">("a4");
+  const [standaloneStikerCapacity, setStandaloneStikerCapacity] = useState<number>(12);
   const [standaloneStikerSppg, setStandaloneStikerSppg] = useState<string>("SPPG Lombok Timur Sikur Sikur 2");
   const [standaloneStikerMenu, setStandaloneStikerMenu] = useState<string>("Nasi Putih, Ayam Goreng, Tumis Buncis, Buah");
   const [standaloneStikerMode, setStandaloneStikerMode] = useState<"all_besar" | "all_kecil" | "split">("split");
@@ -289,8 +298,13 @@ export default function Dashboard() {
   const [showSppgModal, setShowSppgModal] = useState(false);
   const [sppgSubmitting, setSppgSubmitting] = useState(false);
   const [sppgSearch, setSppgSearch] = useState("");
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isStandalone, setIsStandalone] = useState(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches) {
+      return true;
+    }
+    return false;
+  });
 
   const fetchSppgList = useCallback(async () => {
     setLoadingSppg(true);
@@ -317,11 +331,16 @@ export default function Dashboard() {
 
   // PWA install prompt
   useEffect(() => {
-    const onBeforeInstall = (e: Event) => { e.preventDefault(); setDeferredPrompt(e); };
-    const onInstalled = () => { setDeferredPrompt(null); setIsStandalone(true); };
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => {
+      setDeferredPrompt(null);
+      setIsStandalone(true);
+    };
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
     window.addEventListener("appinstalled", onInstalled);
-    if (window.matchMedia("(display-mode: standalone)").matches) setIsStandalone(true);
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
       window.removeEventListener("appinstalled", onInstalled);
@@ -337,7 +356,7 @@ export default function Dashboard() {
   const [formBalita, setFormBalita] = useState<number>(0);
   const [formBumil, setFormBumil] = useState<number>(0);
   const [formBusui, setFormBusui] = useState<number>(0);
-  
+
   // Nutrition states
   const [formGiziBesar, setFormGiziBesar] = useState({
     Energi: 0, Protein: 0, Lemak: 0, Karbohidrat: 0, Serat: 0
@@ -345,7 +364,7 @@ export default function Dashboard() {
   const [formGiziKecil, setFormGiziKecil] = useState({
     Energi: 0, Protein: 0, Lemak: 0, Karbohidrat: 0, Serat: 0
   });
-  
+
   const [formImageBase64, setFormImageBase64] = useState("");
   const [formIsSubmitting, setFormIsSubmitting] = useState(false);
   const [formPreviewData, setFormPreviewData] = useState<{ reportId: string; posterUrl: string; caption: string } | null>(null);
@@ -568,11 +587,11 @@ export default function Dashboard() {
   // Notifications State Mockup
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [autoSync, setAutoSync] = useState(true);
-  const [userProfile, setUserProfile] = useState({
-    name: "Admin SPPG Nasional",
+  const userProfile = {
+    name: "Puput",
     email: "admin@mbg-sppg.go.id",
-    region: "DKI Jakarta & Jawa Barat"
-  });
+    region: "Lombok Timur"
+  };
 
   // Calculate Metrics dynamically based on current state (synced with DB)
   const metrics = useMemo(() => {
@@ -621,7 +640,7 @@ export default function Dashboard() {
           .from("mbg_reports")
           .update({ status: dbStatus })
           .eq("id", id);
-        
+
         if (dbError) throw dbError;
 
         // Generate poster when status changes to Sent or Approved
@@ -663,2277 +682,2293 @@ export default function Dashboard() {
 
   return (
     <>
-    <div
-      id="app-root"
-      className={`min-h-screen bg-slate-900 text-slate-100 flex font-sans antialiased ${
-        activeTab === "stiker" ? "print:hidden" : ""
-      }`}
-    >
-      {/* Dynamic Futuristic Gradient Background Overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.12),transparent_45%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_40%)] pointer-events-none" />
-
-      {/* --- SIDEBAR FOR DESKTOP --- */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-950/80 backdrop-blur-xl border-r border-slate-800 transform ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between`}
+      <div
+        id="app-root"
+        className={`min-h-screen bg-slate-900 text-slate-100 flex font-sans antialiased ${activeTab === "stiker" ? "print:hidden" : ""
+          }`}
       >
-        <div>
-          {/* Logo Brand */}
-          <div className="h-20 flex items-center px-6 border-b border-slate-900 bg-slate-950/30">
+        {/* Dynamic Futuristic Gradient Background Overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.12),transparent_45%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_40%)] pointer-events-none" />
+
+        {/* --- SIDEBAR FOR DESKTOP --- */}
+        <aside
+          className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-950/80 backdrop-blur-xl border-r border-slate-800 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            } lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between`}
+        >
+          <div>
+            {/* Logo Brand */}
+            <div className="h-20 flex items-center px-6 border-b border-slate-900 bg-slate-950/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
+                  <UtensilsCrossed size={20} className="animate-pulse" />
+                </div>
+                <div>
+                  <h1 className="font-bold text-lg leading-tight bg-gradient-to-r from-white via-slate-200 to-indigo-400 bg-clip-text text-transparent">
+                    MBG Reporter
+                  </h1>
+                  <p className="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">
+                    Sistem SPPG
+                  </p>
+                </div>
+              </div>
+              {/* Close sidebar on Mobile */}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden ml-auto p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="p-4 space-y-1.5">
+              <button
+                onClick={() => {
+                  setActiveTab("dashboard");
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === "dashboard"
+                    ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  }`}
+              >
+                <LayoutDashboard size={18} />
+                <span>Dashboard Utama</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab("laporan");
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === "laporan"
+                    ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  }`}
+              >
+                <ClipboardList size={18} />
+                <span>Laporan Harian</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab("mingguan");
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === "mingguan"
+                    ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  }`}
+              >
+                <FileText size={18} />
+                <span>Laporan Mingguan</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("sppg");
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === "sppg"
+                    ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  }`}
+              >
+                <Database size={18} />
+                <span>Data SPPG</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab("riwayat");
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === "riwayat"
+                    ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  }`}
+              >
+                <Clock size={18} />
+                <span>Riwayat Laporan</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab("stiker");
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === "stiker"
+                    ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  }`}
+              >
+                <Printer size={18} />
+                <span>Stiker Ompreng</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab("pengaturan");
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === "pengaturan"
+                    ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  }`}
+              >
+                <Settings size={18} />
+                <span>Pengaturan</span>
+              </button>
+            </nav>
+          </div>
+
+          {/* Profile Card Bottom */}
+          <div className="p-4 border-t border-slate-900 bg-slate-950/20">
+            <div className="flex items-center gap-3 p-2 bg-slate-900/40 rounded-xl border border-slate-800/40">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-emerald-500 flex items-center justify-center font-bold text-white shadow-inner">
+                {userProfile.name.split(" ").map((n) => n[0]).join("")}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-semibold text-white truncate">{userProfile.name}</h4>
+                <p className="text-[10px] text-slate-400 truncate">{userProfile.email}</p>
+              </div>
+              <button className="text-slate-400 hover:text-red-400 transition-colors p-1" title="Keluar">
+                <LogOut size={16} />
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Backdrop for Mobile Sidebar */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-30 lg:hidden"
+          />
+        )}
+
+        {/* --- CONTENT CONTAINER --- */}
+        <div className="flex-1 lg:pl-64 flex flex-col min-w-0 relative z-10">
+          {/* --- HEADER --- */}
+          <header className="h-20 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-20 px-4 lg:px-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
-                <UtensilsCrossed size={20} className="animate-pulse" />
-              </div>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 rounded-xl text-slate-300 hover:bg-slate-800"
+              >
+                <Menu size={22} />
+              </button>
               <div>
-                <h1 className="font-bold text-lg leading-tight bg-gradient-to-r from-white via-slate-200 to-indigo-400 bg-clip-text text-transparent">
-                  MBG Reporter
-                </h1>
-                <p className="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">
-                  Sistem SPPG
+                <h2 className="text-xl font-bold tracking-tight text-white capitalize">
+                  {activeTab === "dashboard" && "Dashboard Utama"}
+                  {activeTab === "laporan" && "Manajemen Laporan"}
+                  {activeTab === "pengaturan" && "Pengaturan Sistem"}
+                  {activeTab === "sppg" && "Data Master SPPG"}
+                  {activeTab === "riwayat" && "Riwayat Laporan"}
+                  {activeTab === "stiker" && "Generator Stiker Ompreng"}
+                </h2>
+                <p className="text-xs text-slate-400 hidden sm:block">
+                  Sistem Pemantauan Makanan Bergizi Gratis (MBG) & Satuan Pelayanan Peningkatan Gizi (SPPG)
                 </p>
               </div>
             </div>
-            {/* Close sidebar on Mobile */}
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden ml-auto p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-          </div>
 
-          {/* Navigation Links */}
-          <nav className="p-4 space-y-1.5">
-            <button
-              onClick={() => {
-                setActiveTab("dashboard");
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === "dashboard"
-                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <LayoutDashboard size={18} />
-              <span>Dashboard Utama</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("laporan");
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === "laporan"
-                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <ClipboardList size={18} />
-              <span>Laporan Harian</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("mingguan");
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === "mingguan"
-                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <FileText size={18} />
-              <span>Laporan Mingguan</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("sppg");
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === "sppg"
-                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <Database size={18} />
-              <span>Data SPPG</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("riwayat");
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === "riwayat"
-                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <Clock size={18} />
-              <span>Riwayat Laporan</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("stiker");
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === "stiker"
-                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <Printer size={18} />
-              <span>Stiker Ompreng</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("pengaturan");
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === "pengaturan"
-                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/10"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <Settings size={18} />
-              <span>Pengaturan</span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Profile Card Bottom */}
-        <div className="p-4 border-t border-slate-900 bg-slate-950/20">
-          <div className="flex items-center gap-3 p-2 bg-slate-900/40 rounded-xl border border-slate-800/40">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-emerald-500 flex items-center justify-center font-bold text-white shadow-inner">
-              {userProfile.name.split(" ").map((n) => n[0]).join("")}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="text-xs font-semibold text-white truncate">{userProfile.name}</h4>
-              <p className="text-[10px] text-slate-400 truncate">{userProfile.email}</p>
-            </div>
-            <button className="text-slate-400 hover:text-red-400 transition-colors p-1" title="Keluar">
-              <LogOut size={16} />
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Backdrop for Mobile Sidebar */}
-      {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-30 lg:hidden"
-        />
-      )}
-
-      {/* --- CONTENT CONTAINER --- */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-w-0 relative z-10">
-        {/* --- HEADER --- */}
-        <header className="h-20 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-20 px-4 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-300 hover:bg-slate-800"
-            >
-              <Menu size={22} />
-            </button>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-white capitalize">
-                {activeTab === "dashboard" && "Dashboard Utama"}
-                {activeTab === "laporan" && "Manajemen Laporan"}
-                {activeTab === "pengaturan" && "Pengaturan Sistem"}
-                {activeTab === "sppg" && "Data Master SPPG"}
-                {activeTab === "riwayat" && "Riwayat Laporan"}
-                {activeTab === "stiker" && "Generator Stiker Ompreng"}
-              </h2>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                Sistem Pemantauan Makanan Bergizi Gratis (MBG) & Satuan Pelayanan Peningkatan Gizi (SPPG)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Live indicator */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs text-slate-300 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Sistem Terhubung</span>
-            </div>
-
-            <button
-              onClick={async () => {
-                if (deferredPrompt) {
-                  deferredPrompt.prompt();
-                  const { outcome } = await deferredPrompt.userChoice;
-                  if (outcome === "accepted") { setDeferredPrompt(null); setIsStandalone(true); }
-                }
-              }}
-              className="p-2.5 rounded-xl bg-slate-800/85 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors relative"
-            >
-              {deferredPrompt ? <Download size={18} /> : <Bell size={18} />}
-              {deferredPrompt ? (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-[8px] font-bold text-white shadow-lg shadow-emerald-500/30 animate-pulse">
-                  +
-                </span>
-              ) : (
-                !isStandalone && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
-              )}
-            </button>
-
-            <div className="h-10 w-px bg-slate-800 hidden sm:block" />
-
-            <div className="text-right hidden sm:block">
-              <p className="text-xs text-slate-400">Wilayah Tugas</p>
-              <p className="text-xs font-semibold text-indigo-400">{userProfile.region}</p>
-            </div>
-          </div>
-        </header>
-
-        {/* --- MAIN MAIN CONTENT AREA --- */}
-        <main className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl w-full mx-auto pb-24 lg:pb-0">
-          {/* TAB 1: DASHBOARD UTAMA */}
-          {activeTab === "dashboard" && (
-            <>
-              {/* ROW 1: KEY METRICS */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
-                  <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
-                    <Users size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Penerima</p>
-                    <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{metrics.total.toLocaleString("id-ID")}</h4>
-                  </div>
-                </div>
-                <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-                    <ClipboardList size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Laporan Hari Ini</p>
-                    <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{todayCount}</h4>
-                  </div>
-                </div>
-                <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
-                  <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
-                    <Database size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">SPPG Aktif</p>
-                    <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{activeSppgCount}</h4>
-                  </div>
-                </div>
-                <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
-                    <UtensilsCrossed size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Total Porsi</p>
-                    <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{(metrics.large + metrics.small).toLocaleString("id-ID")}</h4>
-                  </div>
-                </div>
+            <div className="flex items-center gap-3">
+              {/* Live indicator */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs text-slate-300 font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Sistem Terhubung</span>
               </div>
 
-              {/* ROW 2: BREAKDOWN */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Portion breakdown */}
-                <div className="p-4 sm:p-5 bg-slate-950/40 border border-slate-800 rounded-2xl">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Distribusi Porsi</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-semibold text-indigo-400">Porsi Besar (SD-SMP)</span>
-                        <span className="text-xs font-bold text-white">{metrics.large.toLocaleString("id-ID")}</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                          style={{ width: `${metrics.large + metrics.small > 0 ? (metrics.large / (metrics.large + metrics.small)) * 100 : 0}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-semibold text-emerald-400">Porsi Kecil (PAUD-TK)</span>
-                        <span className="text-xs font-bold text-white">{metrics.small.toLocaleString("id-ID")}</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                          style={{ width: `${metrics.large + metrics.small > 0 ? (metrics.small / (metrics.large + metrics.small)) * 100 : 0}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* PMT B3 breakdown */}
-                <div className="p-4 sm:p-5 bg-slate-950/40 border border-slate-800 rounded-2xl">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">PMT B3</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-2 h-2 rounded-full bg-amber-400" />
-                        <span className="text-xs font-semibold text-slate-200">Balita</span>
-                      </div>
-                      <span className="text-sm font-bold text-white">{b3Totals.balita.toLocaleString("id-ID")}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-2 h-2 rounded-full bg-rose-400" />
-                        <span className="text-xs font-semibold text-slate-200">Bumil</span>
-                      </div>
-                      <span className="text-sm font-bold text-white">{b3Totals.bumil.toLocaleString("id-ID")}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-2 h-2 rounded-full bg-purple-400" />
-                        <span className="text-xs font-semibold text-slate-200">Busui</span>
-                      </div>
-                      <span className="text-sm font-bold text-white">{b3Totals.busui.toLocaleString("id-ID")}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ROW 3: RECENT REPORTS */}
-              <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Laporan Terbaru</h4>
-                  <button
-                    onClick={() => setActiveTab("riwayat")}
-                    className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
-                  >
-                    Lihat Semua &rarr;
-                  </button>
-                </div>
-                {reportsLoading ? (
-                  <div className="space-y-2">
-                    {[1,2,3].map((i) => (
-                      <div key={i} className="w-full p-3 bg-slate-900/50 border border-slate-800 rounded-xl animate-pulse">
-                        <div className="h-3 bg-slate-800 rounded w-2/3 mb-2" />
-                        <div className="h-2 bg-slate-800 rounded w-1/3" />
-                      </div>
-                    ))}
-                  </div>
-                ) : reports.length > 0 ? (
-                  <div className="space-y-2">
-                    {[...reports]
-                      .sort((a, b) => b.date.localeCompare(a.date))
-                      .slice(0, 5)
-                      .map((report) => (
-                        <button
-                          key={report.id}
-                          onClick={() => setSelectedReport(report)}
-                          className="w-full flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-900/70 border border-slate-800 hover:border-slate-700 rounded-xl transition-all text-left"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-white truncate">{report.sppgName}</p>
-                            <p className="text-[10px] text-slate-500 mt-0.5">{report.date} &middot; {report.totalBeneficiaries.toLocaleString("id-ID")} penerima</p>
-                          </div>
-                          <span className={`shrink-0 ml-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                            report.status === "Draft" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                            report.status === "Approved" ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" :
-                            "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          }`}>
-                            {report.status}
-                          </span>
-                        </button>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-xs text-slate-500">Belum ada laporan tersedia.</p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* TAB 2: LAPORAN DETAIL */}
-          {activeTab === "laporan" && (
-            <div className="space-y-6">
-              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl">
-                <h3 className="text-lg font-bold text-white mb-2">
-                  {editingReportId ? "Edit Laporan" : "Form Pembuatan Laporan Baru"}
-                </h3>
-                <p className="text-xs text-slate-400 mb-6">
-                  {editingReportId
-                    ? "Ubah data laporan yang sudah ada. Status laporan tidak akan berubah."
-                    : "Input data distribusi makanan harian dari SPPG. Harap verifikasi jumlah porsi sebelum disimpan."
+              <button
+                onClick={async () => {
+                  if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === "accepted") { setDeferredPrompt(null); setIsStandalone(true); }
                   }
-                </p>
+                }}
+                className="p-2.5 rounded-xl bg-slate-800/85 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors relative"
+              >
+                {deferredPrompt ? <Download size={18} /> : <Bell size={18} />}
+                {deferredPrompt ? (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-[8px] font-bold text-white shadow-lg shadow-emerald-500/30 animate-pulse">
+                    +
+                  </span>
+                ) : (
+                  !isStandalone && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
+                )}
+              </button>
 
-                <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={(e) => e.preventDefault()}>
-                  {/* --- SECTION 1: INFORMASI UMUM --- */}
-                  <div className="md:col-span-2 border-b border-slate-800 pb-2">
-                    <h4 className="text-sm font-semibold text-indigo-400">Informasi Umum Laporan</h4>
-                  </div>
+              <div className="h-10 w-px bg-slate-800 hidden sm:block" />
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Satuan Pelayanan SPPG</label>
-                    <select
-                      value={sppgList.some(s => s.nama_sppg === formSppgName) ? formSppgName : (formSppgName ? "__custom__" : "")}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "__custom__") {
-                          setFormSppgName("");
-                        } else {
-                          setFormSppgName(val);
-                          const selectedSppg = sppgList.find(s => s.nama_sppg === val);
-                          if (selectedSppg) {
-                            setFormPorsiBesar(selectedSppg.porsi_besar);
-                            setFormPorsiKecil(selectedSppg.porsi_kecil);
-                            setFormBalita(selectedSppg.balita);
-                            setFormBumil(selectedSppg.bumil);
-                            setFormBusui(selectedSppg.busui);
-                          }
-                        }
-                      }}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs cursor-pointer mb-2"
-                    >
-                      <option value="">-- Pilih SPPG --</option>
-                      {sppgList.map((sppg) => (
-                        <option key={sppg.id} value={sppg.nama_sppg}>
-                          {sppg.nama_sppg}
-                        </option>
-                      ))}
-                      <option value="__custom__">Input Manual / SPPG Baru...</option>
-                    </select>
-                    {(!sppgList.some(s => s.nama_sppg === formSppgName) || formSppgName === "") && (
-                      <input
-                        type="text"
-                        placeholder="Ketik nama SPPG manual..."
-                        value={formSppgName}
-                        onChange={(e) => setFormSppgName(e.target.value)}
-                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Tanggal Distribusi</label>
-                    <input
-                      type="date"
-                      value={formTanggal}
-                      onChange={(e) => setFormTanggal(e.target.value)}
-                      onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs [color-scheme:dark] cursor-pointer"
-                    />
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Detail Menu Makanan</label>
-                    <textarea
-                      placeholder="Contoh: Nasi Putih, Ayam Goreng Saos Padang, Tumis Buncis Wortel, Melon..."
-                      rows={3}
-                      value={formMenu}
-                      onChange={(e) => setFormMenu(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-
-                  {/* --- SECTION 2: PENERIMA MANFAAT SEKOLAH --- */}
-                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
-                    <h4 className="text-sm font-semibold text-indigo-400">Penerima Manfaat Sekolah</h4>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP) - Anak</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={formPorsiBesar || ""}
-                      onChange={(e) => setFormPorsiBesar(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-                      min="0"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Porsi Kecil (PAUD-TK) - Anak</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={formPorsiKecil || ""}
-                      onChange={(e) => setFormPorsiKecil(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-                      min="0"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-
-                  {/* --- SECTION 3: PENERIMA MANFAAT PMT B3 --- */}
-                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
-                    <h4 className="text-sm font-semibold text-indigo-400">Penerima Manfaat PMT B3</h4>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Balita - Anak</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={formBalita || ""}
-                      onChange={(e) => setFormBalita(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-                      min="0"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Ibu Hamil (Bumil) - Orang</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={formBumil || ""}
-                      onChange={(e) => setFormBumil(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-                      min="0"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Ibu Menyusui (Busui) - Orang</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={formBusui || ""}
-                      onChange={(e) => setFormBusui(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-                      min="0"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Total Penerima Manfaat (Otomatis)</label>
-                    <div className="w-full p-3 bg-slate-950/80 border border-slate-700/30 rounded-xl text-indigo-400 font-extrabold text-sm shadow-inner">
-                      {(formPorsiBesar || 0) + (formPorsiKecil || 0) + (formBalita || 0) + (formBumil || 0) + (formBusui || 0)} Orang
-                    </div>
-                  </div>
-
-                  {/* --- SECTION 4: NILAI GIZI PORSI BESAR --- */}
-                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
-                    <h4 className="text-sm font-semibold text-indigo-400">Nilai Gizi Porsi Besar (SD-SMP)</h4>
-                  </div>
-
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:col-span-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Energi (kcal)</label>
-                      <input
-                        type="number"
-                        value={formGiziBesar.Energi || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Energi: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Protein (g)</label>
-                      <input
-                        type="number"
-                        value={formGiziBesar.Protein || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Protein: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Lemak (g)</label>
-                      <input
-                        type="number"
-                        value={formGiziBesar.Lemak || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Lemak: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Karbo (g)</label>
-                      <input
-                        type="number"
-                        value={formGiziBesar.Karbohidrat || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Karbohidrat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Serat (g)</label>
-                      <input
-                        type="number"
-                        value={formGiziBesar.Serat || ""}
-                        onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Serat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  {/* --- SECTION 5: NILAI GIZI PORSI KECIL --- */}
-                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
-                    <h4 className="text-sm font-semibold text-indigo-400">Nilai Gizi Porsi Kecil (PAUD-TK)</h4>
-                  </div>
-
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:col-span-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Energi (kcal)</label>
-                      <input
-                        type="number"
-                        value={formGiziKecil.Energi || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Energi: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Protein (g)</label>
-                      <input
-                        type="number"
-                        value={formGiziKecil.Protein || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Protein: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Lemak (g)</label>
-                      <input
-                        type="number"
-                        value={formGiziKecil.Lemak || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Lemak: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Karbo (g)</label>
-                      <input
-                        type="number"
-                        value={formGiziKecil.Karbohidrat || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Karbohidrat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Serat (g)</label>
-                      <input
-                        type="number"
-                        value={formGiziKecil.Serat || ""}
-                        onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Serat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        onFocus={(e) => e.target.select()}
-                        min="0"
-                        className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  {/* --- SECTION 6: FOTO MAKANAN & TUJUAN --- */}
-                  <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
-                    <h4 className="text-sm font-semibold text-indigo-400">Foto & Pengiriman ke Personal</h4>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Foto Makanan</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-600"
-                    />
-                    {formImageBase64 ? (
-                      <div className="mt-2 flex items-start gap-3">
-                        <img
-                          src={formImageBase64}
-                          alt="Preview"
-                          className="w-16 h-16 object-cover rounded-lg border border-emerald-500/30 shadow-sm"
-                        />
-                        <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                          <CheckCircle2 size={12} />
-                          <span>Gambar baru siap diunggah</span>
-                        </div>
-                      </div>
-                    ) : editingExistingPhotoUrl ? (
-                      <div className="mt-2 flex items-start gap-3">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={editingExistingPhotoUrl}
-                          alt="Foto saat ini"
-                          className="w-16 h-16 object-cover rounded-lg border border-slate-600/50 shadow-sm"
-                        />
-                        <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                          <CheckCircle2 size={12} />
-                          <span>Foto saat ini dipertahankan (pilih file untuk mengganti)</span>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-800">
-                    <button
-                      type="button"
-                      onClick={resetReportForm}
-                      className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
-                    >
-                      {editingReportId ? "Batal Edit" : "Reset Form"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={formIsSubmitting}
-                      onClick={handleSubmitReport}
-                      className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${
-                        formIsSubmitting ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-600 shadow-md shadow-indigo-600/10"
-                      }`}
-                    >
-                      {formIsSubmitting && <RefreshCw size={14} className="animate-spin" />}
-                      <span>{formIsSubmitting ? "Memproses..." : editingReportId ? "Simpan Perubahan" : "Pratinjau Laporan"}</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Laporan Statistics Preview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl">
-                  <h4 className="font-bold text-white text-sm mb-4">Laporan Terbaru (Hari Ini)</h4>
-                  <div className="space-y-3">
-                    {reports.slice(0, 3).map((rep) => (
-                      <div key={rep.id} className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-semibold text-white">{rep.sppgName}</p>
-                          <p className="text-[10px] text-slate-400">{rep.totalBeneficiaries} Penerima • {rep.location}</p>
-                        </div>
-                        <span className="text-[10px] font-semibold text-indigo-400">{rep.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between">
-                  <div>
-                    <h4 className="font-bold text-white text-sm mb-2">Persentase Pengiriman Laporan</h4>
-                    <p className="text-xs text-slate-400">Total laporan yang telah berhasil dikirim (Sent) ke pusat.</p>
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <div className="flex justify-between text-xs text-slate-300">
-                      <span>Progress Laporan</span>
-                      <span>
-                        {Math.round(
-                          (reports.filter((r) => r.status === "Sent").length / reports.length) * 100
-                        )}
-                        %
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${
-                            (reports.filter((r) => r.status === "Sent").length / reports.length) * 100
-                          }%`
-                        }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-slate-500 text-center">
-                      {reports.filter((r) => r.status === "Sent").length} dari {reports.length} laporan selesai dikirim.
-                    </p>
-                  </div>
-                </div>
+              <div className="text-right hidden sm:block">
+                <p className="text-xs text-slate-400">Wilayah Tugas</p>
+                <p className="text-xs font-semibold text-indigo-400">{userProfile.region}</p>
               </div>
             </div>
-          )}
+          </header>
 
-          {/* TAB 5: RIWAYAT LAPORAN */}
-          {activeTab === "riwayat" && (
-            <div className="space-y-6">
-              <div className="bg-slate-950/40 backdrop-blur-md border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                {/* Header Panel */}
-                <div className="p-5 border-b border-slate-800 bg-slate-950/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-white text-base">Semua Laporan SPPG</h4>
-                    <p className="text-xs text-slate-400">Kelola, edit, hapus, atau download poster & caption dari semua laporan.</p>
+          {/* --- MAIN MAIN CONTENT AREA --- */}
+          <main className="flex-1 p-4 lg:p-8 space-y-6 max-w-7xl w-full mx-auto pb-24 lg:pb-0">
+            {/* TAB 1: DASHBOARD UTAMA */}
+            {activeTab === "dashboard" && (
+              <>
+                {/* ROW 1: KEY METRICS */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
+                    <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+                      <Users size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Penerima</p>
+                      <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{metrics.total.toLocaleString("id-ID")}</h4>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="relative">
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                      <input
-                        type="text"
-                        placeholder="Cari SPPG..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 w-full sm:w-60 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none transition-colors"
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery("")}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                        >
-                          <X size={14} />
-                        </button>
+                  <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                      <ClipboardList size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Laporan Hari Ini</p>
+                      <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{todayCount}</h4>
+                    </div>
+                  </div>
+                  <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
+                    <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+                      <Database size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">SPPG Aktif</p>
+                      <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{activeSppgCount}</h4>
+                    </div>
+                  </div>
+                  <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 sm:gap-4">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+                      <UtensilsCrossed size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Total Porsi</p>
+                      <h4 className="text-xl sm:text-2xl font-extrabold text-white mt-0.5">{(metrics.large + metrics.small).toLocaleString("id-ID")}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2: BREAKDOWN */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Portion breakdown */}
+                  <div className="p-4 sm:p-5 bg-slate-950/40 border border-slate-800 rounded-2xl">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Distribusi Porsi</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-semibold text-indigo-400">Porsi Besar (SD-SMP)</span>
+                          <span className="text-xs font-bold text-white">{metrics.large.toLocaleString("id-ID")}</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                            style={{ width: `${metrics.large + metrics.small > 0 ? (metrics.large / (metrics.large + metrics.small)) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-semibold text-emerald-400">Porsi Kecil (PAUD-TK)</span>
+                          <span className="text-xs font-bold text-white">{metrics.small.toLocaleString("id-ID")}</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                            style={{ width: `${metrics.large + metrics.small > 0 ? (metrics.small / (metrics.large + metrics.small)) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PMT B3 breakdown */}
+                  <div className="p-4 sm:p-5 bg-slate-950/40 border border-slate-800 rounded-2xl">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">PMT B3</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-400" />
+                          <span className="text-xs font-semibold text-slate-200">Balita</span>
+                        </div>
+                        <span className="text-sm font-bold text-white">{b3Totals.balita.toLocaleString("id-ID")}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-rose-400" />
+                          <span className="text-xs font-semibold text-slate-200">Bumil</span>
+                        </div>
+                        <span className="text-sm font-bold text-white">{b3Totals.bumil.toLocaleString("id-ID")}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-purple-400" />
+                          <span className="text-xs font-semibold text-slate-200">Busui</span>
+                        </div>
+                        <span className="text-sm font-bold text-white">{b3Totals.busui.toLocaleString("id-ID")}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 3: RECENT REPORTS */}
+                <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Laporan Terbaru</h4>
+                    <button
+                      onClick={() => setActiveTab("riwayat")}
+                      className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                    >
+                      Lihat Semua &rarr;
+                    </button>
+                  </div>
+                  {reportsLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="w-full p-3 bg-slate-900/50 border border-slate-800 rounded-xl animate-pulse">
+                          <div className="h-3 bg-slate-800 rounded w-2/3 mb-2" />
+                          <div className="h-2 bg-slate-800 rounded w-1/3" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : reports.length > 0 ? (
+                    <div className="space-y-2">
+                      {[...reports]
+                        .sort((a, b) => b.date.localeCompare(a.date))
+                        .slice(0, 5)
+                        .map((report) => (
+                          <button
+                            key={report.id}
+                            onClick={() => setSelectedReport(report)}
+                            className="w-full flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-900/70 border border-slate-800 hover:border-slate-700 rounded-xl transition-all text-left"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-white truncate">{report.sppgName}</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">{report.date} &middot; {report.totalBeneficiaries.toLocaleString("id-ID")} penerima</p>
+                            </div>
+                            <span className={`shrink-0 ml-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${report.status === "Draft" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                                report.status === "Approved" ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" :
+                                  "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                              }`}>
+                              {report.status}
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-xs text-slate-500">Belum ada laporan tersedia.</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* TAB 2: LAPORAN DETAIL */}
+            {activeTab === "laporan" && (
+              <div className="space-y-6">
+                <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl">
+                  <h3 className="text-lg font-bold text-white mb-2">
+                    {editingReportId ? "Edit Laporan" : "Form Pembuatan Laporan Baru"}
+                  </h3>
+                  <p className="text-xs text-slate-400 mb-6">
+                    {editingReportId
+                      ? "Ubah data laporan yang sudah ada. Status laporan tidak akan berubah."
+                      : "Input data distribusi makanan harian dari SPPG. Harap verifikasi jumlah porsi sebelum disimpan."
+                    }
+                  </p>
+
+                  <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={(e) => e.preventDefault()}>
+                    {/* --- SECTION 1: INFORMASI UMUM --- */}
+                    <div className="md:col-span-2 border-b border-slate-800 pb-2">
+                      <h4 className="text-sm font-semibold text-indigo-400">Informasi Umum Laporan</h4>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Satuan Pelayanan SPPG</label>
+                      <select
+                        value={sppgList.some(s => s.nama_sppg === formSppgName) ? formSppgName : (formSppgName ? "__custom__" : "")}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "__custom__") {
+                            setFormSppgName("");
+                          } else {
+                            setFormSppgName(val);
+                            const selectedSppg = sppgList.find(s => s.nama_sppg === val);
+                            if (selectedSppg) {
+                              setFormPorsiBesar(selectedSppg.porsi_besar);
+                              setFormPorsiKecil(selectedSppg.porsi_kecil);
+                              setFormBalita(selectedSppg.balita);
+                              setFormBumil(selectedSppg.bumil);
+                              setFormBusui(selectedSppg.busui);
+                            }
+                          }
+                        }}
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs cursor-pointer mb-2"
+                      >
+                        <option value="">-- Pilih SPPG --</option>
+                        {sppgList.map((sppg) => (
+                          <option key={sppg.id} value={sppg.nama_sppg}>
+                            {sppg.nama_sppg}
+                          </option>
+                        ))}
+                        <option value="__custom__">Input Manual / SPPG Baru...</option>
+                      </select>
+                      {(!sppgList.some(s => s.nama_sppg === formSppgName) || formSppgName === "") && (
+                        <input
+                          type="text"
+                          placeholder="Ketik nama SPPG manual..."
+                          value={formSppgName}
+                          onChange={(e) => setFormSppgName(e.target.value)}
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
                       )}
                     </div>
-                    <div className="relative flex items-center">
-                      <Filter className="absolute left-3 text-slate-500 pointer-events-none" size={14} />
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 outline-none cursor-pointer appearance-none"
-                      >
-                        <option value="All">Semua Status</option>
-                        <option value="Draft">Draft</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Sent">Sent</option>
-                      </select>
-                      <div className="absolute right-3 pointer-events-none border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-400" />
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Tanggal Distribusi</label>
+                      <input
+                        type="date"
+                        value={formTanggal}
+                        onChange={(e) => setFormTanggal(e.target.value)}
+                        onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs [color-scheme:dark] cursor-pointer"
+                      />
                     </div>
-                    <button
-                      onClick={toggleSort}
-                      className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center gap-1.5 text-xs font-medium"
-                      title="Urutkan Tanggal"
-                    >
-                      <ArrowUpDown size={14} />
-                      <span className="hidden sm:inline">{sortDirection === "asc" ? "Terlama" : "Terbaru"}</span>
-                    </button>
-                  </div>
-                </div>
 
-                {/* Card Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                  {filteredReports.length > 0 ? (
-                    filteredReports.map((report) => {
-                      const dbRow = dbReports.find((r) => r.id === report.id);
-                      const photoUrl = dbRow?.photo_url || report.photoUrl;
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Detail Menu Makanan</label>
+                      <textarea
+                        placeholder="Contoh: Nasi Putih, Ayam Goreng Saos Padang, Tumis Buncis Wortel, Melon..."
+                        rows={3}
+                        value={formMenu}
+                        onChange={(e) => setFormMenu(e.target.value)}
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                      />
+                    </div>
 
-                      return (
-                        <div
-                          key={report.id}
-                          className="group bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 hover:border-indigo-500/40 rounded-2xl p-4 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between space-y-3"
-                        >
-                          {/* Elegant Image Frame */}
-                          <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-slate-950 border border-slate-800/90 group-hover:border-slate-700 transition-colors shadow-inner flex items-center justify-center">
-                            {photoUrl ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img
-                                src={photoUrl}
-                                alt={`Foto ${report.menu}`}
-                                loading="lazy"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              />
-                            ) : (
-                              <div className="flex flex-col items-center gap-1.5 text-slate-600">
-                                <UtensilsCrossed size={26} className="text-slate-700" />
-                                <span className="text-[10px] font-medium italic text-slate-500">Tidak ada foto</span>
-                              </div>
-                            )}
+                    {/* --- SECTION 2: PENERIMA MANFAAT SEKOLAH --- */}
+                    <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                      <h4 className="text-sm font-semibold text-indigo-400">Penerima Manfaat Sekolah</h4>
+                    </div>
 
-                            {/* Status Badge Top Right */}
-                            <div className="absolute top-2.5 right-2.5 backdrop-blur-md bg-slate-950/75 border border-slate-800/80 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-slate-200 flex items-center gap-1.5 shadow-md">
-                              <span className={`w-1.5 h-1.5 rounded-full ${
-                                report.status === "Draft" ? "bg-amber-400" : report.status === "Approved" ? "bg-indigo-400" : "bg-emerald-400"
-                              }`} />
-                              <span>{report.status}</span>
-                            </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP) - Anak</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={formPorsiBesar || ""}
+                        onChange={(e) => setFormPorsiBesar(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                        min="0"
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                      />
+                    </div>
 
-                            {/* Subtle Overlay Gradient */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent pointer-events-none" />
-                          </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Porsi Kecil (PAUD-TK) - Anak</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={formPorsiKecil || ""}
+                        onChange={(e) => setFormPorsiKecil(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                        min="0"
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                      />
+                    </div>
 
-                          {/* Date & Menu Title */}
-                          <div className="space-y-1 px-0.5">
-                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-400">
-                              <Calendar size={13} className="shrink-0 text-indigo-400" />
-                              <span>{report.date}</span>
-                            </div>
+                    {/* --- SECTION 3: PENERIMA MANFAAT PMT B3 --- */}
+                    <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                      <h4 className="text-sm font-semibold text-indigo-400">Penerima Manfaat PMT B3</h4>
+                    </div>
 
-                            <h5 className="font-bold text-white text-sm leading-snug line-clamp-2 group-hover:text-indigo-300 transition-colors" title={report.menu}>
-                              {toTitleCase(report.menu || "-")}
-                            </h5>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Balita - Anak</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={formBalita || ""}
+                        onChange={(e) => setFormBalita(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                        min="0"
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                      />
+                    </div>
 
-                            {report.sppgName && (
-                              <p className="text-[11px] text-slate-400 font-medium truncate pt-0.5">
-                                {report.sppgName}
-                              </p>
-                            )}
-                          </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Ibu Hamil (Bumil) - Orang</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={formBumil || ""}
+                        onChange={(e) => setFormBumil(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                        min="0"
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                      />
+                    </div>
 
-                          {/* Action Buttons */}
-                          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                            <button
-                              onClick={() => setSelectedReport(report)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all active:scale-95"
-                              title="Lihat Detail"
-                            >
-                              <Eye size={14} />
-                              <span>Lihat</span>
-                            </button>
-                            <button
-                              onClick={() => openStickerFromReport(report)}
-                              className="p-2 bg-slate-900 hover:bg-indigo-600/20 text-slate-400 hover:text-indigo-400 border border-slate-800 hover:border-indigo-500/30 rounded-xl text-xs transition-all active:scale-95"
-                              title="Cetak Stiker Ompreng"
-                            >
-                              <Printer size={14} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (!dbRow) return;
-                                const ext = dbRow.extracted_data || {};
-                                const besar = ext["Porsi Besar"] || {};
-                                const kecil = ext["Porsi Kecil"] || {};
-                                const b3 = ext["B3"] || {};
-                                setFormSppgName(ext.sppg_name || "");
-                                setFormTanggal(dbRow.tanggal || new Date().toISOString().split("T")[0]);
-                                setFormMenu(dbRow.menu || "");
-                                setFormPorsiBesar(dbRow.porsi_besar || 0);
-                                setFormPorsiKecil(dbRow.porsi_kecil || 0);
-                                setFormBalita(b3.Balita || 0);
-                                setFormBumil(b3.Bumil || 0);
-                                setFormBusui(b3.Busui || 0);
-                                setFormGiziBesar({
-                                  Energi: besar.Energi || dbRow.energi || 0,
-                                  Protein: besar.Protein || dbRow.protein || 0,
-                                  Lemak: besar.Lemak || dbRow.lemak || 0,
-                                  Karbohidrat: besar.Karbohidrat || dbRow.karbohidrat || 0,
-                                  Serat: besar.Serat || dbRow.serat || 0
-                                });
-                                setFormGiziKecil({
-                                  Energi: kecil.Energi || 0,
-                                  Protein: kecil.Protein || 0,
-                                  Lemak: kecil.Lemak || 0,
-                                  Karbohidrat: kecil.Karbohidrat || 0,
-                                  Serat: kecil.Serat || 0
-                                });
-                                setFormImageBase64("");
-                                setEditingExistingPhotoUrl(dbRow.photo_url || "");
-                                setEditingReportId(dbRow.id);
-                                setActiveTab("laporan");
-                              }}
-                              className="p-2 bg-slate-900 hover:bg-amber-600/20 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-amber-500/30 rounded-xl text-xs transition-all active:scale-95"
-                              title="Edit Laporan"
-                            >
-                              <Edit size={14} />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                if (!confirm("Yakin ingin menghapus laporan ini? Tindakan ini tidak dapat dibatalkan.")) return;
-                                try {
-                                  const res = await fetch(`/api/reports?id=${report.id}`, { method: "DELETE" });
-                                  const json = await res.json();
-                                  if (res.ok && json.status === "success") {
-                                    setDbReports((prev) => prev.filter((r) => r.id !== report.id));
-                                    showSettingsToast("Laporan berhasil dihapus.", "success");
-                                  } else {
-                                    alert("Gagal menghapus: " + json.message);
-                                  }
-                                } catch {
-                                  alert("Terjadi kesalahan saat menghapus laporan.");
-                                }
-                              }}
-                              className="p-2 bg-slate-900 hover:bg-red-600/20 text-slate-400 hover:text-red-400 border border-slate-800 hover:border-red-500/30 rounded-xl text-xs transition-all active:scale-95"
-                              title="Hapus Laporan"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Ibu Menyusui (Busui) - Orang</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={formBusui || ""}
+                        onChange={(e) => setFormBusui(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                        min="0"
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Total Penerima Manfaat (Otomatis)</label>
+                      <div className="w-full p-3 bg-slate-950/80 border border-slate-700/30 rounded-xl text-indigo-400 font-extrabold text-sm shadow-inner">
+                        {(formPorsiBesar || 0) + (formPorsiKecil || 0) + (formBalita || 0) + (formBumil || 0) + (formBusui || 0)} Orang
+                      </div>
+                    </div>
+
+                    {/* --- SECTION 4: NILAI GIZI PORSI BESAR --- */}
+                    <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                      <h4 className="text-sm font-semibold text-indigo-400">Nilai Gizi Porsi Besar (SD-SMP)</h4>
+                    </div>
+
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:col-span-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Energi (kcal)</label>
+                        <input
+                          type="number"
+                          value={formGiziBesar.Energi || ""}
+                          onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Energi: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Protein (g)</label>
+                        <input
+                          type="number"
+                          value={formGiziBesar.Protein || ""}
+                          onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Protein: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Lemak (g)</label>
+                        <input
+                          type="number"
+                          value={formGiziBesar.Lemak || ""}
+                          onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Lemak: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Karbo (g)</label>
+                        <input
+                          type="number"
+                          value={formGiziBesar.Karbohidrat || ""}
+                          onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Karbohidrat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Serat (g)</label>
+                        <input
+                          type="number"
+                          value={formGiziBesar.Serat || ""}
+                          onChange={(e) => setFormGiziBesar({ ...formGiziBesar, Serat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* --- SECTION 5: NILAI GIZI PORSI KECIL --- */}
+                    <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                      <h4 className="text-sm font-semibold text-indigo-400">Nilai Gizi Porsi Kecil (PAUD-TK)</h4>
+                    </div>
+
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:col-span-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Energi (kcal)</label>
+                        <input
+                          type="number"
+                          value={formGiziKecil.Energi || ""}
+                          onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Energi: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Protein (g)</label>
+                        <input
+                          type="number"
+                          value={formGiziKecil.Protein || ""}
+                          onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Protein: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Lemak (g)</label>
+                        <input
+                          type="number"
+                          value={formGiziKecil.Lemak || ""}
+                          onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Lemak: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Karbo (g)</label>
+                        <input
+                          type="number"
+                          value={formGiziKecil.Karbohidrat || ""}
+                          onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Karbohidrat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Serat (g)</label>
+                        <input
+                          type="number"
+                          value={formGiziKecil.Serat || ""}
+                          onChange={(e) => setFormGiziKecil({ ...formGiziKecil, Serat: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* --- SECTION 6: FOTO MAKANAN & TUJUAN --- */}
+                    <div className="md:col-span-2 border-b border-slate-800 pb-2 pt-2">
+                      <h4 className="text-sm font-semibold text-indigo-400">Foto & Pengiriman ke Personal</h4>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Foto Makanan</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-600"
+                      />
+                      {formImageBase64 ? (
+                        <div className="mt-2 flex items-start gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={formImageBase64}
+                            alt="Preview"
+                            className="w-16 h-16 object-cover rounded-lg border border-emerald-500/30 shadow-sm"
+                          />
+                          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                            <CheckCircle2 size={12} />
+                            <span>Gambar baru siap diunggah</span>
                           </div>
                         </div>
-                      );
-                    })
+                      ) : editingExistingPhotoUrl ? (
+                        <div className="mt-2 flex items-start gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={editingExistingPhotoUrl}
+                            alt="Foto saat ini"
+                            className="w-16 h-16 object-cover rounded-lg border border-slate-600/50 shadow-sm"
+                          />
+                          <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                            <CheckCircle2 size={12} />
+                            <span>Foto saat ini dipertahankan (pilih file untuk mengganti)</span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={resetReportForm}
+                        className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
+                      >
+                        {editingReportId ? "Batal Edit" : "Reset Form"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={formIsSubmitting}
+                        onClick={handleSubmitReport}
+                        className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${formIsSubmitting ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-600 shadow-md shadow-indigo-600/10"
+                          }`}
+                      >
+                        {formIsSubmitting && <RefreshCw size={14} className="animate-spin" />}
+                        <span>{formIsSubmitting ? "Memproses..." : editingReportId ? "Simpan Perubahan" : "Pratinjau Laporan"}</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Laporan Statistics Preview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl">
+                    <h4 className="font-bold text-white text-sm mb-4">Laporan Terbaru (Hari Ini)</h4>
+                    <div className="space-y-3">
+                      {reports.slice(0, 3).map((rep) => (
+                        <div key={rep.id} className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-semibold text-white">{rep.sppgName}</p>
+                            <p className="text-[10px] text-slate-400">{rep.totalBeneficiaries} Penerima • {rep.location}</p>
+                          </div>
+                          <span className="text-[10px] font-semibold text-indigo-400">{rep.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-bold text-white text-sm mb-2">Persentase Pengiriman Laporan</h4>
+                      <p className="text-xs text-slate-400">Total laporan yang telah berhasil dikirim (Sent) ke pusat.</p>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <div className="flex justify-between text-xs text-slate-300">
+                        <span>Progress Laporan</span>
+                        <span>
+                          {Math.round(
+                            (reports.filter((r) => r.status === "Sent").length / reports.length) * 100
+                          )}
+                          %
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${(reports.filter((r) => r.status === "Sent").length / reports.length) * 100
+                              }%`
+                          }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-500 text-center">
+                        {reports.filter((r) => r.status === "Sent").length} dari {reports.length} laporan selesai dikirim.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: RIWAYAT LAPORAN */}
+            {activeTab === "riwayat" && (
+              <div className="space-y-6">
+                <div className="bg-slate-950/40 backdrop-blur-md border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+                  {/* Header Panel */}
+                  <div className="p-5 border-b border-slate-800 bg-slate-950/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-white text-base">Semua Laporan SPPG</h4>
+                      <p className="text-xs text-slate-400">Kelola, edit, hapus, atau download poster & caption dari semua laporan.</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="relative">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                        <input
+                          type="text"
+                          placeholder="Cari SPPG..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10 pr-4 py-2 w-full sm:w-60 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none transition-colors"
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery("")}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative flex items-center">
+                        <Filter className="absolute left-3 text-slate-500 pointer-events-none" size={14} />
+                        <select
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
+                          className="pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 outline-none cursor-pointer appearance-none"
+                        >
+                          <option value="All">Semua Status</option>
+                          <option value="Draft">Draft</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Sent">Sent</option>
+                        </select>
+                        <div className="absolute right-3 pointer-events-none border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-400" />
+                      </div>
+                      <button
+                        onClick={toggleSort}
+                        className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-300 hover:text-white transition-all duration-200 flex items-center gap-1.5 text-xs font-medium"
+                        title="Urutkan Tanggal"
+                      >
+                        <ArrowUpDown size={14} />
+                        <span className="hidden sm:inline">{sortDirection === "asc" ? "Terlama" : "Terbaru"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                    {filteredReports.length > 0 ? (
+                      filteredReports.map((report) => {
+                        const dbRow = dbReports.find((r) => r.id === report.id);
+                        const photoUrl = dbRow?.photo_url || report.photoUrl;
+
+                        return (
+                          <div
+                            key={report.id}
+                            className="group bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 hover:border-indigo-500/40 rounded-2xl p-4 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between space-y-3"
+                          >
+                            {/* Elegant Image Frame */}
+                            <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-slate-950 border border-slate-800/90 group-hover:border-slate-700 transition-colors shadow-inner flex items-center justify-center">
+                              {photoUrl ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img
+                                  src={photoUrl}
+                                  alt={`Foto ${report.menu}`}
+                                  loading="lazy"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center gap-1.5 text-slate-600">
+                                  <UtensilsCrossed size={26} className="text-slate-700" />
+                                  <span className="text-[10px] font-medium italic text-slate-500">Tidak ada foto</span>
+                                </div>
+                              )}
+
+                              {/* Status Badge Top Right */}
+                              <div className="absolute top-2.5 right-2.5 backdrop-blur-md bg-slate-950/75 border border-slate-800/80 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-slate-200 flex items-center gap-1.5 shadow-md">
+                                <span className={`w-1.5 h-1.5 rounded-full ${report.status === "Draft" ? "bg-amber-400" : report.status === "Approved" ? "bg-indigo-400" : "bg-emerald-400"
+                                  }`} />
+                                <span>{report.status}</span>
+                              </div>
+
+                              {/* Subtle Overlay Gradient */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent pointer-events-none" />
+                            </div>
+
+                            {/* Date & Menu Title */}
+                            <div className="space-y-1 px-0.5">
+                              <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-400">
+                                <Calendar size={13} className="shrink-0 text-indigo-400" />
+                                <span>{report.date}</span>
+                              </div>
+
+                              <h5 className="font-bold text-white text-sm leading-snug line-clamp-2 group-hover:text-indigo-300 transition-colors" title={report.menu}>
+                                {toTitleCase(report.menu || "-")}
+                              </h5>
+
+                              {report.sppgName && (
+                                <p className="text-[11px] text-slate-400 font-medium truncate pt-0.5">
+                                  {report.sppgName}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                              <button
+                                onClick={() => setSelectedReport(report)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all active:scale-95"
+                                title="Lihat Detail"
+                              >
+                                <Eye size={14} />
+                                <span>Lihat</span>
+                              </button>
+                              <button
+                                onClick={() => openStickerFromReport(report)}
+                                className="p-2 bg-slate-900 hover:bg-indigo-600/20 text-slate-400 hover:text-indigo-400 border border-slate-800 hover:border-indigo-500/30 rounded-xl text-xs transition-all active:scale-95"
+                                title="Cetak Stiker Ompreng"
+                              >
+                                <Printer size={14} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (!dbRow) return;
+                                  const ext = dbRow.extracted_data || {};
+                                  const besar = ext["Porsi Besar"] || {};
+                                  const kecil = ext["Porsi Kecil"] || {};
+                                  const b3 = ext["B3"] || {};
+                                  setFormSppgName(ext.sppg_name || "");
+                                  setFormTanggal(dbRow.tanggal || new Date().toISOString().split("T")[0]);
+                                  setFormMenu(dbRow.menu || "");
+                                  setFormPorsiBesar(dbRow.porsi_besar || 0);
+                                  setFormPorsiKecil(dbRow.porsi_kecil || 0);
+                                  setFormBalita(b3.Balita || 0);
+                                  setFormBumil(b3.Bumil || 0);
+                                  setFormBusui(b3.Busui || 0);
+                                  setFormGiziBesar({
+                                    Energi: besar.Energi || dbRow.energi || 0,
+                                    Protein: besar.Protein || dbRow.protein || 0,
+                                    Lemak: besar.Lemak || dbRow.lemak || 0,
+                                    Karbohidrat: besar.Karbohidrat || dbRow.karbohidrat || 0,
+                                    Serat: besar.Serat || dbRow.serat || 0
+                                  });
+                                  setFormGiziKecil({
+                                    Energi: kecil.Energi || 0,
+                                    Protein: kecil.Protein || 0,
+                                    Lemak: kecil.Lemak || 0,
+                                    Karbohidrat: kecil.Karbohidrat || 0,
+                                    Serat: kecil.Serat || 0
+                                  });
+                                  setFormImageBase64("");
+                                  setEditingExistingPhotoUrl(dbRow.photo_url || "");
+                                  setEditingReportId(dbRow.id);
+                                  setActiveTab("laporan");
+                                }}
+                                className="p-2 bg-slate-900 hover:bg-amber-600/20 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-amber-500/30 rounded-xl text-xs transition-all active:scale-95"
+                                title="Edit Laporan"
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm("Yakin ingin menghapus laporan ini? Tindakan ini tidak dapat dibatalkan.")) return;
+                                  try {
+                                    const res = await fetch(`/api/reports?id=${report.id}`, { method: "DELETE" });
+                                    const json = await res.json();
+                                    if (res.ok && json.status === "success") {
+                                      setDbReports((prev) => prev.filter((r) => r.id !== report.id));
+                                      showSettingsToast("Laporan berhasil dihapus.", "success");
+                                    } else {
+                                      alert("Gagal menghapus: " + json.message);
+                                    }
+                                  } catch {
+                                    alert("Terjadi kesalahan saat menghapus laporan.");
+                                  }
+                                }}
+                                className="p-2 bg-slate-900 hover:bg-red-600/20 text-slate-400 hover:text-red-400 border border-slate-800 hover:border-red-500/30 rounded-xl text-xs transition-all active:scale-95"
+                                title="Hapus Laporan"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="col-span-full py-12 px-6 text-center text-slate-500">
+                        Tidak ada laporan ditemukan.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: MASTER DATA SPPG */}
+            {activeTab === "sppg" && (
+              <div className="space-y-6">
+                {/* Tabel SPPG */}
+                <div className="bg-slate-950/40 border border-slate-800 p-4 sm:p-6 rounded-2xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-white">Daftar SPPG</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Total terdaftar: {sppgList.length} SPPG</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                        <input
+                          type="text"
+                          placeholder="Cari SPPG..."
+                          value={sppgSearch}
+                          onChange={(e) => setSppgSearch(e.target.value)}
+                          className="pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none w-full sm:w-56"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          setEditingSppgId(null);
+                          setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
+                          setShowSppgModal(true);
+                        }}
+                        className="shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition-colors shadow-md shadow-indigo-600/10"
+                      >
+                        <Plus size={14} />
+                        <span className="hidden sm:inline">Tambah SPPG</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {loadingSppg ? (
+                    <div className="py-12 flex justify-center items-center text-slate-400 text-xs gap-2">
+                      <RefreshCw className="animate-spin" size={16} />
+                      <span>Memuat data SPPG...</span>
+                    </div>
                   ) : (
-                    <div className="col-span-full py-12 px-6 text-center text-slate-500">
-                      Tidak ada laporan ditemukan.
+                    <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider bg-slate-950/20">
+                            <th className="py-3 px-4">Nama SPPG</th>
+                            <th className="py-3 px-4 text-center">Kepala SPPG</th>
+                            <th className="py-3 px-4 text-center">Pengawas Gizi</th>
+                            <th className="py-3 px-4 text-center">Porsi Bsr / Kcl</th>
+                            <th className="py-3 px-4 text-center">PMT (Balita/Bml/Bsi)</th>
+                            <th className="py-3 px-4 text-center">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60">
+                          {sppgList.filter(s => s.nama_sppg.toLowerCase().includes(sppgSearch.toLowerCase())).length > 0 ? (
+                            sppgList
+                              .filter(s => s.nama_sppg.toLowerCase().includes(sppgSearch.toLowerCase()))
+                              .map((sppg) => (
+                                <tr key={sppg.id} className="text-xs text-slate-300 hover:bg-slate-900/20 transition-colors">
+                                  <td className="py-3.5 px-4 font-semibold text-white">{sppg.nama_sppg}</td>
+                                  <td className="py-3.5 px-4 text-center">
+                                    <span className="text-indigo-400 font-medium">{sppg.kepala_sppg || "-"}</span>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-center">
+                                    <span className="text-emerald-400 font-medium">{sppg.pengawas_gizi || "-"}</span>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-center">
+                                    <span className="text-indigo-400 font-medium">{sppg.porsi_besar}</span>
+                                    <span className="text-slate-500 mx-1">/</span>
+                                    <span className="text-emerald-400 font-medium">{sppg.porsi_kecil}</span>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-center">
+                                    <span>{sppg.balita}</span>
+                                    <span className="text-slate-600 mx-1">|</span>
+                                    <span>{sppg.bumil}</span>
+                                    <span className="text-slate-600 mx-1">|</span>
+                                    <span>{sppg.busui}</span>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <button
+                                        onClick={() => handleEditSppg(sppg)}
+                                        className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-indigo-400 hover:text-indigo-300 rounded-lg transition-colors"
+                                        title="Edit SPPG"
+                                      >
+                                        <Edit size={12} />
+                                      </button>
+                                      <button
+                                        onClick={() => sppg.id && handleDeleteSppg(sppg.id)}
+                                        className="p-1.5 bg-slate-900 hover:bg-red-950/40 border border-slate-800 hover:border-red-900/30 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
+                                        title="Hapus SPPG"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="py-8 px-4 text-center text-slate-500">
+                                Tidak ada data SPPG yang ditemukan.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* TAB 3: MASTER DATA SPPG */}
-          {activeTab === "sppg" && (
-            <div className="space-y-6">
-              {/* Tabel SPPG */}
-              <div className="bg-slate-950/40 border border-slate-800 p-4 sm:p-6 rounded-2xl">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <div>
-                    <h3 className="text-base sm:text-lg font-bold text-white">Daftar SPPG</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Total terdaftar: {sppgList.length} SPPG</p>
+
+            {/* TAB: LAPORAN MINGGUAN */}
+            {activeTab === "mingguan" && (
+              <WeeklyReportView reports={dbReports} sppgList={sppgList} />
+            )}
+
+            {/* TAB 4: PENGATURAN */}
+            {activeTab === "pengaturan" && (
+              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-8">
+                {/* Profile Config */}
+
+                <div className="h-px bg-slate-800" />
+
+                {/* System Config */}
+                <div className="space-y-6">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Shield size={18} className="text-indigo-400" />
+                    <span>Sistem & Sinkronisasi</span>
+                  </h3>
+
+                  <div className="space-y-4">
+                    {/* Notifications toggle */}
+                    <div className="flex items-center justify-between p-4 bg-slate-900/60 rounded-xl border border-slate-800/80">
+                      <div className="space-y-1 pr-4">
+                        <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Bell size={14} className="text-slate-400" />
+                          Notifikasi Alert Laporan Harian
+                        </h4>
+                        <p className="text-[10px] text-slate-400">
+                          Kirim notifikasi ke Telegram bot / Email ketika ada laporan SPPG yang terlambat terkirim.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                        className={`w-12 h-6 flex items-center rounded-full p-1 transition-all duration-300 ${notificationsEnabled ? "bg-indigo-600 justify-end" : "bg-slate-800 justify-start"
+                          }`}
+                      >
+                        <span className="w-4 h-4 bg-white rounded-full shadow" />
+                      </button>
+                    </div>
+
+                    {/* Auto Sync toggle */}
+                    <div className="flex items-center justify-between p-4 bg-slate-900/60 rounded-xl border border-slate-800/80">
+                      <div className="space-y-1 pr-4">
+                        <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Clock size={14} className="text-slate-400" />
+                          Sinkronisasi Otomatis Supabase
+                        </h4>
+                        <p className="text-[10px] text-slate-400">
+                          Sinkronisasikan draft laporan secara otomatis ke database cloud setiap 5 menit sekali.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setAutoSync(!autoSync)}
+                        className={`w-12 h-6 flex items-center rounded-full p-1 transition-all duration-300 ${autoSync ? "bg-indigo-600 justify-end" : "bg-slate-800 justify-start"
+                          }`}
+                      >
+                        <span className="w-4 h-4 bg-white rounded-full shadow" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                </div>
+
+                <div className="h-px bg-slate-800" />
+
+                {/* Pengaturan Pengiriman */}
+                <div className="space-y-4">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Send size={18} className="text-indigo-400" />
+                    <span>Pengiriman Laporan</span>
+                  </h3>
+                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 space-y-3">
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Laporan dikirim <span className="text-white font-bold">manual</span> ke grup WhatsApp melalui halaman Dashboard.
+                    </p>
+                    <ol className="list-decimal list-inside text-[11px] text-slate-400 space-y-1.5">
+                      <li>Buka tab <span className="text-white font-semibold">Laporan Harian</span>, isi form, klik <span className="text-white font-semibold">Buat Pratinjau</span>.</li>
+                      <li>Di modal pratinjau, klik <span className="text-white font-semibold">Download Poster</span> untuk menyimpan gambar poster.</li>
+                      <li>Klik <span className="text-white font-semibold">Copy Caption</span> untuk menyalin teks laporan.</li>
+                      <li>Buka WhatsApp, pilih grup tujuan, tempel caption, unggah poster, lalu kirim.</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: STIKER OMPRENG STANDALONE */}
+            {activeTab === "stiker" && (
+              <div className="space-y-6">
+                {/* Standalone Control Panel */}
+                <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <Printer size={18} className="text-indigo-400" />
+                        <span>Generator Label Stiker Ompreng MBG</span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Buat dan cetak stiker label untuk ompreng MBG. Pilih dari data laporan atau masukkan data secara manual.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Printer size={16} />
+                      <span>Cetak Label Stiker ({standaloneStikerPaperSize.toUpperCase()})</span>
+                    </button>
+                  </div>
+
+                  {/* Report Selector Dropdown */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                      <FileText size={13} className="text-indigo-400" />
+                      <span>Pilih Data dari Laporan (Opsional)</span>
+                    </label>
+                    <select
+                      value={standaloneStikerSelectedReportId}
+                      onChange={(e) => {
+                        const repId = e.target.value;
+                        setStandaloneStikerSelectedReportId(repId);
+                        if (!repId) return;
+                        const rep = reports.find((r) => r.id === repId);
+                        if (rep) {
+                          loadReportIntoSticker(rep);
+                          showSettingsToast("Data laporan berhasil dimuat ke Form Stiker!", "success");
+                        }
+                      }}
+                      className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-200 outline-none"
+                    >
+                      <option value="">-- Mode Input Manual / Pilih Laporan --</option>
+                      {reports.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.date} — {r.sppgName} ({r.menu})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Config Controls Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 pt-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Header SPPG</label>
                       <input
                         type="text"
-                        placeholder="Cari SPPG..."
-                        value={sppgSearch}
-                        onChange={(e) => setSppgSearch(e.target.value)}
-                        className="pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-slate-200 text-xs outline-none w-full sm:w-56"
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        setEditingSppgId(null);
-                        setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
-                        setShowSppgModal(true);
-                      }}
-                      className="shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition-colors shadow-md shadow-indigo-600/10"
-                    >
-                      <Plus size={14} />
-                      <span className="hidden sm:inline">Tambah SPPG</span>
-                    </button>
-                  </div>
-                </div>
-
-                {loadingSppg ? (
-                  <div className="py-12 flex justify-center items-center text-slate-400 text-xs gap-2">
-                    <RefreshCw className="animate-spin" size={16} />
-                    <span>Memuat data SPPG...</span>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto border border-slate-800 rounded-xl">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider bg-slate-950/20">
-                          <th className="py-3 px-4">Nama SPPG</th>
-                          <th className="py-3 px-4 text-center">Kepala SPPG</th>
-                          <th className="py-3 px-4 text-center">Pengawas Gizi</th>
-                          <th className="py-3 px-4 text-center">Porsi Bsr / Kcl</th>
-                          <th className="py-3 px-4 text-center">PMT (Balita/Bml/Bsi)</th>
-                          <th className="py-3 px-4 text-center">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/60">
-                        {sppgList.filter(s => s.nama_sppg.toLowerCase().includes(sppgSearch.toLowerCase())).length > 0 ? (
-                          sppgList
-                            .filter(s => s.nama_sppg.toLowerCase().includes(sppgSearch.toLowerCase()))
-                            .map((sppg) => (
-                              <tr key={sppg.id} className="text-xs text-slate-300 hover:bg-slate-900/20 transition-colors">
-                                <td className="py-3.5 px-4 font-semibold text-white">{sppg.nama_sppg}</td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <span className="text-indigo-400 font-medium">{sppg.kepala_sppg || "-"}</span>
-                                </td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <span className="text-emerald-400 font-medium">{sppg.pengawas_gizi || "-"}</span>
-                                </td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <span className="text-indigo-400 font-medium">{sppg.porsi_besar}</span>
-                                  <span className="text-slate-500 mx-1">/</span>
-                                  <span className="text-emerald-400 font-medium">{sppg.porsi_kecil}</span>
-                                </td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <span>{sppg.balita}</span>
-                                  <span className="text-slate-600 mx-1">|</span>
-                                  <span>{sppg.bumil}</span>
-                                  <span className="text-slate-600 mx-1">|</span>
-                                  <span>{sppg.busui}</span>
-                                </td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <button
-                                      onClick={() => handleEditSppg(sppg)}
-                                      className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-indigo-400 hover:text-indigo-300 rounded-lg transition-colors"
-                                      title="Edit SPPG"
-                                    >
-                                      <Edit size={12} />
-                                    </button>
-                                    <button
-                                      onClick={() => sppg.id && handleDeleteSppg(sppg.id)}
-                                      className="p-1.5 bg-slate-900 hover:bg-red-950/40 border border-slate-800 hover:border-red-900/30 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
-                                      title="Hapus SPPG"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
-                        ) : (
-                          <tr>
-                            <td colSpan={6} className="py-8 px-4 text-center text-slate-500">
-                              Tidak ada data SPPG yang ditemukan.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-
-          {/* TAB: LAPORAN MINGGUAN */}
-          {activeTab === "mingguan" && (
-            <WeeklyReportView reports={dbReports} sppgList={sppgList} />
-          )}
-
-          {/* TAB 4: PENGATURAN */}
-          {activeTab === "pengaturan" && (
-            <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-8">
-              {/* Profile Config */}
-
-              <div className="h-px bg-slate-800" />
-
-              {/* System Config */}
-              <div className="space-y-6">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Shield size={18} className="text-indigo-400" />
-                  <span>Sistem & Sinkronisasi</span>
-                </h3>
-
-                <div className="space-y-4">
-                  {/* Notifications toggle */}
-                  <div className="flex items-center justify-between p-4 bg-slate-900/60 rounded-xl border border-slate-800/80">
-                    <div className="space-y-1 pr-4">
-                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <Bell size={14} className="text-slate-400" />
-                        Notifikasi Alert Laporan Harian
-                      </h4>
-                      <p className="text-[10px] text-slate-400">
-                        Kirim notifikasi ke Telegram bot / Email ketika ada laporan SPPG yang terlambat terkirim.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                      className={`w-12 h-6 flex items-center rounded-full p-1 transition-all duration-300 ${
-                        notificationsEnabled ? "bg-indigo-600 justify-end" : "bg-slate-800 justify-start"
-                      }`}
-                    >
-                      <span className="w-4 h-4 bg-white rounded-full shadow" />
-                    </button>
-                  </div>
-
-                  {/* Auto Sync toggle */}
-                  <div className="flex items-center justify-between p-4 bg-slate-900/60 rounded-xl border border-slate-800/80">
-                    <div className="space-y-1 pr-4">
-                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <Clock size={14} className="text-slate-400" />
-                        Sinkronisasi Otomatis Supabase
-                      </h4>
-                      <p className="text-[10px] text-slate-400">
-                        Sinkronisasikan draft laporan secara otomatis ke database cloud setiap 5 menit sekali.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setAutoSync(!autoSync)}
-                      className={`w-12 h-6 flex items-center rounded-full p-1 transition-all duration-300 ${
-                        autoSync ? "bg-indigo-600 justify-end" : "bg-slate-800 justify-start"
-                      }`}
-                    >
-                      <span className="w-4 h-4 bg-white rounded-full shadow" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-px bg-slate-800" />
-
-              {/* Pengaturan Pengiriman */}
-              <div className="space-y-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Send size={18} className="text-indigo-400" />
-                  <span>Pengiriman Laporan</span>
-                </h3>
-                <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/80 space-y-3">
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Laporan dikirim <span className="text-white font-bold">manual</span> ke grup WhatsApp melalui halaman Dashboard.
-                  </p>
-                  <ol className="list-decimal list-inside text-[11px] text-slate-400 space-y-1.5">
-                    <li>Buka tab <span className="text-white font-semibold">Laporan Harian</span>, isi form, klik <span className="text-white font-semibold">Buat Pratinjau</span>.</li>
-                    <li>Di modal pratinjau, klik <span className="text-white font-semibold">Download Poster</span> untuk menyimpan gambar poster.</li>
-                    <li>Klik <span className="text-white font-semibold">Copy Caption</span> untuk menyalin teks laporan.</li>
-                    <li>Buka WhatsApp, pilih grup tujuan, tempel caption, unggah poster, lalu kirim.</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB: STIKER OMPRENG STANDALONE */}
-          {activeTab === "stiker" && (
-            <div className="space-y-6">
-              {/* Standalone Control Panel */}
-              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-                  <div>
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                      <Printer size={18} className="text-indigo-400" />
-                      <span>Generator Label Stiker Ompreng MBG</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Buat dan cetak stiker label untuk ompreng MBG. Pilih dari data laporan atau masukkan data secara manual.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <Printer size={16} />
-                    <span>Cetak Label Stiker (A4)</span>
-                  </button>
-                </div>
-
-                {/* Report Selector Dropdown */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                    <FileText size={13} className="text-indigo-400" />
-                    <span>Pilih Data dari Laporan (Opsional)</span>
-                  </label>
-                  <select
-                    value={standaloneStikerSelectedReportId}
-                    onChange={(e) => {
-                      const repId = e.target.value;
-                      setStandaloneStikerSelectedReportId(repId);
-                      if (!repId) return;
-                      const rep = reports.find((r) => r.id === repId);
-                      if (rep) {
-                        loadReportIntoSticker(rep);
-                        showSettingsToast("Data laporan berhasil dimuat ke Form Stiker!", "success");
-                      }
-                    }}
-                    className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-200 outline-none"
-                  >
-                    <option value="">-- Mode Input Manual / Pilih Laporan --</option>
-                    {reports.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.date} — {r.sppgName} ({r.menu})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Config Controls Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 pt-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-400">Header SPPG</label>
-                    <input
-                      type="text"
-                      value={standaloneStikerSppg}
-                      onChange={(e) => setStandaloneStikerSppg(e.target.value)}
-                      placeholder="Nama SPPG..."
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-400">Nama Menu</label>
-                    <input
-                      type="text"
-                      value={standaloneStikerMenu}
-                      onChange={(e) => setStandaloneStikerMenu(e.target.value)}
-                      placeholder="Menu makanan..."
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-400">Tanggal Produksi</label>
-                    <input
-                      type="date"
-                      value={standaloneStikerTanggal}
-                      onChange={(e) => setStandaloneStikerTanggal(e.target.value)}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-400">Jumlah Label/A4</label>
-                    <select
-                      value={standaloneStikerCapacity}
-                      onChange={(e) => {
-                        const cap = parseInt(e.target.value) as 12 | 16 | 24;
-                        setStandaloneStikerCapacity(cap);
-                        setStandaloneStikerCountBesar(Math.floor(cap / 2));
-                      }}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-indigo-300 outline-none focus:border-indigo-500 cursor-pointer"
-                    >
-                      <option value="12">12 Label / A4 (⭐ Rekomendasi Jelas)</option>
-                      <option value="16">16 Label / A4 (2×8)</option>
-                      <option value="24">24 Label / A4 (3×8)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-400">Komposisi Porsi</label>
-                    <select
-                      value={standaloneStikerMode}
-                      onChange={(e) => setStandaloneStikerMode(e.target.value as "all_besar" | "all_kecil" | "split")}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
-                    >
-                      <option value="all_besar">Semua Porsi Besar</option>
-                      <option value="all_kecil">Semua Porsi Kecil</option>
-                      <option value="split">Campuran (Porsi Besar & Kecil)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Additional Settings: Time & Split Count */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-800/80">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-400">Selesai Produksi</label>
-                    <input
-                      type="time"
-                      value={standaloneStikerJamSelesai}
-                      onChange={(e) => setStandaloneStikerJamSelesai(e.target.value)}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-400">Baik Dikonsumsi Sebelum</label>
-                    <input
-                      type="time"
-                      value={standaloneStikerJamBatas}
-                      onChange={(e) => setStandaloneStikerJamBatas(e.target.value)}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
-                    />
-                  </div>
-                  {standaloneStikerMode === "split" && (
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-400">Jumlah Porsi Besar (Sisanya Porsi Kecil)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max={standaloneStikerCapacity - 1}
-                        value={standaloneStikerCountBesar}
-                        onChange={(e) => setStandaloneStikerCountBesar(Math.min(standaloneStikerCapacity - 1, Math.max(1, parseInt(e.target.value) || Math.floor(standaloneStikerCapacity / 2))))}
+                        value={standaloneStikerSppg}
+                        onChange={(e) => setStandaloneStikerSppg(e.target.value)}
+                        placeholder="Nama SPPG..."
                         className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
                       />
                     </div>
-                  )}
-                </div>
-
-                {/* Nutrition Editor */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-800/80">
-                  {/* Porsi Besar Nutrition */}
-                  <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
-                    <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Nilai Gizi Porsi Besar</h4>
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Energi (kcal)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziBesar.energi}
-                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, energi: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Protein (g)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziBesar.protein}
-                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, protein: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Lemak (g)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziBesar.lemak}
-                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, lemak: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Karbo (g)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziBesar.karbohidrat}
-                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, karbohidrat: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Serat (g)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziBesar.serat}
-                          onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, serat: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Porsi Kecil Nutrition */}
-                  <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
-                    <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Nilai Gizi Porsi Kecil</h4>
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Energi (kcal)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziKecil.energi}
-                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, energi: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Protein (g)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziKecil.protein}
-                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, protein: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Lemak (g)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziKecil.lemak}
-                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, lemak: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Karbo (g)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziKecil.karbohidrat}
-                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, karbohidrat: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-semibold text-slate-500 block">Serat (g)</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerGiziKecil.serat}
-                          onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, serat: e.target.value })}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Live A4 Print Sheet Preview */}
-              <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Printer size={16} className="text-indigo-400" />
-                    <span>Pratinjau Lembar A4 ({standaloneStikerCapacity} Label Stiker)</span>
-                  </h4>
-                  <span className="text-xs text-slate-400">Siap Cetak / Print-Ready</span>
-                </div>
-                <div className="overflow-x-auto p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex justify-center">
-                  <StickerPrintSheet
-                    capacity={standaloneStikerCapacity}
-                    mode={standaloneStikerMode}
-                    countBesar={standaloneStikerCountBesar}
-                    sppgName={standaloneStikerSppg}
-                    menu={standaloneStikerMenu}
-                    tanggal={standaloneStikerTanggal}
-                    jamSelesai={standaloneStikerJamSelesai}
-                    jamBatas={standaloneStikerJamBatas}
-                    giziBesar={standaloneStikerGiziBesar}
-                    giziKecil={standaloneStikerGiziKecil}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-        </main>
-      {/* --- REVIEW MODAL DETAIL DIALOG --- */}
-      {selectedReport && (
-        <div className="fixed inset-0 bottom-16 md:inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center p-0 md:p-4">
-          {/* Backdrop */}
-          <div onClick={() => setSelectedReport(null)} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
-
-          {/* Modal */}
-          <div className="relative w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-t-2xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 z-10 flex flex-col max-h-[90dvh] md:max-h-[85vh]">
-            {/* Header */}
-            <div className="shrink-0 px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
-                  <ClipboardList size={16} className="text-indigo-400" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/25 uppercase tracking-wider">
-                      Detail Laporan
-                    </span>
-                  </div>
-                  <h4 className="text-lg font-bold text-white mt-0.5 truncate">{selectedReport.sppgName}</h4>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedReport(null)}
-                className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <div className="flex flex-col md:flex-row gap-6">
-                {/* Left Column - Photos */}
-                <div className="flex-shrink-0 w-full md:w-56">
-                  <div className="grid grid-cols-2 md:flex md:flex-col gap-4">
-                  {/* Food Photo */}
-                  <div className="group relative rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950/60 shadow-lg">
-                    {selectedReport.photoUrl ? (
-                      <img
-                        src={selectedReport.photoUrl}
-                        alt="Foto Makanan"
-                        loading="lazy"
-                        className="w-full aspect-[4/3] object-cover"
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Nama Menu</label>
+                      <input
+                        type="text"
+                        value={standaloneStikerMenu}
+                        onChange={(e) => setStandaloneStikerMenu(e.target.value)}
+                        placeholder="Menu makanan..."
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
                       />
-                    ) : (
-                      <div className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800/50 to-slate-950/50">
-                        <Camera size={24} className="text-slate-600" />
-                        <span className="text-[10px] text-slate-500 font-medium">Foto belum tersedia</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Tanggal Produksi</label>
+                      <input
+                        type="date"
+                        value={standaloneStikerTanggal}
+                        onChange={(e) => setStandaloneStikerTanggal(e.target.value)}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Ukuran Kertas</label>
+                      <select
+                        value={standaloneStikerPaperSize}
+                        onChange={(e) => {
+                          const size = e.target.value as "a4" | "f4" | "a3";
+                          setStandaloneStikerPaperSize(size);
+                          // Default capacity per paper size
+                          let defCap = 12;
+                          if (size === "f4") defCap = 14;
+                          if (size === "a3") defCap = 24;
+                          setStandaloneStikerCapacity(defCap);
+                          setStandaloneStikerCountBesar(Math.floor(defCap / 2));
+                        }}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-amber-300 outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="a4">📄 Kertas A4 (210×297 mm)</option>
+                        <option value="f4">📄 Kertas F4 / Folio (215×330 mm)</option>
+                        <option value="a3">📄 Kertas A3 (297×420 mm)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Jumlah Label / Lembar</label>
+                      <select
+                        value={standaloneStikerCapacity}
+                        onChange={(e) => {
+                          const cap = parseInt(e.target.value);
+                          setStandaloneStikerCapacity(cap);
+                          setStandaloneStikerCountBesar(Math.floor(cap / 2));
+                        }}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-indigo-300 outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        {standaloneStikerPaperSize === "a4" && (
+                          <>
+                            <option value="12">12 Label / A4 (2×6 - Jelas & Standar)</option>
+                            <option value="16">16 Label / A4 (2×8 - Kompak)</option>
+                            <option value="24">24 Label / A4 (3×8 - Hemat Kertas)</option>
+                          </>
+                        )}
+                        {standaloneStikerPaperSize === "f4" && (
+                          <>
+                            <option value="14">14 Label / F4 (2×7 - Proporsional Folio)</option>
+                            <option value="18">18 Label / F4 (2×9 - Sedang)</option>
+                            <option value="28">28 Label / F4 (3×10/4×7 - Padat)</option>
+                          </>
+                        )}
+                        {standaloneStikerPaperSize === "a3" && (
+                          <>
+                            <option value="24">24 Label / A3 (3×8 - Ekstra Besar)</option>
+                            <option value="32">32 Label / A3 (4×8 - Standar A3)</option>
+                            <option value="48">48 Label / A3 (4×12 - Maksimal Hemat)</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Komposisi Porsi</label>
+                      <select
+                        value={standaloneStikerMode}
+                        onChange={(e) => setStandaloneStikerMode(e.target.value as "all_besar" | "all_kecil" | "split")}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="all_besar">Semua Porsi Besar</option>
+                        <option value="all_kecil">Semua Porsi Kecil</option>
+                        <option value="split">Campuran (Porsi Besar & Kecil)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Additional Settings: Time & Split Count */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-800/80">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Selesai Produksi</label>
+                      <input
+                        type="time"
+                        value={standaloneStikerJamSelesai}
+                        onChange={(e) => setStandaloneStikerJamSelesai(e.target.value)}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Baik Dikonsumsi Sebelum</label>
+                      <input
+                        type="time"
+                        value={standaloneStikerJamBatas}
+                        onChange={(e) => setStandaloneStikerJamBatas(e.target.value)}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500 [color-scheme:dark]"
+                      />
+                    </div>
+                    {standaloneStikerMode === "split" && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-400">Jumlah Porsi Besar (Sisanya Porsi Kecil)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={standaloneStikerCapacity - 1}
+                          value={standaloneStikerCountBesar}
+                          onChange={(e) => setStandaloneStikerCountBesar(Math.min(standaloneStikerCapacity - 1, Math.max(1, parseInt(e.target.value) || Math.floor(standaloneStikerCapacity / 2))))}
+                          className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                        />
                       </div>
                     )}
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white/90 tracking-wide">
-                      Foto Asli
-                    </div>
                   </div>
 
-                  {/* Poster Preview */}
-                  <div className="group relative rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950/60 shadow-lg">
-                    {selectedReport.posterUrl ? (
-                      <img
-                        src={selectedReport.posterUrl}
-                        alt="Poster Laporan"
-                        loading="lazy"
-                        className="w-full aspect-[4/5] object-cover"
-                      />
-                    ) : (
-                      <div className="w-full aspect-[4/5] flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800/50 to-slate-950/50">
-                        <ImageIcon size={24} className="text-slate-600" />
-                        <span className="text-[10px] text-slate-500 font-medium">Poster belum tersedia</span>
+                  {/* Nutrition Editor */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-800/80">
+                    {/* Porsi Besar Nutrition */}
+                    <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+                      <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Nilai Gizi Porsi Besar</h4>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Energi (kcal)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziBesar.energi}
+                            onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, energi: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Protein (g)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziBesar.protein}
+                            onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, protein: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Lemak (g)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziBesar.lemak}
+                            onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, lemak: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Karbo (g)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziBesar.karbohidrat}
+                            onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, karbohidrat: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Serat (g)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziBesar.serat}
+                            onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, serat: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
                       </div>
-                    )}
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white/90 tracking-wide">
-                      Poster
+                    </div>
+
+                    {/* Porsi Kecil Nutrition */}
+                    <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Nilai Gizi Porsi Kecil</h4>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Energi (kcal)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziKecil.energi}
+                            onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, energi: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Protein (g)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziKecil.protein}
+                            onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, protein: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Lemak (g)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziKecil.lemak}
+                            onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, lemak: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Karbo (g)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziKecil.karbohidrat}
+                            onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, karbohidrat: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-semibold text-slate-500 block">Serat (g)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerGiziKecil.serat}
+                            onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, serat: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-white"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Template Selector Dropdown in Detail Modal */}
-                  <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-2 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400 font-semibold block">Ganti Template Poster</span>
-                      {isGeneratingPosterTemplate && (
-                        <span className="text-[9px] text-indigo-400 font-bold animate-pulse flex items-center gap-1">
-                          <RefreshCw size={9} className="animate-spin" /> Process...
+                {/* Live Print Sheet Preview */}
+                <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Printer size={16} className="text-indigo-400" />
+                      <span>Pratinjau Lembar {standaloneStikerPaperSize.toUpperCase()} ({standaloneStikerCapacity} Label Stiker)</span>
+                    </h4>
+                    <span className="text-xs text-slate-400">Siap Cetak / Print-Ready</span>
+                  </div>
+                  <div className="overflow-x-auto p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex justify-center">
+                    <StickerPrintSheet
+                      paperSize={standaloneStikerPaperSize}
+                      capacity={standaloneStikerCapacity}
+                      mode={standaloneStikerMode}
+                      countBesar={standaloneStikerCountBesar}
+                      sppgName={standaloneStikerSppg}
+                      menu={standaloneStikerMenu}
+                      tanggal={standaloneStikerTanggal}
+                      jamSelesai={standaloneStikerJamSelesai}
+                      jamBatas={standaloneStikerJamBatas}
+                      giziBesar={standaloneStikerGiziBesar}
+                      giziKecil={standaloneStikerGiziKecil}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </main>
+          {/* --- REVIEW MODAL DETAIL DIALOG --- */}
+          {selectedReport && (
+            <div className="fixed inset-0 bottom-16 md:inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center p-0 md:p-4">
+              {/* Backdrop */}
+              <div onClick={() => setSelectedReport(null)} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
+
+              {/* Modal */}
+              <div className="relative w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-t-2xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 z-10 flex flex-col max-h-[90dvh] md:max-h-[85vh]">
+                {/* Header */}
+                <div className="shrink-0 px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
+                      <ClipboardList size={16} className="text-indigo-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/25 uppercase tracking-wider">
+                          Detail Laporan
                         </span>
+                      </div>
+                      <h4 className="text-lg font-bold text-white mt-0.5 truncate">{selectedReport.sppgName}</h4>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedReport(null)}
+                    className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                  <div className="flex flex-col md:flex-row gap-6">
+                    {/* Left Column - Photos */}
+                    <div className="flex-shrink-0 w-full md:w-56">
+                      <div className="grid grid-cols-2 md:flex md:flex-col gap-4">
+                        {/* Food Photo */}
+                        <div className="group relative rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950/60 shadow-lg">
+                          {selectedReport.photoUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={selectedReport.photoUrl}
+                              alt="Foto Makanan"
+                              loading="lazy"
+                              className="w-full aspect-[4/3] object-cover"
+                            />
+                          ) : (
+                            <div className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800/50 to-slate-950/50">
+                              <Camera size={24} className="text-slate-600" />
+                              <span className="text-[10px] text-slate-500 font-medium">Foto belum tersedia</span>
+                            </div>
+                          )}
+                          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white/90 tracking-wide">
+                            Foto Asli
+                          </div>
+                        </div>
+
+                        {/* Poster Preview */}
+                        <div className="group relative rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950/60 shadow-lg">
+                          {selectedReport.posterUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={selectedReport.posterUrl}
+                              alt="Poster Laporan"
+                              loading="lazy"
+                              className="w-full aspect-[4/5] object-cover"
+                            />
+                          ) : (
+                            <div className="w-full aspect-[4/5] flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800/50 to-slate-950/50">
+                              <ImageIcon size={24} className="text-slate-600" />
+                              <span className="text-[10px] text-slate-500 font-medium">Poster belum tersedia</span>
+                            </div>
+                          )}
+                          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white/90 tracking-wide">
+                            Poster
+                          </div>
+                        </div>
+
+                        {/* Template Selector Dropdown in Detail Modal */}
+                        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-2 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400 font-semibold block">Ganti Template Poster</span>
+                            {isGeneratingPosterTemplate && (
+                              <span className="text-[9px] text-indigo-400 font-bold animate-pulse flex items-center gap-1">
+                                <RefreshCw size={9} className="animate-spin" /> Process...
+                              </span>
+                            )}
+                          </div>
+                          <select
+                            value={selectedTemplate}
+                            disabled={isGeneratingPosterTemplate}
+                            onChange={async (e) => {
+                              const tId = e.target.value;
+                              setSelectedTemplate(tId);
+                              if (!selectedReport?.id) return;
+                              setIsGeneratingPosterTemplate(true);
+                              try {
+                                const res = await fetch(`/api/generate-poster?id=${selectedReport.id}&template=${tId}`);
+                                const json = await res.json();
+                                if (json.success && json.url) {
+                                  setSelectedReport({
+                                    ...selectedReport,
+                                    posterUrl: json.url
+                                  });
+                                  setDbReports((prev) =>
+                                    prev.map((r) => (r.id === selectedReport.id ? { ...r, poster_url: json.url } : r))
+                                  );
+                                  showSettingsToast(`Poster diperbarui ke Template ${tId}!`, "success");
+                                }
+                              } catch {
+                                showSettingsToast("Gagal merubah template poster.", "error");
+                              } finally {
+                                setIsGeneratingPosterTemplate(false);
+                              }
+                            }}
+                            className="w-full bg-slate-900 border border-slate-700/60 focus:border-indigo-500 rounded-lg px-2 py-1 text-[11px] font-bold text-indigo-300 outline-none cursor-pointer disabled:opacity-50"
+                          >
+                            <option value="1">🎨 Template 1: Modern Classic (Teal & Royal Blue - Default)</option>
+                            <option value="2">📋 Template 2: Classic Beige & Sticky Note</option>
+                            <option value="3">📊 Template 3: Sky Blue Grid & Yellow Gizi Table</option>
+                            <option value="4">⭐ Template 4: Bold Royal Blue & Starburst Badge</option>
+                            <option value="5">🌿 Template 5: Eco Green Fresh & Nutrition Grid</option>
+                            <option value="6">🏆 Template 6: Executive Gold & 5 Column Stat Pills</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column - Info */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-5">
+                      {/* Date & Time row */}
+                      <div className="flex items-center gap-4 text-xs text-slate-400">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar size={13} className="text-indigo-400" />
+                          {(() => {
+                            const d = selectedReport.date ? new Date(selectedReport.date + "T00:00:00") : new Date();
+                            return d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+                          })()}
+                        </span>
+                        <span className="text-slate-700">|</span>
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={13} className="text-emerald-400" />
+                          {selectedReport.distributionTime}
+                        </span>
+                      </div>
+
+                      {/* Menu */}
+                      <div className="p-4 bg-slate-950/40 border border-slate-800/50 rounded-xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Utensils size={14} className="text-indigo-400" />
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Menu Makanan</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-200 leading-relaxed">{selectedReport.menu}</p>
+                      </div>
+
+                      {/* Portion Metrics */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Users size={14} className="text-indigo-400" />
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Penerima Manfaat</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="p-4 bg-gradient-to-b from-slate-950/60 to-slate-950/30 border border-slate-800/50 rounded-xl text-center">
+                            <p className="text-[10px] font-medium text-slate-400">Total</p>
+                            <p className="text-xl font-extrabold text-white mt-1">{selectedReport.totalBeneficiaries.toLocaleString("id-ID")}</p>
+                          </div>
+                          <div className="p-4 bg-gradient-to-b from-indigo-950/30 to-slate-950/30 border border-indigo-800/30 rounded-xl text-center">
+                            <p className="text-[10px] font-medium text-slate-400">Porsi Besar</p>
+                            <p className="text-xl font-extrabold text-indigo-400 mt-1">{selectedReport.largePortions.toLocaleString("id-ID")}</p>
+                          </div>
+                          <div className="p-4 bg-gradient-to-b from-emerald-950/30 to-slate-950/30 border border-emerald-800/30 rounded-xl text-center">
+                            <p className="text-[10px] font-medium text-slate-400">Porsi Kecil</p>
+                            <p className="text-xl font-extrabold text-emerald-400 mt-1">{selectedReport.smallPortions.toLocaleString("id-ID")}</p>
+                          </div>
+                        </div>
+
+                        {/* B3 Pills */}
+                        {(selectedReport.balita ?? 0) > 0 || (selectedReport.bumil ?? 0) > 0 || (selectedReport.busui ?? 0) > 0 ? (
+                          <div className="flex items-center gap-2 mt-3 flex-wrap">
+                            <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mr-1">PMT B3:</span>
+                            {(selectedReport.balita ?? 0) > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-semibold text-amber-400">
+                                {selectedReport.balita} Balita
+                              </span>
+                            )}
+                            {(selectedReport.bumil ?? 0) > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] font-semibold text-rose-400">
+                                {selectedReport.bumil} Bumil
+                              </span>
+                            )}
+                            {(selectedReport.busui ?? 0) > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-semibold text-purple-400">
+                                {selectedReport.busui} Busui
+                              </span>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* Notes */}
+                      {selectedReport.notes && (
+                        <div className="p-4 bg-slate-950/20 border border-slate-800/30 rounded-xl">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Catatan</span>
+                          </div>
+                          <p className="text-xs text-slate-400 italic leading-relaxed">&ldquo;{selectedReport.notes}&rdquo;</p>
+                        </div>
                       )}
-                    </div>
-                    <select
-                      value={selectedTemplate}
-                      disabled={isGeneratingPosterTemplate}
-                      onChange={async (e) => {
-                        const tId = e.target.value;
-                        setSelectedTemplate(tId);
-                        if (!selectedReport?.id) return;
-                        setIsGeneratingPosterTemplate(true);
-                        try {
-                          const res = await fetch(`/api/generate-poster?id=${selectedReport.id}&template=${tId}`);
-                          const json = await res.json();
-                          if (json.success && json.url) {
-                            setSelectedReport({
-                              ...selectedReport,
-                              posterUrl: json.url
-                            });
-                            setDbReports((prev) =>
-                              prev.map((r) => (r.id === selectedReport.id ? { ...r, poster_url: json.url } : r))
-                            );
-                            showSettingsToast(`Poster diperbarui ke Template ${tId}!`, "success");
-                          }
-                        } catch {
-                          showSettingsToast("Gagal merubah template poster.", "error");
-                        } finally {
-                          setIsGeneratingPosterTemplate(false);
-                        }
-                      }}
-                      className="w-full bg-slate-900 border border-slate-700/60 focus:border-indigo-500 rounded-lg px-2 py-1 text-[11px] font-bold text-indigo-300 outline-none cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="1">🎨 Template 1: Modern Classic (Teal & Royal Blue - Default)</option>
-                      <option value="2">📋 Template 2: Classic Beige & Sticky Note</option>
-                      <option value="3">📊 Template 3: Sky Blue Grid & Yellow Gizi Table</option>
-                      <option value="4">⭐ Template 4: Bold Royal Blue & Starburst Badge</option>
-                      <option value="5">🌿 Template 5: Eco Green Fresh & Nutrition Grid</option>
-                      <option value="6">🏆 Template 6: Executive Gold & 5 Column Stat Pills</option>
-                    </select>
-                  </div>
-                  </div>
-                </div>
-
-                {/* Right Column - Info */}
-                <div className="flex-1 min-w-0 flex flex-col gap-5">
-                  {/* Date & Time row */}
-                  <div className="flex items-center gap-4 text-xs text-slate-400">
-                    <span className="flex items-center gap-1.5">
-                      <Calendar size={13} className="text-indigo-400" />
-                      {(() => {
-                        const d = selectedReport.date ? new Date(selectedReport.date + "T00:00:00") : new Date();
-                        return d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-                      })()}
-                    </span>
-                    <span className="text-slate-700">|</span>
-                    <span className="flex items-center gap-1.5">
-                      <Clock size={13} className="text-emerald-400" />
-                      {selectedReport.distributionTime}
-                    </span>
-                  </div>
-
-                  {/* Menu */}
-                  <div className="p-4 bg-slate-950/40 border border-slate-800/50 rounded-xl">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Utensils size={14} className="text-indigo-400" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Menu Makanan</span>
-                    </div>
-                    <p className="text-sm font-medium text-slate-200 leading-relaxed">{selectedReport.menu}</p>
-                  </div>
-
-                  {/* Portion Metrics */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users size={14} className="text-indigo-400" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Penerima Manfaat</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="p-4 bg-gradient-to-b from-slate-950/60 to-slate-950/30 border border-slate-800/50 rounded-xl text-center">
-                        <p className="text-[10px] font-medium text-slate-400">Total</p>
-                        <p className="text-xl font-extrabold text-white mt-1">{selectedReport.totalBeneficiaries.toLocaleString("id-ID")}</p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-b from-indigo-950/30 to-slate-950/30 border border-indigo-800/30 rounded-xl text-center">
-                        <p className="text-[10px] font-medium text-slate-400">Porsi Besar</p>
-                        <p className="text-xl font-extrabold text-indigo-400 mt-1">{selectedReport.largePortions.toLocaleString("id-ID")}</p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-b from-emerald-950/30 to-slate-950/30 border border-emerald-800/30 rounded-xl text-center">
-                        <p className="text-[10px] font-medium text-slate-400">Porsi Kecil</p>
-                        <p className="text-xl font-extrabold text-emerald-400 mt-1">{selectedReport.smallPortions.toLocaleString("id-ID")}</p>
-                      </div>
-                    </div>
-
-                    {/* B3 Pills */}
-                    {(selectedReport.balita ?? 0) > 0 || (selectedReport.bumil ?? 0) > 0 || (selectedReport.busui ?? 0) > 0 ? (
-                      <div className="flex items-center gap-2 mt-3 flex-wrap">
-                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mr-1">PMT B3:</span>
-                        {(selectedReport.balita ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-semibold text-amber-400">
-                            {selectedReport.balita} Balita
-                          </span>
-                        )}
-                        {(selectedReport.bumil ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] font-semibold text-rose-400">
-                            {selectedReport.bumil} Bumil
-                          </span>
-                        )}
-                        {(selectedReport.busui ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-semibold text-purple-400">
-                            {selectedReport.busui} Busui
-                          </span>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Notes */}
-                  {selectedReport.notes && (
-                    <div className="p-4 bg-slate-950/20 border border-slate-800/30 rounded-xl">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Catatan</span>
-                      </div>
-                      <p className="text-xs text-slate-400 italic leading-relaxed">&ldquo;{selectedReport.notes}&rdquo;</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="shrink-0 px-4 sm:px-6 py-4 bg-slate-950/50 border-t border-slate-800/80">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-                {/* Action buttons */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    disabled={!selectedReport.posterUrl || detailLoadingAction !== null}
-                    onClick={async () => {
-                      if (!selectedReport.posterUrl) return;
-                      setDetailLoadingAction("download");
-                      try {
-                        const res = await fetch(selectedReport.posterUrl);
-                        const blob = await res.blob();
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `poster-mbg-${selectedReport.id}.png`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        showSettingsToast("Poster berhasil didownload!", "success");
-                      } catch {
-                        showSettingsToast("Gagal download poster.", "error");
-                      } finally { setDetailLoadingAction(null); }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-xs font-bold text-white shadow-lg shadow-emerald-900/30 transition-all hover:scale-105 active:scale-95"
-                  >
-                    {detailLoadingAction === "download" ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-                    {detailLoadingAction === "download" ? "Mengunduh..." : "Download Poster"}
-                  </button>
-                  <button
-                    disabled={detailLoadingAction !== null}
-                    onClick={async () => {
-                      setDetailLoadingAction("copy");
-                      try {
-                        const caption = generateReportCaption(selectedReport);
-                        await navigator.clipboard.writeText(caption);
-                        showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
-                      } catch {
-                        showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
-                      } finally { setDetailLoadingAction(null); }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-700/50 rounded-xl text-xs font-bold text-slate-200 transition-all hover:scale-105 active:scale-95"
-                  >
-                    {detailLoadingAction === "copy" ? <RefreshCw size={14} className="animate-spin" /> : <Copy size={14} />}
-                    {detailLoadingAction === "copy" ? "Menyalin..." : "Copy Caption"}
-                  </button>
-                  <button
-                    onClick={() => selectedReport && openStickerFromReport(selectedReport)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/40 rounded-xl text-xs font-bold text-white shadow-lg shadow-indigo-900/30 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <Printer size={14} />
-                    <span>Stiker Ompreng</span>
-                  </button>
-                </div>
-
-                {/* Status */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold ${
-                    selectedReport.status === "Draft" && "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  } ${
-                    selectedReport.status === "Approved" && "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                  } ${
-                    selectedReport.status === "Sent" && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      selectedReport.status === "Draft" && "bg-amber-400"
-                    } ${selectedReport.status === "Approved" && "bg-indigo-400"} ${
-                      selectedReport.status === "Sent" && "bg-emerald-400"
-                    }`} />
-                    {selectedReport.status}
-                  </span>
-
-                  {selectedReport.status === "Draft" && (
-                    <button
-                      onClick={() => updateReportStatus(selectedReport.id, "Approved")}
-                      className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-900/30 transition-all hover:scale-105 active:scale-95"
-                    >
-                      <CheckCircle2 size={14} />
-                      Approve
-                    </button>
-                  )}
-
-                  {selectedReport.status === "Approved" && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => updateReportStatus(selectedReport.id, "Draft")}
-                        className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
-                      >
-                        Kembalikan ke Draft
-                      </button>
-                      <button
-                        onClick={() => updateReportStatus(selectedReport.id, "Sent")}
-                        className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-900/30 transition-all hover:scale-105 active:scale-95"
-                      >
-                        <Send size={14} />
-                        Kirim Laporan
-                      </button>
-                    </div>
-                  )}
-
-                  {selectedReport.status === "Sent" && (
-                    <button
-                      onClick={() => updateReportStatus(selectedReport.id, "Approved")}
-                      className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
-                    >
-                      Batalkan Pengiriman
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- PREVIEW MODAL --- */}
-      {showPreviewModal && formPreviewData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-5xl w-full overflow-hidden shadow-2xl flex flex-col">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-700/50 bg-slate-950/40 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <h3 className="font-bold text-white text-base">Pratinjau Poster & Teks Laporan</h3>
-                <p className="text-[10px] text-slate-500">Tinjau poster dan caption. Setelah disetujui, download poster lalu copy caption untuk dikirim ke grup WhatsApp.</p>
-              </div>
-              <button
-                onClick={() => handleConfirmReport("cancel")}
-                className="p-1 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[65vh] overflow-y-auto">
-              {/* Left Column: Poster Image Preview */}
-              <div className="space-y-3 flex flex-col items-center">
-                <div className="w-full flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Draft Poster Laporan</span>
-                  {isGeneratingPosterTemplate && (
-                    <span className="text-[10px] text-indigo-400 font-bold animate-pulse flex items-center gap-1">
-                      <RefreshCw size={10} className="animate-spin" /> Merubah...
-                    </span>
-                  )}
-                </div>
-
-                {/* Template Selector Dropdown */}
-                <div className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 space-y-1">
-                  <span className="text-[10px] text-slate-400 font-semibold block">Pilih Template Poster (5 Variasi)</span>
-                  <select
-                    value={selectedTemplate}
-                    disabled={isGeneratingPosterTemplate}
-                    onChange={async (e) => {
-                      const tId = e.target.value;
-                      setSelectedTemplate(tId);
-                      if (!formPreviewData?.reportId) return;
-                      setIsGeneratingPosterTemplate(true);
-                      try {
-                        const res = await fetch(`/api/generate-poster?id=${formPreviewData.reportId}&template=${tId}`);
-                        const json = await res.json();
-                        if (json.success && json.url) {
-                          setFormPreviewData({
-                            ...formPreviewData,
-                            posterUrl: json.url
-                          });
-                          showSettingsToast(`Poster diperbarui ke Template ${tId}!`, "success");
-                        }
-                      } catch {
-                        showSettingsToast("Gagal merubah template poster.", "error");
-                      } finally {
-                        setIsGeneratingPosterTemplate(false);
-                      }
-                    }}
-                    className="w-full bg-slate-900 border border-slate-700/60 focus:border-indigo-500 rounded-lg px-2.5 py-1.5 text-xs font-bold text-indigo-300 outline-none cursor-pointer disabled:opacity-50"
-                  >
-                    <option value="1">🎨 Template 1: Modern Classic (Teal & Royal Blue - Default)</option>
-                    <option value="2">📋 Template 2: Classic Beige & Sticky Note</option>
-                    <option value="3">📊 Template 3: Sky Blue Grid & Yellow Gizi Table</option>
-                    <option value="4">⭐ Template 4: Bold Royal Blue & Starburst Badge</option>
-                    <option value="5">🌿 Template 5: Eco Green Fresh & Nutrition Grid</option>
-                    <option value="6">🏆 Template 6: Executive Gold & 5 Column Stat Pills</option>
-                  </select>
-                </div>
-
-                <div className="w-full max-w-[400px] aspect-[800/1100] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
-                  {formPreviewData.posterUrl ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img 
-                      src={formPreviewData.posterUrl} 
-                      alt="Laporan Poster" 
-                      loading="lazy"
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-slate-500">
-                      <RefreshCw size={24} className="animate-spin text-indigo-500" />
-                      <span className="text-xs">Membuat Poster...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Column: Caption Preview */}
-              <div className="space-y-2 flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Caption / Teks Laporan</span>
-                <div className="flex-1 p-4 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] text-slate-400 overflow-y-auto whitespace-pre-wrap select-all leading-relaxed shadow-inner">
-                  {formPreviewData.caption}
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-700/50 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={formIsConfirming || !formPreviewData.posterUrl || previewLoadingAction !== null}
-                  onClick={async () => {
-                    if (!formPreviewData.posterUrl) return;
-                    setPreviewLoadingAction("download");
-                    try {
-                      const res = await fetch(formPreviewData.posterUrl);
-                      const blob = await res.blob();
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `poster-mbg-${formPreviewData.reportId}.png`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                      showSettingsToast("Poster berhasil didownload!", "success");
-                    } catch {
-                      showSettingsToast("Gagal download poster.", "error");
-                    } finally { setPreviewLoadingAction(null); }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all shadow-md"
-                >
-                  {previewLoadingAction === "download" ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-                  <span>{previewLoadingAction === "download" ? "Mengunduh..." : "Download Poster"}</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={!formPreviewData.caption || previewLoadingAction !== null}
-                  onClick={async () => {
-                    if (!formPreviewData.caption) return;
-                    setPreviewLoadingAction("copy");
-                    try {
-                      await navigator.clipboard.writeText(formPreviewData.caption);
-                      showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
-                    } catch {
-                      showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
-                    } finally { setPreviewLoadingAction(null); }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 border border-slate-600 rounded-xl text-xs font-bold text-white transition-all shadow-md"
-                >
-                  {previewLoadingAction === "copy" ? <RefreshCw size={14} className="animate-spin" /> : <Copy size={14} />}
-                  <span>{previewLoadingAction === "copy" ? "Menyalin..." : "Copy Caption"}</span>
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={formIsConfirming}
-                  onClick={() => handleConfirmReport("cancel")}
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
-                >
-                  Revisi / Batal
-                </button>
-                <button
-                  type="button"
-                  disabled={formIsConfirming}
-                  onClick={() => handleConfirmReport("confirm")}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${
-                    formIsConfirming ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-600 shadow-md"
-                  }`}
-                >
-                  {formIsConfirming && <RefreshCw size={14} className="animate-spin" />}
-                  <span>{formIsConfirming ? "Menyimpan..." : "Setujui & Simpan"}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- SPPG MODAL --- */}
-      {showSppgModal && (
-        <div className="fixed inset-0 bottom-16 md:inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center p-0 md:p-4">
-          <div onClick={() => {
-            setShowSppgModal(false);
-            setEditingSppgId(null);
-            setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
-          }} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
-          <div className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-t-2xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 z-10 flex flex-col max-h-[90dvh] md:max-h-[85vh]">
-            {/* Header */}
-            <div className="shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
-                  <Database size={16} className="text-indigo-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">{editingSppgId ? "Edit Data SPPG" : "Tambah SPPG Baru"}</h3>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowSppgModal(false);
-                  setEditingSppgId(null);
-                  setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
-                }}
-                className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <form onSubmit={handleSaveSppg} className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Nama SPPG</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: SPPG Lombok Timur"
-                    value={sppgForm.nama_sppg}
-                    onChange={(e) => setSppgForm({ ...sppgForm, nama_sppg: e.target.value })}
-                    className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                      <User size={11} className="text-slate-500" />
-                      Nama Kepala SPPG
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Nama Kepala SPPG..."
-                      value={sppgForm.kepala_sppg}
-                      onChange={(e) => setSppgForm({ ...sppgForm, kepala_sppg: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                      <User size={11} className="text-slate-500" />
-                      Nama Pengawas Gizi
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Nama Pengawas Gizi..."
-                      value={sppgForm.pengawas_gizi}
-                      onChange={(e) => setSppgForm({ ...sppgForm, pengawas_gizi: e.target.value })}
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP)</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={sppgForm.porsi_besar || ""}
-                      onChange={(e) => setSppgForm({ ...sppgForm, porsi_besar: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                      min="0"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Porsi Kecil (PAUD-TK)</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={sppgForm.porsi_kecil || ""}
-                      onChange={(e) => setSppgForm({ ...sppgForm, porsi_kecil: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                      min="0"
-                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-800 pt-2">
-                  <span className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-3">
-                    <Users size={12} className="text-slate-500" />
-                    PMT B3
-                  </span>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-slate-400 uppercase">Balita</label>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={sppgForm.balita || ""}
-                        onChange={(e) => setSppgForm({ ...sppgForm, balita: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        min="0"
-                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-slate-400 uppercase">Bumil</label>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={sppgForm.bumil || ""}
-                        onChange={(e) => setSppgForm({ ...sppgForm, bumil: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        min="0"
-                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-slate-400 uppercase">Busui</label>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={sppgForm.busui || ""}
-                        onChange={(e) => setSppgForm({ ...sppgForm, busui: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                        min="0"
-                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
-                      />
                     </div>
                   </div>
                 </div>
 
                 {/* Footer */}
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-slate-800">
+                <div className="shrink-0 px-4 sm:px-6 py-4 bg-slate-950/50 border-t border-slate-800/80">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        disabled={!selectedReport.posterUrl || detailLoadingAction !== null}
+                        onClick={async () => {
+                          if (!selectedReport.posterUrl) return;
+                          setDetailLoadingAction("download");
+                          try {
+                            const res = await fetch(selectedReport.posterUrl);
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `poster-mbg-${selectedReport.id}.png`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            showSettingsToast("Poster berhasil didownload!", "success");
+                          } catch {
+                            showSettingsToast("Gagal download poster.", "error");
+                          } finally { setDetailLoadingAction(null); }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-xs font-bold text-white shadow-lg shadow-emerald-900/30 transition-all hover:scale-105 active:scale-95"
+                      >
+                        {detailLoadingAction === "download" ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                        {detailLoadingAction === "download" ? "Mengunduh..." : "Download Poster"}
+                      </button>
+                      <button
+                        disabled={detailLoadingAction !== null}
+                        onClick={async () => {
+                          setDetailLoadingAction("copy");
+                          try {
+                            const caption = generateReportCaption(selectedReport);
+                            await navigator.clipboard.writeText(caption);
+                            showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
+                          } catch {
+                            showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
+                          } finally { setDetailLoadingAction(null); }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-700/50 rounded-xl text-xs font-bold text-slate-200 transition-all hover:scale-105 active:scale-95"
+                      >
+                        {detailLoadingAction === "copy" ? <RefreshCw size={14} className="animate-spin" /> : <Copy size={14} />}
+                        {detailLoadingAction === "copy" ? "Menyalin..." : "Copy Caption"}
+                      </button>
+                      <button
+                        onClick={() => selectedReport && openStickerFromReport(selectedReport)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/40 rounded-xl text-xs font-bold text-white shadow-lg shadow-indigo-900/30 transition-all hover:scale-105 active:scale-95"
+                      >
+                        <Printer size={14} />
+                        <span>Stiker Ompreng</span>
+                      </button>
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold ${selectedReport.status === "Draft" && "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                        } ${selectedReport.status === "Approved" && "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                        } ${selectedReport.status === "Sent" && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${selectedReport.status === "Draft" && "bg-amber-400"
+                          } ${selectedReport.status === "Approved" && "bg-indigo-400"} ${selectedReport.status === "Sent" && "bg-emerald-400"
+                          }`} />
+                        {selectedReport.status}
+                      </span>
+
+                      {selectedReport.status === "Draft" && (
+                        <button
+                          onClick={() => updateReportStatus(selectedReport.id, "Approved")}
+                          className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-900/30 transition-all hover:scale-105 active:scale-95"
+                        >
+                          <CheckCircle2 size={14} />
+                          Approve
+                        </button>
+                      )}
+
+                      {selectedReport.status === "Approved" && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => updateReportStatus(selectedReport.id, "Draft")}
+                            className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
+                          >
+                            Kembalikan ke Draft
+                          </button>
+                          <button
+                            onClick={() => updateReportStatus(selectedReport.id, "Sent")}
+                            className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-900/30 transition-all hover:scale-105 active:scale-95"
+                          >
+                            <Send size={14} />
+                            Kirim Laporan
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedReport.status === "Sent" && (
+                        <button
+                          onClick={() => updateReportStatus(selectedReport.id, "Approved")}
+                          className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700/50 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95"
+                        >
+                          Batalkan Pengiriman
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- PREVIEW MODAL --- */}
+          {showPreviewModal && formPreviewData && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-5xl w-full overflow-hidden shadow-2xl flex flex-col">
+                {/* Modal Header */}
+                <div className="px-6 py-4 border-b border-slate-700/50 bg-slate-950/40 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h3 className="font-bold text-white text-base">Pratinjau Poster & Teks Laporan</h3>
+                    <p className="text-[10px] text-slate-500">Tinjau poster dan caption. Setelah disetujui, download poster lalu copy caption untuk dikirim ke grup WhatsApp.</p>
+                  </div>
                   <button
-                    type="button"
+                    onClick={() => handleConfirmReport("cancel")}
+                    className="p-1 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[65vh] overflow-y-auto">
+                  {/* Left Column: Poster Image Preview */}
+                  <div className="space-y-3 flex flex-col items-center">
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Draft Poster Laporan</span>
+                      {isGeneratingPosterTemplate && (
+                        <span className="text-[10px] text-indigo-400 font-bold animate-pulse flex items-center gap-1">
+                          <RefreshCw size={10} className="animate-spin" /> Merubah...
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Template Selector Dropdown */}
+                    <div className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Pilih Template Poster (5 Variasi)</span>
+                      <select
+                        value={selectedTemplate}
+                        disabled={isGeneratingPosterTemplate}
+                        onChange={async (e) => {
+                          const tId = e.target.value;
+                          setSelectedTemplate(tId);
+                          if (!formPreviewData?.reportId) return;
+                          setIsGeneratingPosterTemplate(true);
+                          try {
+                            const res = await fetch(`/api/generate-poster?id=${formPreviewData.reportId}&template=${tId}`);
+                            const json = await res.json();
+                            if (json.success && json.url) {
+                              setFormPreviewData({
+                                ...formPreviewData,
+                                posterUrl: json.url
+                              });
+                              showSettingsToast(`Poster diperbarui ke Template ${tId}!`, "success");
+                            }
+                          } catch {
+                            showSettingsToast("Gagal merubah template poster.", "error");
+                          } finally {
+                            setIsGeneratingPosterTemplate(false);
+                          }
+                        }}
+                        className="w-full bg-slate-900 border border-slate-700/60 focus:border-indigo-500 rounded-lg px-2.5 py-1.5 text-xs font-bold text-indigo-300 outline-none cursor-pointer disabled:opacity-50"
+                      >
+                        <option value="1">🎨 Template 1: Modern Classic (Teal & Royal Blue - Default)</option>
+                        <option value="2">📋 Template 2: Classic Beige & Sticky Note</option>
+                        <option value="3">📊 Template 3: Sky Blue Grid & Yellow Gizi Table</option>
+                        <option value="4">⭐ Template 4: Bold Royal Blue & Starburst Badge</option>
+                        <option value="5">🌿 Template 5: Eco Green Fresh & Nutrition Grid</option>
+                        <option value="6">🏆 Template 6: Executive Gold & 5 Column Stat Pills</option>
+                      </select>
+                    </div>
+
+                    <div className="w-full max-w-[400px] aspect-[800/1100] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
+                      {formPreviewData.posterUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={formPreviewData.posterUrl}
+                          alt="Laporan Poster"
+                          loading="lazy"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 text-slate-500">
+                          <RefreshCw size={24} className="animate-spin text-indigo-500" />
+                          <span className="text-xs">Membuat Poster...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Caption Preview */}
+                  <div className="space-y-2 flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Caption / Teks Laporan</span>
+                    <div className="flex-1 p-4 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] text-slate-400 overflow-y-auto whitespace-pre-wrap select-all leading-relaxed shadow-inner">
+                      {formPreviewData.caption}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="px-6 py-4 bg-slate-950/50 border-t border-slate-700/50 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={formIsConfirming || !formPreviewData.posterUrl || previewLoadingAction !== null}
+                      onClick={async () => {
+                        if (!formPreviewData.posterUrl) return;
+                        setPreviewLoadingAction("download");
+                        try {
+                          const res = await fetch(formPreviewData.posterUrl);
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `poster-mbg-${formPreviewData.reportId}.png`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                          showSettingsToast("Poster berhasil didownload!", "success");
+                        } catch {
+                          showSettingsToast("Gagal download poster.", "error");
+                        } finally { setPreviewLoadingAction(null); }
+                      }}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-xs font-bold text-white transition-all shadow-md"
+                    >
+                      {previewLoadingAction === "download" ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                      <span>{previewLoadingAction === "download" ? "Mengunduh..." : "Download Poster"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!formPreviewData.caption || previewLoadingAction !== null}
+                      onClick={async () => {
+                        if (!formPreviewData.caption) return;
+                        setPreviewLoadingAction("copy");
+                        try {
+                          await navigator.clipboard.writeText(formPreviewData.caption);
+                          showSettingsToast("Caption berhasil dicopy! Tempel di WhatsApp.", "success");
+                        } catch {
+                          showSettingsToast("Gagal copy caption. Silakan select & copy manual.", "error");
+                        } finally { setPreviewLoadingAction(null); }
+                      }}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 border border-slate-600 rounded-xl text-xs font-bold text-white transition-all shadow-md"
+                    >
+                      {previewLoadingAction === "copy" ? <RefreshCw size={14} className="animate-spin" /> : <Copy size={14} />}
+                      <span>{previewLoadingAction === "copy" ? "Menyalin..." : "Copy Caption"}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={formIsConfirming}
+                      onClick={() => handleConfirmReport("cancel")}
+                      className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300"
+                    >
+                      Revisi / Batal
+                    </button>
+                    <button
+                      type="button"
+                      disabled={formIsConfirming}
+                      onClick={() => handleConfirmReport("confirm")}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 ${formIsConfirming ? "bg-indigo-700/60 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-600 shadow-md"
+                        }`}
+                    >
+                      {formIsConfirming && <RefreshCw size={14} className="animate-spin" />}
+                      <span>{formIsConfirming ? "Menyimpan..." : "Setujui & Simpan"}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- SPPG MODAL --- */}
+          {showSppgModal && (
+            <div className="fixed inset-0 bottom-16 md:inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center p-0 md:p-4">
+              <div onClick={() => {
+                setShowSppgModal(false);
+                setEditingSppgId(null);
+                setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
+              }} className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
+              <div className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/50 rounded-t-2xl md:rounded-2xl shadow-2xl shadow-indigo-500/5 z-10 flex flex-col max-h-[90dvh] md:max-h-[85vh]">
+                {/* Header */}
+                <div className="shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
+                      <Database size={16} className="text-indigo-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white">{editingSppgId ? "Edit Data SPPG" : "Tambah SPPG Baru"}</h3>
+                    </div>
+                  </div>
+                  <button
                     onClick={() => {
                       setShowSppgModal(false);
                       setEditingSppgId(null);
                       setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
                     }}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 transition-colors"
+                    className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
                   >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={sppgSubmitting}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-semibold text-white shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    {sppgSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                    <span>{sppgSubmitting ? "Menyimpan..." : editingSppgId ? "Simpan Perubahan" : "Tambah SPPG"}</span>
+                    <X size={18} />
                   </button>
                 </div>
-              </form>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                  <form onSubmit={handleSaveSppg} className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Nama SPPG</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: SPPG Lombok Timur"
+                        value={sppgForm.nama_sppg}
+                        onChange={(e) => setSppgForm({ ...sppgForm, nama_sppg: e.target.value })}
+                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                          <User size={11} className="text-slate-500" />
+                          Nama Kepala SPPG
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Nama Kepala SPPG..."
+                          value={sppgForm.kepala_sppg}
+                          onChange={(e) => setSppgForm({ ...sppgForm, kepala_sppg: e.target.value })}
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                          <User size={11} className="text-slate-500" />
+                          Nama Pengawas Gizi
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Nama Pengawas Gizi..."
+                          value={sppgForm.pengawas_gizi}
+                          onChange={(e) => setSppgForm({ ...sppgForm, pengawas_gizi: e.target.value })}
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP)</label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={sppgForm.porsi_besar || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, porsi_besar: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          min="0"
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Porsi Kecil (PAUD-TK)</label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={sppgForm.porsi_kecil || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, porsi_kecil: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                          min="0"
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-800 pt-2">
+                      <span className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-3">
+                        <Users size={12} className="text-slate-500" />
+                        PMT B3
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-slate-400 uppercase">Balita</label>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={sppgForm.balita || ""}
+                            onChange={(e) => setSppgForm({ ...sppgForm, balita: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                            min="0"
+                            className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-slate-400 uppercase">Bumil</label>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={sppgForm.bumil || ""}
+                            onChange={(e) => setSppgForm({ ...sppgForm, bumil: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                            min="0"
+                            className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-slate-400 uppercase">Busui</label>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={sppgForm.busui || ""}
+                            onChange={(e) => setSppgForm({ ...sppgForm, busui: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                            min="0"
+                            className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSppgModal(false);
+                          setEditingSppgId(null);
+                          setSppgForm({ nama_sppg: "", porsi_kecil: 0, porsi_besar: 0, balita: 0, bumil: 0, busui: 0, kepala_sppg: "", pengawas_gizi: "" });
+                        }}
+                        className="w-full sm:w-auto px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 transition-colors"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={sppgSubmitting}
+                        className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-semibold text-white shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        {sppgSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                        <span>{sppgSubmitting ? "Menyimpan..." : editingSppgId ? "Simpan Perubahan" : "Tambah SPPG"}</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* Settings Toast Notification */}
+          <div className={`print:hidden fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border bg-slate-950/90 backdrop-blur-md shadow-2xl transition-all duration-300 transform ${settingsToast.show ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95 pointer-events-none"
+            } ${settingsToast.type === "success" ? "border-emerald-500/20" : "border-red-500/20"
+            }`}>
+            {settingsToast.type === "success" ? (
+              <CheckCircle2 className="text-emerald-400 flex-shrink-0" size={18} />
+            ) : (
+              <span className="text-red-400 flex-shrink-0 font-bold text-base">!</span>
+            )}
+            <span className="text-xs font-semibold text-slate-200">{settingsToast.message}</span>
           </div>
+
+          {/* --- BOTTOM NAV BAR (MOBILE ONLY) --- */}
+          <nav className="print:hidden lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 pb-[env(safe-area-inset-bottom)]">
+            <div className="flex items-center justify-around h-16 px-2">
+              <button
+                onClick={() => setActiveTab("dashboard")}
+                className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${activeTab === "dashboard" ? "text-indigo-400" : "text-slate-500"
+                  }`}
+              >
+                <LayoutDashboard size={20} />
+                <span className="text-[9px] font-semibold">Dashboard</span>
+                {activeTab === "dashboard" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+              </button>
+
+              <button
+                onClick={() => setActiveTab("sppg")}
+                className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${activeTab === "sppg" ? "text-indigo-400" : "text-slate-500"
+                  }`}
+              >
+                <Database size={20} />
+                <span className="text-[9px] font-semibold">SPPG</span>
+                {activeTab === "sppg" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+              </button>
+
+              <button
+                onClick={() => { setActiveTab("laporan"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                className="flex flex-col items-center justify-center flex-none w-14 -mt-4"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 hover:shadow-indigo-500/50">
+                  <Plus size={24} strokeWidth={3} />
+                </div>
+                <span className="text-[8px] font-bold text-indigo-400 mt-1 tracking-tight">Tambah</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("riwayat")}
+                className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${activeTab === "riwayat" ? "text-indigo-400" : "text-slate-500"
+                  }`}
+              >
+                <Clock size={20} />
+                <span className="text-[9px] font-semibold">Riwayat</span>
+                {activeTab === "riwayat" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+              </button>
+
+              <button
+                onClick={() => setActiveTab("stiker")}
+                className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${activeTab === "stiker" ? "text-indigo-400" : "text-slate-500"
+                  }`}
+              >
+                <Printer size={20} />
+                <span className="text-[9px] font-semibold">Stiker</span>
+                {activeTab === "stiker" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+              </button>
+
+              <button
+                onClick={() => setActiveTab("pengaturan")}
+                className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${activeTab === "pengaturan" ? "text-indigo-400" : "text-slate-500"
+                  }`}
+              >
+                <Settings size={20} />
+                <span className="text-[9px] font-semibold">Atur</span>
+                {activeTab === "pengaturan" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+              </button>
+            </div>
+          </nav>
+        </div>
+      </div>
+
+      {/* Print-only sticker sheet — body-level SIBLING of #app-root (must NOT be
+        inside it, since #app-root is display:none during sticker print) */}
+      {activeTab === "stiker" && (
+        <div id="sticker-print-root" className="hidden print:block">
+          <StickerPrintSheet
+            paperSize={standaloneStikerPaperSize}
+            capacity={standaloneStikerCapacity}
+            mode={standaloneStikerMode}
+            countBesar={standaloneStikerCountBesar}
+            sppgName={standaloneStikerSppg}
+            menu={standaloneStikerMenu}
+            tanggal={standaloneStikerTanggal}
+            jamSelesai={standaloneStikerJamSelesai}
+            jamBatas={standaloneStikerJamBatas}
+            giziBesar={standaloneStikerGiziBesar}
+            giziKecil={standaloneStikerGiziKecil}
+          />
         </div>
       )}
-
-      {/* Settings Toast Notification */}
-      <div className={`print:hidden fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border bg-slate-950/90 backdrop-blur-md shadow-2xl transition-all duration-300 transform ${
-        settingsToast.show ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95 pointer-events-none"
-      } ${
-        settingsToast.type === "success" ? "border-emerald-500/20" : "border-red-500/20"
-      }`}>
-        {settingsToast.type === "success" ? (
-          <CheckCircle2 className="text-emerald-400 flex-shrink-0" size={18} />
-        ) : (
-          <span className="text-red-400 flex-shrink-0 font-bold text-base">!</span>
-        )}
-        <span className="text-xs font-semibold text-slate-200">{settingsToast.message}</span>
-      </div>
-
-      {/* --- BOTTOM NAV BAR (MOBILE ONLY) --- */}
-      <nav className="print:hidden lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center justify-around h-16 px-2">
-          <button
-            onClick={() => setActiveTab("dashboard")}
-            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
-              activeTab === "dashboard" ? "text-indigo-400" : "text-slate-500"
-            }`}
-          >
-            <LayoutDashboard size={20} />
-            <span className="text-[9px] font-semibold">Dashboard</span>
-            {activeTab === "dashboard" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("sppg")}
-            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
-              activeTab === "sppg" ? "text-indigo-400" : "text-slate-500"
-            }`}
-          >
-            <Database size={20} />
-            <span className="text-[9px] font-semibold">SPPG</span>
-            {activeTab === "sppg" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
-          </button>
-
-          <button
-            onClick={() => { setActiveTab("laporan"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-            className="flex flex-col items-center justify-center flex-none w-14 -mt-4"
-          >
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 hover:shadow-indigo-500/50">
-              <Plus size={24} strokeWidth={3} />
-            </div>
-            <span className="text-[8px] font-bold text-indigo-400 mt-1 tracking-tight">Tambah</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("riwayat")}
-            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
-              activeTab === "riwayat" ? "text-indigo-400" : "text-slate-500"
-            }`}
-          >
-            <Clock size={20} />
-            <span className="text-[9px] font-semibold">Riwayat</span>
-            {activeTab === "riwayat" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("stiker")}
-            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
-              activeTab === "stiker" ? "text-indigo-400" : "text-slate-500"
-            }`}
-          >
-            <Printer size={20} />
-            <span className="text-[9px] font-semibold">Stiker</span>
-            {activeTab === "stiker" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("pengaturan")}
-            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
-              activeTab === "pengaturan" ? "text-indigo-400" : "text-slate-500"
-            }`}
-          >
-            <Settings size={20} />
-            <span className="text-[9px] font-semibold">Atur</span>
-            {activeTab === "pengaturan" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
-          </button>
-        </div>
-      </nav>
-      </div>
-    </div>
-
-    {/* Print-only sticker sheet — body-level SIBLING of #app-root (must NOT be
-        inside it, since #app-root is display:none during sticker print) */}
-    {activeTab === "stiker" && (
-      <div id="sticker-print-root" className="hidden print:block">
-        <StickerPrintSheet
-          capacity={standaloneStikerCapacity}
-          mode={standaloneStikerMode}
-          countBesar={standaloneStikerCountBesar}
-          sppgName={standaloneStikerSppg}
-          menu={standaloneStikerMenu}
-          tanggal={standaloneStikerTanggal}
-          jamSelesai={standaloneStikerJamSelesai}
-          jamBatas={standaloneStikerJamBatas}
-          giziBesar={standaloneStikerGiziBesar}
-          giziKecil={standaloneStikerGiziKecil}
-        />
-      </div>
-    )}
     </>
   );
 }

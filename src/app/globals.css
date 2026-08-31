@@ -121,13 +121,12 @@ body {
     border: none !important;
   }
 
-  /* Sticker ompreng A4 sheet: print the dedicated body-level print root only.
+  /* Sticker ompreng sheet: print the dedicated body-level print root only.
      It sits outside #app-root (which is display:none when printing stickers),
      so it is the only thing rendered. Absolutely positioned at the top-left of
      the zero-margin page. The sheet carries its own size/styles inline (the
      same ones the on-screen preview uses), so print output matches the
-     preview exactly. 296mm height avoids a mm->px rounding spill that would
-     add a blank second page. */
+     preview exactly. */
   #sticker-print-root,
   #sticker-print-root * {
     visibility: visible !important;
@@ -140,8 +139,24 @@ body {
     top: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 210mm !important;
+    width: auto !important;
     box-shadow: none !important;
+  }
+
+  /* Paper sizes dynamically handled by sticker container dimensions */
+  .sticker-a4-sheet {
+    width: 210mm !important;
+    height: 296mm !important;
+  }
+
+  .sticker-f4-sheet {
+    width: 215mm !important;
+    height: 329mm !important;
+  }
+
+  .sticker-a3-sheet {
+    width: 297mm !important;
+    height: 419mm !important;
   }
 
   table, th, td {
@@ -156,3 +171,4 @@ body {
     print-color-adjust: exact !important;
   }
 }
+

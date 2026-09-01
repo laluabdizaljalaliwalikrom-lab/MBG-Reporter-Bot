@@ -1,28 +1,335 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0f19;
+  --foreground: #f8fafc;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Light Mode Global Theme Override */
+html.light {
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html.light #app-root {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light aside {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01) !important;
+}
+
+html.light .sidebar-logo-header {
+  background-color: rgba(248, 250, 252, 0.8) !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light aside h1 {
+  background: linear-gradient(to right, #0f172a, #334155, #4f46e5) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+html.light header {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light header h2 {
+  color: #0f172a !important;
+}
+
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/70,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/40,
+html.light .bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .bg-slate-950,
+html.light .bg-slate-950\/90,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/50,
+html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/30,
+html.light .bg-slate-950\/20 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .bg-slate-800,
+html.light .bg-slate-800\/90,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/50,
+html.light .bg-slate-800\/40 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light .border-slate-800,
+html.light .border-slate-800\/80,
+html.light .border-slate-800\/60,
+html.light .border-slate-800\/50,
+html.light .border-slate-800\/40,
+html.light .border-slate-700,
+html.light .border-slate-700\/80,
+html.light .border-slate-700\/50,
+html.light .border-slate-900 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .divide-slate-800,
+html.light .divide-slate-800\/80 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .text-white {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-100 {
+  color: #1e293b !important;
+}
+
+html.light .text-slate-200 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-300 {
+  color: #475569 !important;
+}
+
+html.light .text-slate-400 {
+  color: #64748b !important;
+}
+
+html.light .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+/* Light mode hover states */
+html.light nav button.text-slate-400:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light nav button.bg-indigo-600 {
+  color: #ffffff !important;
+}
+
+html.light nav button.bg-indigo-600 span {
+  color: #ffffff !important;
+}
+
+html.light .hover\:bg-slate-800:hover,
+html.light .hover\:bg-slate-900:hover {
+  background-color: #f1f5f9 !important;
+}
+
+html.light input,
+html.light select,
+html.light textarea {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Light mode table & modal styles */
+html.light thead {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light thead th {
+  color: #64748b !important;
+}
+
+html.light tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+html.light [role="dialog"],
+html.light .fixed.inset-0 > div:not(.bg-slate-950\/60):not(.bg-slate-950\/70):not(.bg-slate-950\/80):not(.bg-black\/60):not(.bg-black\/70):not(.bg-black\/80) {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.light [role="dialog"] h3,
+html.light [role="dialog"] h4,
+html.light [role="dialog"] p.text-white,
+html.light [role="dialog"] span.text-white {
+  color: #0f172a !important;
+}
+
+/* Preserve colored badges in light mode */
+html.light .bg-indigo-600,
+html.light .bg-emerald-600,
+html.light .bg-amber-600,
+html.light .bg-rose-600,
+html.light .bg-blue-600 {
+  color: #ffffff !important;
+}
+
+html.light .bg-indigo-600 *,
+html.light .bg-emerald-600 *,
+html.light .bg-amber-600 *,
+html.light .bg-rose-600 *,
+html.light .bg-blue-600 * {
+  color: #ffffff !important;
+}
+
+html.light .bg-emerald-500\/10,
+html.light .bg-emerald-500\/20 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+
+html.light .bg-indigo-500\/10,
+html.light .bg-indigo-500\/15,
+html.light .bg-indigo-500\/20,
+html.light .bg-indigo-600\/20,
+html.light .bg-indigo-600\/30 {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+}
+
+html.light .bg-violet-500\/10,
+html.light .bg-violet-500\/20 {
+  background-color: rgba(139, 92, 246, 0.12) !important;
+}
+
+html.light .bg-amber-500\/10,
+html.light .bg-amber-500\/20 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+
+html.light .bg-rose-500\/10,
+html.light .bg-rose-500\/20 {
+  background-color: rgba(244, 63, 94, 0.12) !important;
+}
+
+html.light .bg-purple-500\/10,
+html.light .bg-purple-500\/20,
+html.light .bg-purple-500\/25 {
+  background-color: rgba(168, 85, 247, 0.12) !important;
+}
+
+/* Light mode indigo element overrides */
+html.light .bg-indigo-950\/60 {
+  background-color: rgba(238, 242, 255, 0.8) !important;
+}
+
+html.light .hover\:bg-indigo-900\/80:hover {
+  background-color: rgba(224, 231, 255, 0.9) !important;
+}
+
+html.light .text-indigo-300 {
+  color: #4338ca !important;
+}
+
+html.light .border-indigo-800\/60,
+html.light .border-indigo-800\/25 {
+  border-color: #c7d2fe !important;
+}
+
+/* Light Mode Riwayat Cards & Gradients */
+html.light .bg-gradient-to-b.from-slate-900\/90.to-slate-950\/90,
+html.light .group.bg-gradient-to-b {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .group.bg-gradient-to-b:hover {
+  border-color: #818cf8 !important;
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.1), 0 4px 6px -4px rgba(99, 102, 241, 0.05) !important;
+}
+
+html.light .backdrop-blur-md.bg-slate-950\/75 {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+html.light .bg-gradient-to-r.from-slate-900 {
+  background: linear-gradient(to right, #ffffff, #f8fafc, #eef2ff) !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .bg-indigo-950\/30 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+
+html.light .bg-emerald-950\/30 {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+}
+
+html.light .shadow-2xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom Minimalist & Modern Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+}
+
+*:hover {
+  scrollbar-color: rgba(99, 102, 241, 0.45) transparent;
+}
+
+/* Chrome, Edge, Safari, Opera */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+*:hover::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.55);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(79, 70, 229, 0.85);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 @font-face {

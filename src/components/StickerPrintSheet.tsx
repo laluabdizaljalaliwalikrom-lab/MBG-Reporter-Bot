@@ -39,65 +39,115 @@ export default function StickerPrintSheet(props: StickerPrintSheetProps) {
   let gridHeight = "285mm";
   let gridCols = "repeat(2, 1fr)";
   let gridRows = "repeat(6, 1fr)";
-  let isComfortable = true;
+
+  // Typography & sizing scale tiers: "jumbo" (<=8), "large" (10-14), "medium" (16-24), "compact" (>24)
+  let tier: "jumbo" | "large" | "medium" | "compact" = "medium";
 
   if (paperSize === "a4") {
     sheetWidth = "210mm";
     sheetHeight = "296mm";
-    gridHeight = "285mm";
-    if (capacity === 24) {
-      gridCols = "repeat(3, 1fr)";
-      gridRows = "repeat(8, 1fr)";
-      isComfortable = false;
+    gridHeight = "293mm";
+    if (capacity === 6) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(3, 1fr)";
+      tier = "jumbo";
+    } else if (capacity === 8) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(4, 1fr)";
+      tier = "jumbo";
+    } else if (capacity === 10) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(5, 1fr)";
+      tier = "large";
+    } else if (capacity === 12) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(6, 1fr)";
+      tier = "large";
     } else if (capacity === 16) {
       gridCols = "repeat(2, 1fr)";
       gridRows = "repeat(8, 1fr)";
-      isComfortable = false;
+      tier = "medium";
     } else {
-      // 12 labels
-      gridCols = "repeat(2, 1fr)";
-      gridRows = "repeat(6, 1fr)";
-      isComfortable = true;
+      // 24 labels
+      gridCols = "repeat(3, 1fr)";
+      gridRows = "repeat(8, 1fr)";
+      tier = "compact";
     }
   } else if (paperSize === "f4") {
     sheetWidth = "215mm";
     sheetHeight = "329mm";
-    gridHeight = "318mm";
-    if (capacity === 28) {
-      gridCols = "repeat(3, 1fr)";
-      gridRows = "repeat(9, 1fr)"; // or 3x9=27, 4x7=28 -> let's do 3 cols or 4 cols
-      gridCols = "repeat(3, 1fr)";
-      gridRows = "repeat(10, 1fr)";
-      isComfortable = false;
+    gridHeight = "326mm";
+    if (capacity === 6) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(3, 1fr)";
+      tier = "jumbo";
+    } else if (capacity === 8) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(4, 1fr)";
+      tier = "jumbo";
+    } else if (capacity === 10) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(5, 1fr)";
+      tier = "large";
+    } else if (capacity === 14) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(7, 1fr)";
+      tier = "large";
     } else if (capacity === 18) {
       gridCols = "repeat(2, 1fr)";
       gridRows = "repeat(9, 1fr)";
-      isComfortable = false;
+      tier = "medium";
     } else {
-      // 14 labels (2 x 7)
-      gridCols = "repeat(2, 1fr)";
-      gridRows = "repeat(7, 1fr)";
-      isComfortable = true;
+      // 28 labels
+      gridCols = "repeat(3, 1fr)";
+      gridRows = "repeat(10, 1fr)";
+      tier = "compact";
     }
   } else if (paperSize === "a3") {
     sheetWidth = "297mm";
     sheetHeight = "419mm";
-    gridHeight = "408mm";
-    if (capacity === 48) {
-      gridCols = "repeat(4, 1fr)";
-      gridRows = "repeat(12, 1fr)";
-      isComfortable = false;
+    gridHeight = "416mm";
+    if (capacity === 8) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(4, 1fr)";
+      tier = "jumbo";
+    } else if (capacity === 12) {
+      gridCols = "repeat(3, 1fr)";
+      gridRows = "repeat(4, 1fr)";
+      tier = "jumbo";
+    } else if (capacity === 16) {
+      gridCols = "repeat(2, 1fr)";
+      gridRows = "repeat(8, 1fr)";
+      tier = "large";
+    } else if (capacity === 24) {
+      gridCols = "repeat(3, 1fr)";
+      gridRows = "repeat(8, 1fr)";
+      tier = "large";
     } else if (capacity === 32) {
       gridCols = "repeat(4, 1fr)";
       gridRows = "repeat(8, 1fr)";
-      isComfortable = true;
+      tier = "medium";
     } else {
-      // 24 labels (3 x 8 or 4 x 6)
-      gridCols = "repeat(3, 1fr)";
-      gridRows = "repeat(8, 1fr)";
-      isComfortable = true;
+      // 48 labels
+      gridCols = "repeat(4, 1fr)";
+      gridRows = "repeat(12, 1fr)";
+      tier = "compact";
     }
   }
+
+  // Scaling styles based on tier with slim gaps
+  const cardPadding = tier === "jumbo" ? "5mm 6mm" : tier === "large" ? "3.5mm 4.5mm" : tier === "medium" ? "2.5mm 3mm" : "2mm 2.5mm";
+  const logoHeight = tier === "jumbo" ? "32px" : tier === "large" ? "24px" : tier === "medium" ? "19px" : "16px";
+  const titleBgnSize = tier === "jumbo" ? "11pt" : tier === "large" ? "8.5pt" : tier === "medium" ? "7pt" : "6.5pt";
+  const titleSppgSize = tier === "jumbo" ? "9.5pt" : tier === "large" ? "7.5pt" : tier === "medium" ? "6.2pt" : "5.8pt";
+  const badgeSize = tier === "jumbo" ? "9.5pt" : tier === "large" ? "7.5pt" : tier === "medium" ? "6.2pt" : "5.8pt";
+  const dateSize = tier === "jumbo" ? "9pt" : tier === "large" ? "7pt" : tier === "medium" ? "5.8pt" : "5.2pt";
+  const menuSize = tier === "jumbo" ? "10pt" : tier === "large" ? "8pt" : tier === "medium" ? "6.5pt" : "6pt";
+  const giziHeadSize = tier === "jumbo" ? "8pt" : tier === "large" ? "6.2pt" : tier === "medium" ? "5.2pt" : "4.8pt";
+  const giziValSize = tier === "jumbo" ? "8.5pt" : tier === "large" ? "6.8pt" : tier === "medium" ? "5.5pt" : "5pt";
+  const timeSize = tier === "jumbo" ? "8.5pt" : tier === "large" ? "6.8pt" : tier === "medium" ? "5.5pt" : "5pt";
+  const warningSize = tier === "jumbo" ? "7.5pt" : tier === "large" ? "6pt" : tier === "medium" ? "5pt" : "4.5pt";
+  const gridGap = tier === "jumbo" ? "2mm 2.5mm" : tier === "large" ? "1.8mm 2mm" : "1.5mm 1.8mm";
 
   return (
     <div
@@ -105,11 +155,12 @@ export default function StickerPrintSheet(props: StickerPrintSheetProps) {
       style={{
         width: sheetWidth,
         height: sheetHeight,
-        padding: "5mm",
+        padding: "1.5mm",
         boxSizing: "border-box",
         backgroundColor: "#ffffff",
         color: "#000000",
         margin: "0 auto",
+        fontFamily: "'Times New Roman', Times, serif",
       }}
     >
       <div
@@ -119,7 +170,7 @@ export default function StickerPrintSheet(props: StickerPrintSheetProps) {
           height: gridHeight,
           gridTemplateColumns: gridCols,
           gridTemplateRows: gridRows,
-          gap: isComfortable ? "3mm 4mm" : "2mm 2.5mm",
+          gap: gridGap,
           boxSizing: "border-box",
         }}
       >
@@ -135,8 +186,7 @@ export default function StickerPrintSheet(props: StickerPrintSheetProps) {
               style={{
                 border: "1.5px solid #0f172a",
                 borderRadius: "4px",
-                padding: isComfortable ? "3mm 4mm" : "2mm 2.5mm",
-                fontSize: isComfortable ? "8.5pt" : "7pt",
+                padding: cardPadding,
                 lineHeight: "1.2",
                 display: "flex",
                 flexDirection: "column",
@@ -147,40 +197,40 @@ export default function StickerPrintSheet(props: StickerPrintSheetProps) {
               }}
             >
               {/* Header: logo BGN + title + porsi & tanggal */}
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", borderBottom: "1.5px solid #0f172a", paddingBottom: "3px", marginBottom: "3px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", borderBottom: "1.5px solid #0f172a", paddingBottom: "3px", marginBottom: "2px" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/images/logo-bgn.png"
                   alt="BGN"
-                  style={{ height: isComfortable ? "24px" : "18px", width: "auto", objectFit: "contain", flexShrink: 0 }}
+                  style={{ height: logoHeight, width: "auto", objectFit: "contain", flexShrink: 0 }}
                 />
                 <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                  <div style={{ fontWeight: 900, fontSize: isComfortable ? "8.5pt" : "7pt", textTransform: "uppercase", letterSpacing: "0.3px", color: "#0f172a", lineHeight: 1.1 }}>
+                  <div style={{ fontWeight: 900, fontSize: titleBgnSize, textTransform: "uppercase", letterSpacing: "0.3px", color: "#0f172a", lineHeight: 1.1 }}>
                     BADAN GIZI NASIONAL
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: isComfortable ? "7.5pt" : "6pt", color: "#334155", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div style={{ fontWeight: 700, fontSize: titleSppgSize, color: "#334155", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {sppgName}
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px", flexShrink: 0 }}>
-                  <span style={{ fontWeight: 900, fontSize: isComfortable ? "7.5pt" : "6pt", background: isBesar ? "#1e3a8a" : "#065f46", color: "#ffffff", padding: "1.5px 5px", borderRadius: "2px", textTransform: "uppercase" }}>
+                  <span style={{ fontWeight: 900, fontSize: badgeSize, background: isBesar ? "#1e3a8a" : "#065f46", color: "#ffffff", padding: "1.5px 5px", borderRadius: "2px", textTransform: "uppercase" }}>
                     PORSI {isBesar ? "BESAR" : "KECIL"}
                   </span>
-                  <span style={{ fontSize: isComfortable ? "7pt" : "5.8pt", fontWeight: "bold", color: "#475569" }}>
+                  <span style={{ fontSize: dateSize, fontWeight: "bold", color: "#475569" }}>
                     TGL: {fmtDate}
                   </span>
                 </div>
               </div>
 
               {/* Menu */}
-              <div style={{ fontWeight: "bold", fontSize: isComfortable ? "8pt" : "6.5pt", margin: "2px 0", color: "#475569" }}>
+              <div style={{ fontWeight: "bold", fontSize: menuSize, margin: "2px 0", color: "#475569" }}>
                 MENU: <span style={{ fontWeight: 800, color: "#020617" }}>{menu}</span>
               </div>
 
               {/* Nutrition box */}
-              <div style={{ fontSize: isComfortable ? "6.8pt" : "5.5pt", background: "#f8fafc", border: "0.5px solid #cbd5e1", padding: "2.5px 4px", borderRadius: "3px", margin: "2px 0" }}>
-                <div style={{ fontWeight: "bold", textTransform: "uppercase", fontSize: isComfortable ? "6pt" : "5pt", color: "#475569", marginBottom: "1.5px" }}>NILAI GIZI HARIAN:</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: isComfortable ? "2px 8px" : "1px 4px", fontWeight: "600", color: "#1e293b" }}>
+              <div style={{ fontSize: giziValSize, background: "#f8fafc", border: "0.5px solid #cbd5e1", padding: tier === "jumbo" ? "4px 6px" : "2.5px 4px", borderRadius: "3px", margin: "2px 0" }}>
+                <div style={{ fontWeight: "bold", textTransform: "uppercase", fontSize: giziHeadSize, color: "#475569", marginBottom: "1.5px" }}>NILAI GIZI HARIAN:</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: tier === "jumbo" ? "3px 12px" : "2px 8px", fontWeight: "600", color: "#1e293b" }}>
                   <span>Energi: <strong>{gizi.energi || 0} kcal</strong></span>
                   <span>Protein: <strong>{gizi.protein || 0} g</strong></span>
                   <span>Lemak: <strong>{gizi.lemak || 0} g</strong></span>
@@ -190,13 +240,13 @@ export default function StickerPrintSheet(props: StickerPrintSheetProps) {
               </div>
 
               {/* Times */}
-              <div style={{ fontSize: isComfortable ? "6.8pt" : "5.5pt", display: "flex", justifySelf: "stretch", justifyContent: "space-between", gap: "4px", margin: "2px 0", borderTop: "0.5px solid #cbd5e1", borderBottom: "0.5px solid #cbd5e1", padding: "1.5px 0", color: "#334155" }}>
+              <div style={{ fontSize: timeSize, display: "flex", justifySelf: "stretch", justifyContent: "space-between", gap: "4px", margin: "2px 0", borderTop: "0.5px solid #cbd5e1", borderBottom: "0.5px solid #cbd5e1", padding: "2px 0", color: "#334155" }}>
                 <span>Selesai Produksi: <strong>{formatTime(jamSelesai)}</strong></span>
                 <span style={{ color: "#991b1b", fontWeight: 700 }}>Baik dikonsumsi sebelum: <strong>{formatTime(jamBatas)}</strong></span>
               </div>
 
               {/* Warnings */}
-              <div style={{ borderTop: "1px solid #0f172a", paddingTop: "2px", marginTop: "2px", fontSize: isComfortable ? "6pt" : "5pt", lineHeight: "1.15", textAlign: "center" }}>
+              <div style={{ borderTop: "1px solid #0f172a", paddingTop: "2px", marginTop: "1.5px", fontSize: warningSize, lineHeight: "1.15", textAlign: "center" }}>
                 <div style={{ color: "#991b1b", fontWeight: 800 }}>⚠️ DILARANG MEMBAWA PULANG MAKANAN MBG</div>
                 <div style={{ color: "#0f172a", fontWeight: 700 }}>❌ JANGAN DIKONSUMSI JIKA BERLENDIR/BERBAU/BERUBAH RASA</div>
               </div>

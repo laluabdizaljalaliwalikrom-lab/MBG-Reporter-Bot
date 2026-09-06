@@ -37,11 +37,15 @@ import {
   Printer,
   Palette,
   Sun,
-  Moon
+  Moon,
+  ChefHat,
+  Key,
+  Sparkles
 } from "lucide-react";
 import WeeklyReportView from "@/components/WeeklyReportView";
 import StickerPrintSheet from "@/components/StickerPrintSheet";
 import StickerPreview from "@/components/StickerPreview";
+import MBGMaker from "@/components/MBGMaker";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 
@@ -290,7 +294,7 @@ export default function Dashboard() {
     setThemeSnapshot(nextTheme);
   };
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "mingguan" | "pengaturan" | "sppg" | "riwayat" | "stiker">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "laporan" | "mingguan" | "pengaturan" | "sppg" | "riwayat" | "stiker" | "menu">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -466,6 +470,56 @@ export default function Dashboard() {
     setSettingsToast({ show: true, message, type });
     setTimeout(() => setSettingsToast((prev) => ({ ...prev, show: false })), 4000);
   };
+
+  // Gemini API Key state
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState("");
+  const [isSavingGeminiKey, setIsSavingGeminiKey] = useState(false);
+  const [isLoadingGeminiKey, setIsLoadingGeminiKey] = useState(false);
+  const [showGeminiKeySecret, setShowGeminiKeySecret] = useState(false);
+
+  const fetchGeminiKey = useCallback(async () => {
+    setIsLoadingGeminiKey(true);
+    try {
+      const res = await fetch("/api/settings?key=gemini_api_key");
+      const json = await res.json();
+      if (json.value) {
+        setGeminiApiKeyInput(json.value);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingGeminiKey(false);
+    }
+  }, []);
+
+  const handleSaveGeminiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingGeminiKey(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "gemini_api_key",
+          value: geminiApiKeyInput.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showSettingsToast("Gemini API Key berhasil disimpan!", "success");
+      } else {
+        showSettingsToast(json.error || "Gagal menyimpan Gemini API Key.", "error");
+      }
+    } catch {
+      showSettingsToast("Terjadi kesalahan saat menyimpan pengaturan.", "error");
+    } finally {
+      setIsSavingGeminiKey(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGeminiKey();
+  }, [fetchGeminiKey]);
 
   // SPPG States
   interface SppgData {
@@ -1018,6 +1072,22 @@ export default function Dashboard() {
 
               <button
                 onClick={() => {
+                  setActiveTab("menu");
+                  setSidebarOpen(false);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl transition-all duration-200 whitespace-nowrap overflow-hidden ${activeTab === "menu"
+                  ? "bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/20"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  }`}
+                title="MBG Maker"
+              >
+                <ChefHat size={20} className="shrink-0" />
+                <span className="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 text-xs font-semibold">MBG Maker</span>
+              </button>
+
+              <button
+                onClick={() => {
                   setActiveTab("pengaturan");
                   setSidebarOpen(false);
                   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1078,6 +1148,7 @@ export default function Dashboard() {
                   {activeTab === "sppg" && "Data Master SPPG"}
                   {activeTab === "riwayat" && "Riwayat Laporan"}
                   {activeTab === "stiker" && "Generator Stiker Ompreng"}
+                  {activeTab === "menu" && "MBG Maker"}
                 </h2>
                 <p className="text-xs text-slate-400 hidden sm:block">
                   Sistem Pemantauan Makanan Bergizi Gratis (MBG) & Satuan Pelayanan Peningkatan Gizi (SPPG)
@@ -2151,6 +2222,75 @@ export default function Dashboard() {
 
                 <div className="h-px bg-slate-800" />
 
+                {/* Pengaturan Gemini AI */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        <Sparkles size={18} className="text-amber-400" />
+                        <span>Kecerdasan Buatan (Gemini AI API)</span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Konfigurasi API Key Google Gemini untuk fitur pembuatan resep, komposisi menu MBG Maker, kalkulasi nilai gizi, dan saran ahli gizi BGN.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-5 bg-slate-900/60 rounded-xl border border-slate-800/80 space-y-4">
+                    <form onSubmit={handleSaveGeminiKey} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <Key size={13} className="text-amber-400" />
+                            <span>Gemini API Key</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowGeminiKeySecret(!showGeminiKeySecret)}
+                            className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                          >
+                            {showGeminiKeySecret ? "Sembunyikan" : "Tampilkan"}
+                          </button>
+                        </label>
+                        <div className="relative mt-1.5">
+                          <input
+                            type={showGeminiKeySecret ? "text" : "password"}
+                            value={geminiApiKeyInput}
+                            onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                            placeholder="AIzaSy..."
+                            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none font-mono"
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1.5">
+                          Dapatkan kunci API gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">Google AI Studio</a>. Kunci disimpan dengan aman di database pengaturan sistem.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center gap-2 text-xs">
+                          {geminiApiKeyInput ? (
+                            <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                              <CheckCircle2 size={13} /> Terpasang
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 italic">Belum disetel</span>
+                          )}
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={isSavingGeminiKey}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md disabled:opacity-50"
+                        >
+                          {isSavingGeminiKey ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                          <span>{isSavingGeminiKey ? "Menyimpan..." : "Simpan API Key"}</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+
+                <div className="h-px bg-slate-800" />
+
                 {/* Pengaturan Pengiriman */}
                 <div className="space-y-4">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -2170,6 +2310,11 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* TAB: MBG MAKER */}
+            {activeTab === "menu" && (
+              <MBGMaker sppgList={sppgList} />
             )}
 
             {/* TAB: STIKER OMPRENG STANDALONE */}
@@ -3186,13 +3331,13 @@ export default function Dashboard() {
               </button>
 
               <button
-                onClick={() => setActiveTab("stiker")}
-                className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${activeTab === "stiker" ? "text-indigo-400" : "text-slate-500"
+                onClick={() => setActiveTab("menu")}
+                className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${activeTab === "menu" ? "text-indigo-400" : "text-slate-500"
                   }`}
               >
-                <Printer size={20} />
-                <span className="text-[9px] font-semibold">Stiker</span>
-                {activeTab === "stiker" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
+                <ChefHat size={20} />
+                <span className="text-[9px] font-semibold">Menu</span>
+                {activeTab === "menu" && <span className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />}
               </button>
 
               <button

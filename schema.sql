@@ -46,3 +46,21 @@ ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS pengawas_gizi TEXT DEFAULT '';
 
 -- Disable RLS for sppg_data (matching mbg_reports behaviour)
 ALTER TABLE sppg_data DISABLE ROW LEVEL SECURITY;
+
+-- Create the mbg_menus table (MBG Maker feature)
+CREATE TABLE IF NOT EXISTS mbg_menus (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    nama_menu TEXT NOT NULL,                          -- Nama menu utama
+    tanggal DATE,                                     -- Tanggal target menu
+    sppg_id UUID REFERENCES sppg_data(id) ON DELETE SET NULL, -- Referensi SPPG
+    menu_data JSONB NOT NULL DEFAULT '{}',            -- Data semua variant menu (porsi besar/kecil, PMT)
+    status TEXT DEFAULT 'DRAFT',                      -- DRAFT | FINALIZED
+    catatan TEXT,                                     -- Catatan tambahan
+    is_template BOOLEAN DEFAULT FALSE,                -- True = template reusable
+    template_name TEXT                                -- Nama template (jika is_template = true)
+);
+
+-- Disable RLS for mbg_menus
+ALTER TABLE mbg_menus DISABLE ROW LEVEL SECURITY;

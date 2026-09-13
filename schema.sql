@@ -37,12 +37,20 @@ CREATE TABLE IF NOT EXISTS sppg_data (
     bumil INTEGER DEFAULT 0,
     busui INTEGER DEFAULT 0,
     kepala_sppg TEXT DEFAULT '',  -- Nama Kepala SPPG (e.g. Drs. Ahmad Hidayat, M.Si)
-    pengawas_gizi TEXT DEFAULT '' -- Nama Pengawas Gizi (e.g. Ns. Fatimah, S.Gz)
+    pengawas_gizi TEXT DEFAULT '', -- Nama Pengawas Gizi (e.g. Ns. Fatimah, S.Gz)
+    kontak_pengaduan TEXT DEFAULT '', -- Kontak WA Pengaduan SPPG (e.g. 08123456789)
+    tiktok TEXT DEFAULT '',           -- Akun TikTok SPPG (e.g. sppg_bandung)
+    instagram TEXT DEFAULT '',        -- Akun Instagram SPPG (e.g. sppg_bandung)
+    sub_wilayah TEXT DEFAULT ''       -- Keterangan wilayah/pelayanan (e.g. Kawasan Pelayanan Mandiri)
 );
 
 -- Migration query to add columns if table already exists in Supabase:
 ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS kepala_sppg TEXT DEFAULT '';
 ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS pengawas_gizi TEXT DEFAULT '';
+ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS kontak_pengaduan TEXT DEFAULT '';
+ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS tiktok TEXT DEFAULT '';
+ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS instagram TEXT DEFAULT '';
+ALTER TABLE sppg_data ADD COLUMN IF NOT EXISTS sub_wilayah TEXT DEFAULT '';
 
 -- Disable RLS for sppg_data (matching mbg_reports behaviour)
 ALTER TABLE sppg_data DISABLE ROW LEVEL SECURITY;

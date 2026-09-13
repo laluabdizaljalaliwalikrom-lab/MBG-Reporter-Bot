@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import WeeklyReportView from "@/components/WeeklyReportView";
 import StickerPrintSheet from "@/components/StickerPrintSheet";
+import StickerPrintSheetSE from "@/components/StickerPrintSheetSE";
 import StickerPreview from "@/components/StickerPreview";
 import MBGMaker from "@/components/MBGMaker";
 import { toPng } from "html-to-image";
@@ -302,17 +303,60 @@ export default function Dashboard() {
   const [detailLoadingAction, setDetailLoadingAction] = useState<"download" | "copy" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
+  // SPPG States & Interfaces
+  interface SppgData {
+    id?: string;
+    nama_sppg: string;
+    porsi_kecil: number;
+    porsi_besar: number;
+    balita: number;
+    bumil: number;
+    busui: number;
+    kepala_sppg: string;
+    pengawas_gizi: string;
+    kontak_pengaduan?: string;
+    tiktok?: string;
+    instagram?: string;
+    sub_wilayah?: string;
+  }
+  const [sppgList, setSppgList] = useState<SppgData[]>([]);
+  const [loadingSppg, setLoadingSppg] = useState(false);
+  const [sppgForm, setSppgForm] = useState<SppgData>({
+    nama_sppg: "",
+    porsi_kecil: 0,
+    porsi_besar: 0,
+    balita: 0,
+    bumil: 0,
+    busui: 0,
+    kepala_sppg: "",
+    pengawas_gizi: "",
+    kontak_pengaduan: "",
+    tiktok: "",
+    instagram: "",
+    sub_wilayah: ""
+  });
+  const [editingSppgId, setEditingSppgId] = useState<string | null>(null);
+  const [showSppgModal, setShowSppgModal] = useState(false);
+  const [sppgSubmitting, setSppgSubmitting] = useState(false);
+  const [sppgSearch, setSppgSearch] = useState("");
+
   // Standalone Stiker Tab States
+  const [standaloneStikerTemplate, setStandaloneStikerTemplate] = useState<"se2026" | "classic">("se2026");
+  const [standaloneStikerSEPairMode, setStandaloneStikerSEPairMode] = useState<"pair" | "left_only" | "right_only">("pair");
+  const [standaloneStikerSubWilayah, setStandaloneStikerSubWilayah] = useState<string>("Kawasan Pelayanan Mandiri");
+  const [standaloneStikerWaPengaduan, setStandaloneStikerWaPengaduan] = useState<string>("081234567890");
+  const [standaloneStikerTiktok, setStandaloneStikerTiktok] = useState<string>("sppg_bandung");
+  const [standaloneStikerInstagram, setStandaloneStikerInstagram] = useState<string>("sppg_bandung");
   const [standaloneStikerSelectedReportId, setStandaloneStikerSelectedReportId] = useState<string>("");
   const [standaloneStikerPaperSize, setStandaloneStikerPaperSize] = useState<"a4" | "f4" | "a3">("a4");
   const [standaloneStikerCapacity, setStandaloneStikerCapacity] = useState<number>(12);
-  const [standaloneStikerSppg, setStandaloneStikerSppg] = useState<string>("SPPG Lombok Timur Sikur Sikur 2");
+  const [standaloneStikerSppg, setStandaloneStikerSppg] = useState<string>("SPPG KOTA BANDUNG");
   const [standaloneStikerMenu, setStandaloneStikerMenu] = useState<string>("Nasi Putih, Ayam Goreng, Tumis Buncis, Buah");
   const [standaloneStikerMode, setStandaloneStikerMode] = useState<"all_besar" | "all_kecil" | "split">("split");
   const [standaloneStikerCountBesar, setStandaloneStikerCountBesar] = useState<number>(6);
   const [standaloneStikerTanggal, setStandaloneStikerTanggal] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [standaloneStikerJamSelesai, setStandaloneStikerJamSelesai] = useState<string>("05:30");
-  const [standaloneStikerJamBatas, setStandaloneStikerJamBatas] = useState<string>("10:30");
+  const [standaloneStikerJamBatas, setStandaloneStikerJamBatas] = useState<string>("10:00");
   const [standaloneStikerGiziBesar, setStandaloneStikerGiziBesar] = useState({ energi: "650", protein: "22", lemak: "18", karbohidrat: "85", serat: "6" });
   const [standaloneStikerGiziKecil, setStandaloneStikerGiziKecil] = useState({ energi: "450", protein: "15", lemak: "12", karbohidrat: "60", serat: "4" });
   const [isDownloadingStickerPDF, setIsDownloadingStickerPDF] = useState<boolean>(false);
@@ -418,9 +462,19 @@ export default function Dashboard() {
 
   // Load a report into the standalone sticker form, then switch to the Stiker tab
   const loadReportIntoSticker = useCallback((rep: Report) => {
-    setStandaloneStikerSppg(rep.sppgName || "SPPG Lombok Timur Sikur Sikur 2");
+    const sName = rep.sppgName || "SPPG KOTA BANDUNG";
+    setStandaloneStikerSppg(sName);
     setStandaloneStikerMenu(rep.menu || "");
     setStandaloneStikerTanggal(rep.date || new Date().toISOString().split("T")[0]);
+
+    // Cari referensi master data SPPG untuk auto-populate kontak pengaduan, medsos, dan sub-wilayah
+    const matchedSppg = sppgList.find((s) => s.nama_sppg.toLowerCase() === sName.toLowerCase());
+    if (matchedSppg) {
+      if (matchedSppg.kontak_pengaduan) setStandaloneStikerWaPengaduan(matchedSppg.kontak_pengaduan);
+      if (matchedSppg.tiktok) setStandaloneStikerTiktok(matchedSppg.tiktok);
+      if (matchedSppg.instagram) setStandaloneStikerInstagram(matchedSppg.instagram);
+      if (matchedSppg.sub_wilayah) setStandaloneStikerSubWilayah(matchedSppg.sub_wilayah);
+    }
 
     const gBesar = rep.giziBesar;
     const gKecil = rep.giziKecil;
@@ -453,7 +507,7 @@ export default function Dashboard() {
       setStandaloneStikerMode("split");
       setStandaloneStikerCountBesar(Math.floor(standaloneStikerCapacity / 2));
     }
-  }, [standaloneStikerCapacity]);
+  }, [standaloneStikerCapacity, sppgList]);
 
   const openStickerFromReport = useCallback((rep: Report) => {
     loadReportIntoSticker(rep);
@@ -521,34 +575,6 @@ export default function Dashboard() {
     fetchGeminiKey();
   }, [fetchGeminiKey]);
 
-  // SPPG States
-  interface SppgData {
-    id?: string;
-    nama_sppg: string;
-    porsi_kecil: number;
-    porsi_besar: number;
-    balita: number;
-    bumil: number;
-    busui: number;
-    kepala_sppg: string;
-    pengawas_gizi: string;
-  }
-  const [sppgList, setSppgList] = useState<SppgData[]>([]);
-  const [loadingSppg, setLoadingSppg] = useState(false);
-  const [sppgForm, setSppgForm] = useState<SppgData>({
-    nama_sppg: "",
-    porsi_kecil: 0,
-    porsi_besar: 0,
-    balita: 0,
-    bumil: 0,
-    busui: 0,
-    kepala_sppg: "",
-    pengawas_gizi: ""
-  });
-  const [editingSppgId, setEditingSppgId] = useState<string | null>(null);
-  const [showSppgModal, setShowSppgModal] = useState(false);
-  const [sppgSubmitting, setSppgSubmitting] = useState(false);
-  const [sppgSearch, setSppgSearch] = useState("");
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(() => {
     if (typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches) {
@@ -687,7 +713,11 @@ export default function Dashboard() {
           bumil: 0,
           busui: 0,
           kepala_sppg: "",
-          pengawas_gizi: ""
+          pengawas_gizi: "",
+          kontak_pengaduan: "",
+          tiktok: "",
+          instagram: "",
+          sub_wilayah: ""
         });
         setEditingSppgId(null);
         setShowSppgModal(false);
@@ -714,7 +744,11 @@ export default function Dashboard() {
       bumil: sppg.bumil,
       busui: sppg.busui,
       kepala_sppg: sppg.kepala_sppg || "",
-      pengawas_gizi: sppg.pengawas_gizi || ""
+      pengawas_gizi: sppg.pengawas_gizi || "",
+      kontak_pengaduan: sppg.kontak_pengaduan || "",
+      tiktok: sppg.tiktok || "",
+      instagram: sppg.instagram || "",
+      sub_wilayah: sppg.sub_wilayah || ""
     });
     setShowSppgModal(true);
   };
@@ -2377,6 +2411,56 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
                   {/* Left Column: Form Controls (5 Cols) */}
                   <div className="xl:col-span-5 space-y-4">
+                    {/* Template Selector Card */}
+                    <div className="p-4 bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-slate-900 border border-indigo-500/30 rounded-2xl space-y-3">
+                      <label className="text-xs font-bold text-indigo-300 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Palette size={14} className="text-indigo-400" />
+                          <span>Pilih Template Stiker Segel</span>
+                        </span>
+                        <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/30 font-semibold">
+                          {standaloneStikerTemplate === "se2026" ? "SE No. 21 / 2026" : "Klasik"}
+                        </span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setStandaloneStikerTemplate("se2026")}
+                          className={`p-2.5 rounded-xl border text-left transition-all ${
+                            standaloneStikerTemplate === "se2026"
+                              ? "bg-indigo-600/20 border-indigo-500 text-white shadow-sm shadow-indigo-500/20 ring-1 ring-indigo-500/50"
+                              : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="text-xs font-bold flex items-center gap-1.5">
+                            <Sparkles size={13} className={standaloneStikerTemplate === "se2026" ? "text-amber-400" : "text-slate-500"} />
+                            <span>SE BGN 2026</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                            Segel 7×5 cm: Batas Waktu & Kotak Pengaduan
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setStandaloneStikerTemplate("classic")}
+                          className={`p-2.5 rounded-xl border text-left transition-all ${
+                            standaloneStikerTemplate === "classic"
+                              ? "bg-indigo-600/20 border-indigo-500 text-white shadow-sm shadow-indigo-500/20 ring-1 ring-indigo-500/50"
+                              : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="text-xs font-bold flex items-center gap-1.5">
+                            <FileText size={13} className={standaloneStikerTemplate === "classic" ? "text-indigo-400" : "text-slate-500"} />
+                            <span>Klasik (Tabel Gizi)</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                            Format lama: Rincian energi & zat gizi lengkap
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Source Selector & General Info */}
                     <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-4">
                       <div className="space-y-1.5">
@@ -2407,17 +2491,48 @@ export default function Dashboard() {
                         </select>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/60">
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-slate-400">Header SPPG</label>
-                          <input
-                            type="text"
-                            value={standaloneStikerSppg}
-                            onChange={(e) => setStandaloneStikerSppg(e.target.value)}
-                            placeholder="Nama SPPG..."
-                            className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
-                          />
+                      {/* Header SPPG selector with quick-fill from sppgList */}
+                      <div className="space-y-1.5 pt-2 border-t border-slate-800/60">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold text-slate-400">Pilih / Input SPPG</label>
+                          {sppgList.length > 0 && (
+                            <span className="text-[10px] text-indigo-400">{sppgList.length} SPPG terdaftar</span>
+                          )}
                         </div>
+                        {sppgList.length > 0 && (
+                          <select
+                            value={sppgList.some((s) => s.nama_sppg === standaloneStikerSppg) ? standaloneStikerSppg : ""}
+                            onChange={(e) => {
+                              const chosen = sppgList.find((s) => s.nama_sppg === e.target.value);
+                              if (chosen) {
+                                setStandaloneStikerSppg(chosen.nama_sppg);
+                                if (chosen.kontak_pengaduan) setStandaloneStikerWaPengaduan(chosen.kontak_pengaduan);
+                                if (chosen.tiktok) setStandaloneStikerTiktok(chosen.tiktok);
+                                if (chosen.instagram) setStandaloneStikerInstagram(chosen.instagram);
+                                if (chosen.sub_wilayah) setStandaloneStikerSubWilayah(chosen.sub_wilayah);
+                                showSettingsToast(`Data referensi ${chosen.nama_sppg} diterapkan!`, "success");
+                              }
+                            }}
+                            className="w-full p-2 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-xs text-slate-300 outline-none mb-1.5 cursor-pointer"
+                          >
+                            <option value="">-- Terapkan dari Master SPPG --</option>
+                            {sppgList.map((s) => (
+                              <option key={s.id || s.nama_sppg} value={s.nama_sppg}>
+                                {s.nama_sppg} {s.kontak_pengaduan ? `(${s.kontak_pengaduan})` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <input
+                          type="text"
+                          value={standaloneStikerSppg}
+                          onChange={(e) => setStandaloneStikerSppg(e.target.value)}
+                          placeholder="Nama SPPG..."
+                          className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[11px] font-semibold text-slate-400">Nama Menu</label>
                           <input
@@ -2428,9 +2543,6 @@ export default function Dashboard() {
                             className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
                           />
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[11px] font-semibold text-slate-400">Ukuran Kertas</label>
                           <select
@@ -2451,6 +2563,9 @@ export default function Dashboard() {
                             <option value="a3">Kertas A3 (297×420 mm)</option>
                           </select>
                         </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[11px] font-semibold text-slate-400">Jumlah Label / Lembar</label>
                           <select
@@ -2467,7 +2582,7 @@ export default function Dashboard() {
                                 <option value="6">6 Label (2x3 - Jumbo)</option>
                                 <option value="8">8 Label (2x4 - Sangat Besar)</option>
                                 <option value="10">10 Label (2x5 - Besar)</option>
-                                <option value="12">12 Label (2x6 - Standar)</option>
+                                <option value="12">12 Label (2x6 - Standar 7x5cm)</option>
                                 <option value="16">16 Label (2x8 - Kompak)</option>
                                 <option value="24">24 Label (3x8 - Padat)</option>
                               </>
@@ -2477,7 +2592,7 @@ export default function Dashboard() {
                                 <option value="6">6 Label (2x3 - Jumbo)</option>
                                 <option value="8">8 Label (2x4 - Sangat Besar)</option>
                                 <option value="10">10 Label (2x5 - Besar)</option>
-                                <option value="14">14 Label (2x7 - Folio)</option>
+                                <option value="14">14 Label (2x7 - Standar Folio)</option>
                                 <option value="18">18 Label (2x9 - Sedang)</option>
                                 <option value="28">28 Label (3x10 - Padat)</option>
                               </>
@@ -2494,6 +2609,34 @@ export default function Dashboard() {
                             )}
                           </select>
                         </div>
+
+                        {standaloneStikerTemplate === "se2026" ? (
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-400">Format Segel Pasangan</label>
+                            <select
+                              value={standaloneStikerSEPairMode}
+                              onChange={(e) => setStandaloneStikerSEPairMode(e.target.value as "pair" | "left_only" | "right_only")}
+                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-emerald-300 outline-none focus:border-indigo-500 cursor-pointer"
+                            >
+                              <option value="pair">Pasangan (Kiri & Kanan)</option>
+                              <option value="left_only">Hanya Segel Kiri (Jam Batas)</option>
+                              <option value="right_only">Hanya Segel Kanan (Pengaduan)</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-400">Distribusi Porsi</label>
+                            <select
+                              value={standaloneStikerMode}
+                              onChange={(e) => setStandaloneStikerMode(e.target.value as "all_besar" | "all_kecil" | "split")}
+                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-indigo-300 outline-none focus:border-indigo-500 cursor-pointer"
+                            >
+                              <option value="all_besar">Semua Porsi Besar</option>
+                              <option value="all_kecil">Semua Porsi Kecil</option>
+                              <option value="split">Campuran (Split)</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-800/60">
@@ -2527,45 +2670,104 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    {/* Nutrition Config Card */}
-                    <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Kandungan Gizi Label</h4>
-                        <select
-                          value={standaloneStikerMode}
-                          onChange={(e) => setStandaloneStikerMode(e.target.value as "all_besar" | "all_kecil" | "split")}
-                          className="p-1 bg-slate-950 border border-slate-800 rounded text-[11px] font-semibold text-indigo-300"
-                        >
-                          <option value="all_besar">Semua Porsi Besar</option>
-                          <option value="all_kecil">Semua Porsi Kecil</option>
-                          <option value="split">Campuran (Split)</option>
-                        </select>
-                      </div>
+                    {/* KONTROL KHUSUS: Template SE 2026 (Kotak Pengaduan & Wilayah) */}
+                    {standaloneStikerTemplate === "se2026" && (
+                      <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                          <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <span>Informasi Segel SE BGN 2026</span>
+                          </h4>
+                          <span className="text-[10px] text-slate-400">Auto dari referensi SPPG</span>
+                        </div>
 
-                      {/* Porsi Besar Grid */}
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] font-bold text-indigo-400 block">Porsi Besar:</span>
-                        <div className="grid grid-cols-5 gap-1.5">
-                          <input type="text" value={standaloneStikerGiziBesar.energi} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, energi: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Energi" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
-                          <input type="text" value={standaloneStikerGiziBesar.protein} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, protein: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Prot" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
-                          <input type="text" value={standaloneStikerGiziBesar.lemak} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, lemak: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Lemak" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
-                          <input type="text" value={standaloneStikerGiziBesar.karbohidrat} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, karbohidrat: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Karbo" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
-                          <input type="text" value={standaloneStikerGiziBesar.serat} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, serat: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Serat" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-slate-400">Keterangan Wilayah / Pelayanan (Kop Kiri)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerSubWilayah}
+                            onChange={(e) => setStandaloneStikerSubWilayah(e.target.value)}
+                            placeholder="Contoh: Kawasan Pelayanan Mandiri"
+                            className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-slate-400">Nomor WhatsApp Pengaduan (Segel Kanan)</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerWaPengaduan}
+                            onChange={(e) => setStandaloneStikerWaPengaduan(e.target.value)}
+                            placeholder="Contoh: 081234567890"
+                            className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-400">Akun TikTok</label>
+                            <input
+                              type="text"
+                              value={standaloneStikerTiktok}
+                              onChange={(e) => setStandaloneStikerTiktok(e.target.value)}
+                              placeholder="sppg_official"
+                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-400">Akun Instagram</label>
+                            <input
+                              type="text"
+                              value={standaloneStikerInstagram}
+                              onChange={(e) => setStandaloneStikerInstagram(e.target.value)}
+                              placeholder="sppg_official"
+                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-pink-500"
+                            />
+                          </div>
                         </div>
                       </div>
+                    )}
 
-                      {/* Porsi Kecil Grid */}
-                      <div className="space-y-1.5 pt-1.5 border-t border-slate-800/40">
-                        <span className="text-[10px] font-bold text-emerald-400 block">Porsi Kecil:</span>
-                        <div className="grid grid-cols-5 gap-1.5">
-                          <input type="text" value={standaloneStikerGiziKecil.energi} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, energi: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Energi" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
-                          <input type="text" value={standaloneStikerGiziKecil.protein} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, protein: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Prot" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
-                          <input type="text" value={standaloneStikerGiziKecil.lemak} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, lemak: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Lemak" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
-                          <input type="text" value={standaloneStikerGiziKecil.karbohidrat} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, karbohidrat: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Karbo" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
-                          <input type="text" value={standaloneStikerGiziKecil.serat} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, serat: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Serat" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                    {/* KONTROL KHUSUS: Template Klasik (Tabel Kandungan Gizi) */}
+                    {standaloneStikerTemplate === "classic" && (
+                      <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Kandungan Gizi Label</h4>
+                          <select
+                            value={standaloneStikerMode}
+                            onChange={(e) => setStandaloneStikerMode(e.target.value as "all_besar" | "all_kecil" | "split")}
+                            className="p-1 bg-slate-950 border border-slate-800 rounded text-[11px] font-semibold text-indigo-300"
+                          >
+                            <option value="all_besar">Semua Porsi Besar</option>
+                            <option value="all_kecil">Semua Porsi Kecil</option>
+                            <option value="split">Campuran (Split)</option>
+                          </select>
+                        </div>
+
+                        {/* Porsi Besar Grid */}
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold text-indigo-400 block">Porsi Besar:</span>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            <input type="text" value={standaloneStikerGiziBesar.energi} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, energi: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Energi" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                            <input type="text" value={standaloneStikerGiziBesar.protein} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, protein: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Prot" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                            <input type="text" value={standaloneStikerGiziBesar.lemak} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, lemak: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Lemak" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                            <input type="text" value={standaloneStikerGiziBesar.karbohidrat} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, karbohidrat: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Karbo" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                            <input type="text" value={standaloneStikerGiziBesar.serat} onChange={(e) => setStandaloneStikerGiziBesar({ ...standaloneStikerGiziBesar, serat: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Serat" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                          </div>
+                        </div>
+
+                        {/* Porsi Kecil Grid */}
+                        <div className="space-y-1.5 pt-1.5 border-t border-slate-800/40">
+                          <span className="text-[10px] font-bold text-emerald-400 block">Porsi Kecil:</span>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            <input type="text" value={standaloneStikerGiziKecil.energi} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, energi: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Energi" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                            <input type="text" value={standaloneStikerGiziKecil.protein} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, protein: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Prot" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                            <input type="text" value={standaloneStikerGiziKecil.lemak} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, lemak: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Lemak" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                            <input type="text" value={standaloneStikerGiziKecil.karbohidrat} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, karbohidrat: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Karbo" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                            <input type="text" value={standaloneStikerGiziKecil.serat} onChange={(e) => setStandaloneStikerGiziKecil({ ...standaloneStikerGiziKecil, serat: e.target.value })} onFocus={(e) => e.target.select()} placeholder="Serat" className="w-full p-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-center text-white" />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Right Column: Live Sheet Preview (7 Cols) */}
@@ -2575,21 +2777,29 @@ export default function Dashboard() {
                         <Printer size={15} className="text-indigo-400" />
                         <span>Pratinjau Lembar {standaloneStikerPaperSize.toUpperCase()} ({standaloneStikerCapacity} Label)</span>
                       </h4>
-                      <span className="text-[11px] text-emerald-400 font-medium">Batas Margin: 1.5 mm</span>
+                      <span className="text-[11px] text-emerald-400 font-medium">
+                        {standaloneStikerTemplate === "se2026" ? "Template SE BGN 2026" : "Template Klasik"}
+                      </span>
                     </div>
                     <div className="p-3 bg-slate-950 rounded-xl border border-slate-800/80 flex justify-center">
                       <StickerPreview
+                        templateType={standaloneStikerTemplate}
                         paperSize={standaloneStikerPaperSize}
                         capacity={standaloneStikerCapacity}
                         mode={standaloneStikerMode}
                         countBesar={standaloneStikerCountBesar}
                         sppgName={standaloneStikerSppg}
+                        subWilayah={standaloneStikerSubWilayah}
                         menu={standaloneStikerMenu}
                         tanggal={standaloneStikerTanggal}
                         jamSelesai={standaloneStikerJamSelesai}
                         jamBatas={standaloneStikerJamBatas}
                         giziBesar={standaloneStikerGiziBesar}
                         giziKecil={standaloneStikerGiziKecil}
+                        pairMode={standaloneStikerSEPairMode}
+                        waPengaduan={standaloneStikerWaPengaduan}
+                        tiktokPengaduan={standaloneStikerTiktok}
+                        igPengaduan={standaloneStikerInstagram}
                       />
                     </div>
                   </div>
@@ -3180,6 +3390,62 @@ export default function Dashboard() {
                       </div>
                     </div>
 
+                    {/* Kontak Pengaduan & Keterangan Sub Wilayah (Untuk Label SE 2026) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-emerald-400 uppercase flex items-center gap-1.5">
+                          <span>WA Kontak Pengaduan</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 081234567890"
+                          value={sppgForm.kontak_pengaduan || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, kontak_pengaduan: e.target.value })}
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                          <span>Keterangan Wilayah / Pelayanan</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: Kawasan Pelayanan Mandiri"
+                          value={sppgForm.sub_wilayah || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, sub_wilayah: e.target.value })}
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Akun Media Sosial SPPG */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-pink-400 uppercase flex items-center gap-1.5">
+                          <span>Instagram SPPG</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: sppg_bandung"
+                          value={sppgForm.instagram || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, instagram: e.target.value })}
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-pink-500 focus-visible:ring-2 focus-visible:ring-pink-500/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-300 uppercase flex items-center gap-1.5">
+                          <span>TikTok SPPG</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: sppg_bandung"
+                          value={sppgForm.tiktok || ""}
+                          onChange={(e) => setSppgForm({ ...sppgForm, tiktok: e.target.value })}
+                          className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 outline-none focus:border-slate-500 focus-visible:ring-2 focus-visible:ring-slate-500/50 text-xs"
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-400 uppercase">Porsi Besar (SD-SMP)</label>
@@ -3354,23 +3620,39 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Print-only sticker sheet â€” body-level SIBLING of #app-root (must NOT be
+      {/* Print-only sticker sheet — body-level SIBLING of #app-root (must NOT be
         inside it, since #app-root is display:none during sticker print) */}
       {activeTab === "stiker" && (
         <div id="sticker-print-root" className="hidden print:block">
-          <StickerPrintSheet
-            paperSize={standaloneStikerPaperSize}
-            capacity={standaloneStikerCapacity}
-            mode={standaloneStikerMode}
-            countBesar={standaloneStikerCountBesar}
-            sppgName={standaloneStikerSppg}
-            menu={standaloneStikerMenu}
-            tanggal={standaloneStikerTanggal}
-            jamSelesai={standaloneStikerJamSelesai}
-            jamBatas={standaloneStikerJamBatas}
-            giziBesar={standaloneStikerGiziBesar}
-            giziKecil={standaloneStikerGiziKecil}
-          />
+          {standaloneStikerTemplate === "se2026" ? (
+            <StickerPrintSheetSE
+              paperSize={standaloneStikerPaperSize}
+              capacity={standaloneStikerCapacity}
+              pairMode={standaloneStikerSEPairMode}
+              sppgName={standaloneStikerSppg}
+              subWilayah={standaloneStikerSubWilayah}
+              menu={standaloneStikerMenu}
+              tanggal={standaloneStikerTanggal}
+              jamBatas={standaloneStikerJamBatas}
+              waPengaduan={standaloneStikerWaPengaduan}
+              tiktokPengaduan={standaloneStikerTiktok}
+              igPengaduan={standaloneStikerInstagram}
+            />
+          ) : (
+            <StickerPrintSheet
+              paperSize={standaloneStikerPaperSize}
+              capacity={standaloneStikerCapacity}
+              mode={standaloneStikerMode}
+              countBesar={standaloneStikerCountBesar}
+              sppgName={standaloneStikerSppg}
+              menu={standaloneStikerMenu}
+              tanggal={standaloneStikerTanggal}
+              jamSelesai={standaloneStikerJamSelesai}
+              jamBatas={standaloneStikerJamBatas}
+              giziBesar={standaloneStikerGiziBesar}
+              giziKecil={standaloneStikerGiziKecil}
+            />
+          )}
         </div>
       )}
     </>

@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useLayoutEffect } from "react";
 import StickerPrintSheet from "@/components/StickerPrintSheet";
+import StickerPrintSheetSE from "@/components/StickerPrintSheetSE";
 import { PaperSize } from "@/components/StickerPrintSheet";
 
 interface StickerGizi {
@@ -13,17 +14,23 @@ interface StickerGizi {
 }
 
 interface StickerPreviewProps {
+  templateType?: "classic" | "se2026";
   paperSize?: PaperSize;
   capacity: number;
   mode: "all_besar" | "all_kecil" | "split";
   countBesar: number;
   sppgName: string;
+  subWilayah?: string;
   menu: string;
   tanggal: string;
   jamSelesai: string;
   jamBatas: string;
   giziBesar: StickerGizi;
   giziKecil: StickerGizi;
+  pairMode?: "pair" | "left_only" | "right_only";
+  waPengaduan?: string;
+  tiktokPengaduan?: string;
+  igPengaduan?: string;
 }
 
 // Preview of the sticker sheet scaled down to fit the container width while
@@ -85,7 +92,23 @@ export default function StickerPreview(props: StickerPreviewProps) {
             willChange: "transform",
           }}
         >
-          <StickerPrintSheet {...props} />
+          {props.templateType === "se2026" ? (
+            <StickerPrintSheetSE
+              paperSize={props.paperSize}
+              capacity={props.capacity}
+              pairMode={props.pairMode}
+              sppgName={props.sppgName}
+              subWilayah={props.subWilayah}
+              menu={props.menu}
+              tanggal={props.tanggal}
+              jamBatas={props.jamBatas}
+              waPengaduan={props.waPengaduan}
+              tiktokPengaduan={props.tiktokPengaduan}
+              igPengaduan={props.igPengaduan}
+            />
+          ) : (
+            <StickerPrintSheet {...props} />
+          )}
         </div>
       </div>
     </div>

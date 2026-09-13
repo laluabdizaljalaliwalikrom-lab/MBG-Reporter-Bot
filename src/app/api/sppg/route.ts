@@ -25,7 +25,20 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { nama_sppg, porsi_kecil = 0, porsi_besar = 0, balita = 0, bumil = 0, busui = 0, kepala_sppg = "", pengawas_gizi = "" } = body;
+    const {
+      nama_sppg,
+      porsi_kecil = 0,
+      porsi_besar = 0,
+      balita = 0,
+      bumil = 0,
+      busui = 0,
+      kepala_sppg = "",
+      pengawas_gizi = "",
+      kontak_pengaduan = "",
+      tiktok = "",
+      instagram = "",
+      sub_wilayah = ""
+    } = body;
 
     if (!nama_sppg || !nama_sppg.trim()) {
       return NextResponse.json(
@@ -44,7 +57,11 @@ export async function POST(request: Request) {
         bumil: Number(bumil),
         busui: Number(busui),
         kepala_sppg: kepala_sppg.trim(),
-        pengawas_gizi: pengawas_gizi.trim()
+        pengawas_gizi: pengawas_gizi.trim(),
+        kontak_pengaduan: kontak_pengaduan.trim(),
+        tiktok: tiktok.trim(),
+        instagram: instagram.trim(),
+        sub_wilayah: sub_wilayah.trim()
       })
       .select()
       .single();
@@ -72,7 +89,21 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, nama_sppg, porsi_kecil = 0, porsi_besar = 0, balita = 0, bumil = 0, busui = 0, kepala_sppg = "", pengawas_gizi = "" } = body;
+    const {
+      id,
+      nama_sppg,
+      porsi_kecil = 0,
+      porsi_besar = 0,
+      balita = 0,
+      bumil = 0,
+      busui = 0,
+      kepala_sppg = "",
+      pengawas_gizi = "",
+      kontak_pengaduan = "",
+      tiktok = "",
+      instagram = "",
+      sub_wilayah = ""
+    } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -98,7 +129,11 @@ export async function PUT(request: Request) {
         bumil: Number(bumil),
         busui: Number(busui),
         kepala_sppg: kepala_sppg.trim(),
-        pengawas_gizi: pengawas_gizi.trim()
+        pengawas_gizi: pengawas_gizi.trim(),
+        kontak_pengaduan: kontak_pengaduan.trim(),
+        tiktok: tiktok.trim(),
+        instagram: instagram.trim(),
+        sub_wilayah: sub_wilayah.trim()
       })
       .eq("id", id)
       .select()

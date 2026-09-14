@@ -588,8 +588,23 @@ export default function Dashboard() {
     try {
       const res = await fetch("/api/sppg");
       const json = await res.json();
-      if (json.status === "success") {
-        setSppgList(json.data || []);
+      if (json.status === "success" && Array.isArray(json.data)) {
+        const list = json.data;
+        setSppgList(list);
+        if (list.length > 0) {
+          // Otomatis sinkronkan form stiker dengan SPPG pertama dari database jika masih default
+          setStandaloneStikerSppg((prev) => {
+            if (!prev || prev === "SPPG KOTA BANDUNG" || !list.some((s: any) => s.nama_sppg === prev)) {
+              const first = list[0];
+              if (first.kontak_pengaduan) setStandaloneStikerWaPengaduan(first.kontak_pengaduan);
+              if (first.sub_wilayah) setStandaloneStikerSubWilayah(first.sub_wilayah);
+              if (first.tiktok) setStandaloneStikerTiktok(first.tiktok);
+              if (first.instagram) setStandaloneStikerInstagram(first.instagram);
+              return first.nama_sppg;
+            }
+            return prev;
+          });
+        }
       }
     } catch (err) {
       console.error("Gagal mengambil data SPPG:", err);
@@ -2692,7 +2707,7 @@ export default function Dashboard() {
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-slate-400">Nomor WhatsApp Pengaduan (Segel Kanan)</label>
+                          <label className="text-[11px] font-semibold text-slate-400">Nomor Telepon / WhatsApp Pengaduan (Segel Kanan)</label>
                           <input
                             type="text"
                             value={standaloneStikerWaPengaduan}
@@ -2704,16 +2719,6 @@ export default function Dashboard() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                           <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-slate-400">Akun TikTok</label>
-                            <input
-                              type="text"
-                              value={standaloneStikerTiktok}
-                              onChange={(e) => setStandaloneStikerTiktok(e.target.value)}
-                              placeholder="sppg_official"
-                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
                             <label className="text-[11px] font-semibold text-slate-400">Akun Instagram</label>
                             <input
                               type="text"
@@ -2721,6 +2726,16 @@ export default function Dashboard() {
                               onChange={(e) => setStandaloneStikerInstagram(e.target.value)}
                               placeholder="sppg_official"
                               className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-pink-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-400">Akun TikTok</label>
+                            <input
+                              type="text"
+                              value={standaloneStikerTiktok}
+                              onChange={(e) => setStandaloneStikerTiktok(e.target.value)}
+                              placeholder="sppg_official"
+                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
                             />
                           </div>
                         </div>

@@ -453,17 +453,17 @@ body {
   /* Paper sizes dynamically handled by sticker container dimensions */
   .sticker-a4-sheet {
     width: 210mm !important;
-    height: 296mm !important;
+    height: 297mm !important;
   }
 
   .sticker-f4-sheet {
     width: 215mm !important;
-    height: 329mm !important;
+    height: 330mm !important;
   }
 
   .sticker-a3-sheet {
     width: 297mm !important;
-    height: 419mm !important;
+    height: 420mm !important;
   }
 
   table, th, td {

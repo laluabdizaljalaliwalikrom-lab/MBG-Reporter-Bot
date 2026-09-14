@@ -47,9 +47,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data, error } = await supabase
+    let insertPayload: Record<string, any> = {
+      nama_sppg: nama_sppg.trim(),
+      porsi_kecil: Number(porsi_kecil),
+      porsi_besar: Number(porsi_besar),
+      balita: Number(balita),
+      bumil: Number(bumil),
+      busui: Number(busui),
+      kepala_sppg: kepala_sppg.trim(),
+      pengawas_gizi: pengawas_gizi.trim(),
+      kontak_pengaduan: kontak_pengaduan.trim(),
+      tiktok: tiktok.trim(),
+      instagram: instagram.trim(),
+      sub_wilayah: sub_wilayah.trim()
+    };
+
+    let { data, error } = await supabase
       .from("sppg_data")
-      .insert({
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    // Fallback jika kolom baru belum ditambahkan di database Supabase user
+    if (error && error.message && error.message.includes("schema cache")) {
+      const basicPayload = {
         nama_sppg: nama_sppg.trim(),
         porsi_kecil: Number(porsi_kecil),
         porsi_besar: Number(porsi_besar),
@@ -57,14 +78,22 @@ export async function POST(request: Request) {
         bumil: Number(bumil),
         busui: Number(busui),
         kepala_sppg: kepala_sppg.trim(),
-        pengawas_gizi: pengawas_gizi.trim(),
-        kontak_pengaduan: kontak_pengaduan.trim(),
-        tiktok: tiktok.trim(),
-        instagram: instagram.trim(),
-        sub_wilayah: sub_wilayah.trim()
-      })
-      .select()
-      .single();
+        pengawas_gizi: pengawas_gizi.trim()
+      };
+      const retry = await supabase
+        .from("sppg_data")
+        .insert(basicPayload)
+        .select()
+        .single();
+      
+      if (!retry.error) {
+        return NextResponse.json({
+          status: "success",
+          data: retry.data,
+          warning: "Kolom tambahan (instagram, tiktok, kontak_pengaduan, sub_wilayah) belum dibuat di Supabase. Jalankan query schema.sql di SQL Editor Supabase."
+        });
+      }
+    }
 
     if (error) {
       if (error.code === "23505") {
@@ -119,9 +148,31 @@ export async function PUT(request: Request) {
       );
     }
 
-    const { data, error } = await supabase
+    let updatePayload: Record<string, any> = {
+      nama_sppg: nama_sppg.trim(),
+      porsi_kecil: Number(porsi_kecil),
+      porsi_besar: Number(porsi_besar),
+      balita: Number(balita),
+      bumil: Number(bumil),
+      busui: Number(busui),
+      kepala_sppg: kepala_sppg.trim(),
+      pengawas_gizi: pengawas_gizi.trim(),
+      kontak_pengaduan: kontak_pengaduan.trim(),
+      tiktok: tiktok.trim(),
+      instagram: instagram.trim(),
+      sub_wilayah: sub_wilayah.trim()
+    };
+
+    let { data, error } = await supabase
       .from("sppg_data")
-      .update({
+      .update(updatePayload)
+      .eq("id", id)
+      .select()
+      .single();
+
+    // Fallback jika kolom baru belum ada di Supabase
+    if (error && error.message && error.message.includes("schema cache")) {
+      const basicPayload = {
         nama_sppg: nama_sppg.trim(),
         porsi_kecil: Number(porsi_kecil),
         porsi_besar: Number(porsi_besar),
@@ -129,15 +180,23 @@ export async function PUT(request: Request) {
         bumil: Number(bumil),
         busui: Number(busui),
         kepala_sppg: kepala_sppg.trim(),
-        pengawas_gizi: pengawas_gizi.trim(),
-        kontak_pengaduan: kontak_pengaduan.trim(),
-        tiktok: tiktok.trim(),
-        instagram: instagram.trim(),
-        sub_wilayah: sub_wilayah.trim()
-      })
-      .eq("id", id)
-      .select()
-      .single();
+        pengawas_gizi: pengawas_gizi.trim()
+      };
+      const retry = await supabase
+        .from("sppg_data")
+        .update(basicPayload)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (!retry.error) {
+        return NextResponse.json({
+          status: "success",
+          data: retry.data,
+          warning: "Kolom tambahan belum ada di Supabase. Jalankan query schema.sql di SQL Editor Supabase."
+        });
+      }
+    }
 
     if (error) {
       if (error.code === "23505") {

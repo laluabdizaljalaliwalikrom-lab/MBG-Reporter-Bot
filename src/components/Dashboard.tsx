@@ -40,11 +40,14 @@ import {
   Moon,
   ChefHat,
   Key,
-  Sparkles
+  Sparkles,
+  Smartphone,
+  SlidersHorizontal
 } from "lucide-react";
 import WeeklyReportView from "@/components/WeeklyReportView";
 import StickerPrintSheet from "@/components/StickerPrintSheet";
 import StickerPrintSheetSE from "@/components/StickerPrintSheetSE";
+import StickerRollGrozziie from "@/components/StickerRollGrozziie";
 import StickerPreview from "@/components/StickerPreview";
 import MBGMaker from "@/components/MBGMaker";
 import { toPng } from "html-to-image";
@@ -341,8 +344,11 @@ export default function Dashboard() {
   const [sppgSearch, setSppgSearch] = useState("");
 
   // Standalone Stiker Tab States
-  const [standaloneStikerTemplate, setStandaloneStikerTemplate] = useState<"se2026" | "classic">("se2026");
+  const [standaloneStikerTemplate, setStandaloneStikerTemplate] = useState<"se2026" | "classic" | "grozziie">("grozziie");
   const [standaloneStikerSEPairMode, setStandaloneStikerSEPairMode] = useState<"pair" | "left_only" | "right_only">("pair");
+  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(80);
+  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(130);
+  const [standaloneGrozziiePairMode, setStandaloneGrozziiePairMode] = useState<"both" | "left_only" | "right_only">("both");
   const [standaloneStikerSubWilayah, setStandaloneStikerSubWilayah] = useState<string>("Kawasan Pelayanan Mandiri");
   const [standaloneStikerWaPengaduan, setStandaloneStikerWaPengaduan] = useState<string>("081234567890");
   const [standaloneStikerTiktok, setStandaloneStikerTiktok] = useState<string>("sppg_bandung");
@@ -364,15 +370,45 @@ export default function Dashboard() {
 
   const getStickerTargetNode = () => {
     // Find the actual rendered sticker sheet inside the preview area.
-    // The preview is scaled with transform:scale, so we snapshot the inner
-    // sheet element at its true, unscaled size for a 1:1 download.
+    // If in Grozziie roll mode, target the grozziie container
+    if (standaloneStikerTemplate === "grozziie") {
+      return (document.querySelector("#app-root .grozziie-print-container") ||
+        document.querySelector("#app-root .grozziie-label-page")) as HTMLElement | null;
+    }
     return document.querySelector("#app-root .sticker-sheet") as HTMLElement | null;
   };
 
   const getPaperDimensionsMm = () => {
+    if (standaloneStikerTemplate === "grozziie") {
+      return {
+        widthMm: standaloneGrozziieWidth || 80,
+        heightMm: standaloneGrozziieHeight || 130,
+        format: [standaloneGrozziieWidth || 80, standaloneGrozziieHeight || 130] as [number, number],
+      };
+    }
     if (standaloneStikerPaperSize === "a3") return { widthMm: 297, heightMm: 420, format: "a3" as const };
     if (standaloneStikerPaperSize === "f4") return { widthMm: 215, heightMm: 330, format: [215, 330] as [number, number] };
     return { widthMm: 210, heightMm: 297, format: "a4" as const };
+  };
+
+  const handlePrintSticker = () => {
+    // Dynamically inject @page rule for Grozziie custom dimensions if active
+    let dynamicStyleEl = document.getElementById("dynamic-grozziie-page-style");
+    if (standaloneStikerTemplate === "grozziie") {
+      const w = standaloneGrozziieWidth || 80;
+      const h = standaloneGrozziieHeight || 130;
+      if (!dynamicStyleEl) {
+        dynamicStyleEl = document.createElement("style");
+        dynamicStyleEl.id = "dynamic-grozziie-page-style";
+        document.head.appendChild(dynamicStyleEl);
+      }
+      dynamicStyleEl.innerHTML = `@media print { @page { size: ${w}mm ${h}mm !important; margin: 0 !important; } }`;
+    } else {
+      if (dynamicStyleEl) {
+        dynamicStyleEl.remove();
+      }
+    }
+    window.print();
   };
 
   const handleDownloadStickerPNG = async () => {
@@ -402,11 +438,12 @@ export default function Dashboard() {
 
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = `Stiker_Ompreng_${standaloneStikerPaperSize.toUpperCase()}_${standaloneStikerTanggal || "MBG"}.png`;
+      const prefix = standaloneStikerTemplate === "grozziie" ? `Stiker_Grozziie_${standaloneGrozziieWidth}x${standaloneGrozziieHeight}mm` : `Stiker_Ompreng_${standaloneStikerPaperSize.toUpperCase()}`;
+      a.download = `${prefix}_${standaloneStikerTanggal || "MBG"}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      showSettingsToast("File PNG stiker utuh berhasil diunduh!", "success");
+      showSettingsToast("File PNG stiker resolusi tinggi berhasil diunduh!", "success");
     } catch (err) {
       console.error("Gagal download PNG stiker:", err);
       showSettingsToast("Gagal mengunduh gambar PNG stiker.", "error");
@@ -418,13 +455,50 @@ export default function Dashboard() {
   const handleDownloadStickerPDF = async () => {
     setIsDownloadingStickerPDF(true);
     try {
+      const { widthMm, heightMm, format } = getPaperDimensionsMm();
+
+      // If in Grozziie mode with both labels, download each label as a separate page
+      if (standaloneStikerTemplate === "grozziie") {
+        const pages = document.querySelectorAll("#app-root .grozziie-label-page");
+        if (pages.length === 0) throw new Error("Label Grozziie tidak ditemukan");
+
+        const pdfDoc = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: format,
+        });
+
+        for (let i = 0; i < pages.length; i++) {
+          if (i > 0) pdfDoc.addPage(format, "portrait");
+          const pageEl = pages[i] as HTMLElement;
+          const w = pageEl.scrollWidth || pageEl.offsetWidth;
+          const h = pageEl.scrollHeight || pageEl.offsetHeight;
+
+          const dataUrl = await toPng(pageEl, {
+            quality: 1,
+            pixelRatio: 3,
+            width: w,
+            height: h,
+            backgroundColor: "#ffffff",
+            cacheBust: true,
+            style: { margin: "0", transform: "none", overflow: "visible" },
+          });
+
+          pdfDoc.addImage(dataUrl, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
+        }
+
+        pdfDoc.save(`Stiker_Grozziie_${standaloneGrozziieWidth}x${standaloneGrozziieHeight}mm_${standaloneStikerTanggal || "MBG"}.pdf`);
+        showSettingsToast("File PDF stiker label roll siap cetak berhasil diunduh!", "success");
+        return;
+      }
+
+      // Normal multi-grid sheet (A4/F4/A3)
       const node = getStickerTargetNode();
       if (!node) throw new Error("Sticker sheet element not found");
 
       const width = node.scrollWidth || node.offsetWidth;
       const height = node.scrollHeight || node.offsetHeight;
 
-      // Generate ultra sharp image from the exact live preview without clipping
       const dataUrl = await toPng(node, {
         quality: 1,
         pixelRatio: 3,
@@ -439,15 +513,12 @@ export default function Dashboard() {
         }
       });
 
-      const { widthMm, heightMm, format } = getPaperDimensionsMm();
-
       const pdfDoc = new jsPDF({
         orientation: "portrait",
         unit: "mm",
         format: format,
       });
 
-      // Place image exactly on full sheet (0,0 to widthMm, heightMm)
       pdfDoc.addImage(dataUrl, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
       pdfDoc.save(`Stiker_Ompreng_${standaloneStikerPaperSize.toUpperCase()}_${standaloneStikerTanggal || "MBG"}.pdf`);
 
@@ -2413,11 +2484,15 @@ export default function Dashboard() {
 
                     <button
                       type="button"
-                      onClick={() => window.print()}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+                      onClick={handlePrintSticker}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 via-indigo-600 to-indigo-500 hover:from-emerald-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
                     >
                       <Printer size={15} />
-                      <span>Cetak ({standaloneStikerPaperSize.toUpperCase()})</span>
+                      <span>
+                        {standaloneStikerTemplate === "grozziie"
+                          ? `Cetak (${standaloneGrozziieWidth}×${standaloneGrozziieHeight}mm)`
+                          : `Cetak (${standaloneStikerPaperSize.toUpperCase()})`}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -2431,13 +2506,31 @@ export default function Dashboard() {
                       <label className="text-xs font-bold text-indigo-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Palette size={14} className="text-indigo-400" />
-                          <span>Pilih Template Stiker Segel</span>
+                          <span>Pilih Jenis & Template Stiker</span>
                         </span>
                         <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/30 font-semibold">
-                          {standaloneStikerTemplate === "se2026" ? "SE No. 21 / 2026" : "Klasik"}
+                          {standaloneStikerTemplate === "grozziie" ? "Printer Grozziie (Roll)" : standaloneStikerTemplate === "se2026" ? "Lembaran SE BGN" : "Lembaran Klasik"}
                         </span>
                       </label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setStandaloneStikerTemplate("grozziie")}
+                          className={`p-2.5 rounded-xl border text-left transition-all ${
+                            standaloneStikerTemplate === "grozziie"
+                              ? "bg-emerald-600/20 border-emerald-500 text-white shadow-sm shadow-emerald-500/20 ring-1 ring-emerald-500/50"
+                              : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="text-xs font-bold flex items-center gap-1.5">
+                            <Smartphone size={13} className={standaloneStikerTemplate === "grozziie" ? "text-emerald-400" : "text-slate-500"} />
+                            <span>Grozziie (Thermal Roll)</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                            Bluetooth & USB (80×130mm / Custom), cetak via Android/iOS/PC
+                          </p>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => setStandaloneStikerTemplate("se2026")}
@@ -2449,10 +2542,10 @@ export default function Dashboard() {
                         >
                           <div className="text-xs font-bold flex items-center gap-1.5">
                             <Sparkles size={13} className={standaloneStikerTemplate === "se2026" ? "text-amber-400" : "text-slate-500"} />
-                            <span>SE BGN 2026</span>
+                            <span>SE BGN 2026 (Lembaran)</span>
                           </div>
                           <p className="text-[10px] text-slate-400 mt-1 leading-tight">
-                            Segel 7×5 cm: Batas Waktu & Kotak Pengaduan
+                            Kertas A4/F4/A3 isi banyak (Segel Kiri & Kanan)
                           </p>
                         </button>
 
@@ -2547,113 +2640,136 @@ export default function Dashboard() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-slate-400">Nama Menu</label>
-                          <input
-                            type="text"
-                            value={standaloneStikerMenu}
-                            onChange={(e) => setStandaloneStikerMenu(e.target.value)}
-                            placeholder="Menu makanan..."
-                            className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-slate-400">Ukuran Kertas</label>
-                          <select
-                            value={standaloneStikerPaperSize}
-                            onChange={(e) => {
-                              const size = e.target.value as "a4" | "f4" | "a3";
-                              setStandaloneStikerPaperSize(size);
-                              let defCap = 12;
-                              if (size === "f4") defCap = 14;
-                              if (size === "a3") defCap = 24;
-                              setStandaloneStikerCapacity(defCap);
-                              setStandaloneStikerCountBesar(Math.floor(defCap / 2));
-                            }}
-                            className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-amber-300 outline-none focus:border-indigo-500 cursor-pointer"
-                          >
-                            <option value="a4">Kertas A4 (210×297 mm)</option>
-                            <option value="f4">Kertas F4 / Folio (215×330 mm)</option>
-                            <option value="a3">Kertas A3 (297×420 mm)</option>
-                          </select>
-                        </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-400">Nama Menu</label>
+                        <input
+                          type="text"
+                          value={standaloneStikerMenu}
+                          onChange={(e) => setStandaloneStikerMenu(e.target.value)}
+                          placeholder="Menu makanan..."
+                          className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                        />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-slate-400">Jumlah Label / Lembar</label>
-                          <select
-                            value={standaloneStikerCapacity}
-                            onChange={(e) => {
-                              const cap = parseInt(e.target.value);
-                              setStandaloneStikerCapacity(cap);
-                              setStandaloneStikerCountBesar(Math.floor(cap / 2));
-                            }}
-                            className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-indigo-300 outline-none focus:border-indigo-500 cursor-pointer"
-                          >
-                            {standaloneStikerPaperSize === "a4" && (
-                              <>
-                                <option value="6">6 Label (2x3 - Jumbo)</option>
-                                <option value="8">8 Label (2x4 - Sangat Besar)</option>
-                                <option value="10">10 Label (2x5 - Besar)</option>
-                                <option value="12">12 Label (2x6 - Standar 7x5cm)</option>
-                                <option value="16">16 Label (2x8 - Kompak)</option>
-                                <option value="24">24 Label (3x8 - Padat)</option>
-                              </>
-                            )}
-                            {standaloneStikerPaperSize === "f4" && (
-                              <>
-                                <option value="6">6 Label (2x3 - Jumbo)</option>
-                                <option value="8">8 Label (2x4 - Sangat Besar)</option>
-                                <option value="10">10 Label (2x5 - Besar)</option>
-                                <option value="14">14 Label (2x7 - Standar Folio)</option>
-                                <option value="18">18 Label (2x9 - Sedang)</option>
-                                <option value="28">28 Label (3x10 - Padat)</option>
-                              </>
-                            )}
-                            {standaloneStikerPaperSize === "a3" && (
-                              <>
-                                <option value="8">8 Label (2x4 - Super Jumbo)</option>
-                                <option value="12">12 Label (3x4 - Sangat Besar)</option>
-                                <option value="16">16 Label (2x8 - Besar)</option>
-                                <option value="24">24 Label (3x8 - Standar A3)</option>
-                                <option value="32">32 Label (4x8 - Padat)</option>
-                                <option value="48">48 Label (4x12 - Maksimal)</option>
-                              </>
-                            )}
-                          </select>
-                        </div>
+                      {/* KHUSUS: Setting Kertas Printer Grozziie (Roll) */}
+                      {standaloneStikerTemplate === "grozziie" ? (
+                        <div className="p-3.5 bg-slate-950/80 border border-emerald-500/30 rounded-xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                              <SlidersHorizontal size={13} />
+                              <span>Ukuran Kertas Label Roll Grozziie</span>
+                            </span>
+                            <span className="text-[10px] text-slate-400">Dapat diubah</span>
+                          </div>
 
-                        {standaloneStikerTemplate === "se2026" ? (
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-slate-400">Format Segel Pasangan</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-slate-400">Lebar (mm)</label>
+                              <input
+                                type="number"
+                                min={40}
+                                max={120}
+                                value={standaloneGrozziieWidth}
+                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 80)}
+                                className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-slate-400">Tinggi / Panjang (mm)</label>
+                              <input
+                                type="number"
+                                min={50}
+                                max={250}
+                                value={standaloneGrozziieHeight}
+                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 130)}
+                                className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 pt-1">
+                            <label className="text-[10px] font-semibold text-slate-400">Format Cetak Segel Roll</label>
                             <select
-                              value={standaloneStikerSEPairMode}
-                              onChange={(e) => setStandaloneStikerSEPairMode(e.target.value as "pair" | "left_only" | "right_only")}
-                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-emerald-300 outline-none focus:border-indigo-500 cursor-pointer"
+                              value={standaloneGrozziiePairMode}
+                              onChange={(e) => setStandaloneGrozziiePairMode(e.target.value as "both" | "left_only" | "right_only")}
+                              className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
                             >
-                              <option value="pair">Pasangan (Kiri & Kanan)</option>
-                              <option value="left_only">Hanya Segel Kiri (Jam Batas)</option>
-                              <option value="right_only">Hanya Segel Kanan (Pengaduan)</option>
+                              <option value="both">Pasangan: Kiri (Jam Batas) & Kanan (Pengaduan)</option>
+                              <option value="left_only">Hanya Segel Kiri (Jam Batas Konsumsi)</option>
+                              <option value="right_only">Hanya Segel Kanan (Layanan Pengaduan)</option>
                             </select>
                           </div>
-                        ) : (
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-slate-400">Distribusi Porsi</label>
+                            <label className="text-[11px] font-semibold text-slate-400">Ukuran Kertas</label>
                             <select
-                              value={standaloneStikerMode}
-                              onChange={(e) => setStandaloneStikerMode(e.target.value as "all_besar" | "all_kecil" | "split")}
+                              value={standaloneStikerPaperSize}
+                              onChange={(e) => {
+                                const size = e.target.value as "a4" | "f4" | "a3";
+                                setStandaloneStikerPaperSize(size);
+                                let defCap = 12;
+                                if (size === "f4") defCap = 14;
+                                if (size === "a3") defCap = 24;
+                                setStandaloneStikerCapacity(defCap);
+                                setStandaloneStikerCountBesar(Math.floor(defCap / 2));
+                              }}
+                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-amber-300 outline-none focus:border-indigo-500 cursor-pointer"
+                            >
+                              <option value="a4">Kertas A4 (210×297 mm)</option>
+                              <option value="f4">Kertas F4 / Folio (215×330 mm)</option>
+                              <option value="a3">Kertas A3 (297×420 mm)</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-400">Jumlah Label / Lembar</label>
+                            <select
+                              value={standaloneStikerCapacity}
+                              onChange={(e) => {
+                                const cap = parseInt(e.target.value);
+                                setStandaloneStikerCapacity(cap);
+                                setStandaloneStikerCountBesar(Math.floor(cap / 2));
+                              }}
                               className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-indigo-300 outline-none focus:border-indigo-500 cursor-pointer"
                             >
-                              <option value="all_besar">Semua Porsi Besar</option>
-                              <option value="all_kecil">Semua Porsi Kecil</option>
-                              <option value="split">Campuran (Split)</option>
+                              {standaloneStikerPaperSize === "a4" && (
+                                <>
+                                  <option value="6">6 Label (2x3 - Jumbo)</option>
+                                  <option value="8">8 Label (2x4 - Sangat Besar)</option>
+                                  <option value="10">10 Label (2x5 - Besar)</option>
+                                  <option value="12">12 Label (2x6 - Standar 7x5cm)</option>
+                                  <option value="16">16 Label (2x8 - Kompak)</option>
+                                  <option value="24">24 Label (3x8 - Padat)</option>
+                                </>
+                              )}
+                              {standaloneStikerPaperSize === "f4" && (
+                                <>
+                                  <option value="6">6 Label (2x3 - Jumbo)</option>
+                                  <option value="8">8 Label (2x4 - Sangat Besar)</option>
+                                  <option value="10">10 Label (2x5 - Besar)</option>
+                                  <option value="14">14 Label (2x7 - Standar Folio)</option>
+                                  <option value="18">18 Label (2x9 - Sedang)</option>
+                                  <option value="28">28 Label (3x10 - Padat)</option>
+                                </>
+                              )}
+                              {standaloneStikerPaperSize === "a3" && (
+                                <>
+                                  <option value="8">8 Label (2x4 - Super Jumbo)</option>
+                                  <option value="12">12 Label (3x4 - Sangat Besar)</option>
+                                  <option value="16">16 Label (2x8 - Besar)</option>
+                                  <option value="24">24 Label (3x8 - Standar A3)</option>
+                                  <option value="32">32 Label (4x8 - Padat)</option>
+                                  <option value="48">48 Label (4x12 - Maksimal)</option>
+                                </>
+                              )}
                             </select>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
+                      {/* Tanggal & Jam Batas */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-800/60">
                         <div className="space-y-1">
                           <label className="text-[10px] font-semibold text-slate-400">Tanggal</label>
@@ -2685,12 +2801,12 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    {/* KONTROL KHUSUS: Template SE 2026 (Kotak Pengaduan & Wilayah) */}
-                    {standaloneStikerTemplate === "se2026" && (
+                    {/* KONTROL KHUSUS: Template SE 2026 & Grozziie (Kotak Pengaduan & Wilayah) */}
+                    {(standaloneStikerTemplate === "se2026" || standaloneStikerTemplate === "grozziie") && (
                       <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
                         <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                           <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <span>Informasi Segel SE BGN 2026</span>
+                            <span>Informasi Segel & Pengaduan SPPG</span>
                           </h4>
                           <span className="text-[10px] text-slate-400">Auto dari referensi SPPG</span>
                         </div>
@@ -2739,6 +2855,19 @@ export default function Dashboard() {
                             />
                           </div>
                         </div>
+
+                        {/* Tips Cetak di Android & iOS */}
+                        {standaloneStikerTemplate === "grozziie" && (
+                          <div className="p-3 bg-emerald-950/30 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-300 leading-relaxed mt-2 space-y-1">
+                            <strong className="block text-emerald-200 font-bold">💡 Tips Cetak via Android & iPhone:</strong>
+                            <p>
+                              1. <strong>Cetak Langsung:</strong> Hubungkan printer Grozziie via Bluetooth / USB, lalu klik tombol <em>Cetak (80×130mm)</em> di atas.
+                            </p>
+                            <p>
+                              2. <strong>Via Aplikasi Grozziie:</strong> Anda juga bisa klik <em>Download PNG</em> atau <em>Download PDF</em>, lalu buka file dari aplikasi resmi Grozziie di HP untuk mencetak instan!
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -2790,16 +2919,27 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold text-white flex items-center gap-2">
                         <Printer size={15} className="text-indigo-400" />
-                        <span>Pratinjau Lembar {standaloneStikerPaperSize.toUpperCase()} ({standaloneStikerCapacity} Label)</span>
+                        <span>
+                          {standaloneStikerTemplate === "grozziie"
+                            ? `Pratinjau Label Grozziie (${standaloneGrozziieWidth}×${standaloneGrozziieHeight} mm)`
+                            : `Pratinjau Lembar ${standaloneStikerPaperSize.toUpperCase()} (${standaloneStikerCapacity} Label)`}
+                        </span>
                       </h4>
                       <span className="text-[11px] text-emerald-400 font-medium">
-                        {standaloneStikerTemplate === "se2026" ? "Template SE BGN 2026" : "Template Klasik"}
+                        {standaloneStikerTemplate === "grozziie"
+                          ? "Format Segel Roll (Kiri & Kanan)"
+                          : standaloneStikerTemplate === "se2026"
+                          ? "Template SE BGN 2026"
+                          : "Template Klasik"}
                       </span>
                     </div>
                     <div className="p-3 bg-slate-950 rounded-xl border border-slate-800/80 flex justify-center">
                       <StickerPreview
                         templateType={standaloneStikerTemplate}
                         paperSize={standaloneStikerPaperSize}
+                        grozziieWidthMm={standaloneGrozziieWidth}
+                        grozziieHeightMm={standaloneGrozziieHeight}
+                        grozziiePairMode={standaloneGrozziiePairMode}
                         capacity={standaloneStikerCapacity}
                         mode={standaloneStikerMode}
                         countBesar={standaloneStikerCountBesar}
@@ -3639,7 +3779,22 @@ export default function Dashboard() {
         inside it, since #app-root is display:none during sticker print) */}
       {activeTab === "stiker" && (
         <div id="sticker-print-root" className="hidden print:block">
-          {standaloneStikerTemplate === "se2026" ? (
+          {standaloneStikerTemplate === "grozziie" ? (
+            <StickerRollGrozziie
+              widthMm={standaloneGrozziieWidth}
+              heightMm={standaloneGrozziieHeight}
+              pairMode={standaloneGrozziiePairMode}
+              sppgName={standaloneStikerSppg}
+              subWilayah={standaloneStikerSubWilayah}
+              menu={standaloneStikerMenu}
+              tanggal={standaloneStikerTanggal}
+              jamSelesai={standaloneStikerJamSelesai}
+              jamBatas={standaloneStikerJamBatas}
+              waPengaduan={standaloneStikerWaPengaduan}
+              tiktokPengaduan={standaloneStikerTiktok}
+              igPengaduan={standaloneStikerInstagram}
+            />
+          ) : standaloneStikerTemplate === "se2026" ? (
             <StickerPrintSheetSE
               paperSize={standaloneStikerPaperSize}
               capacity={standaloneStikerCapacity}

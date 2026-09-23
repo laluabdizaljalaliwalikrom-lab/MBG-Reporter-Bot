@@ -466,6 +466,20 @@ body {
     height: 420mm !important;
   }
 
+  /* Grozziie Label Roll Thermal Printer Styles */
+  .grozziie-print-container {
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .grozziie-label-page {
+    page-break-after: always !important;
+    break-after: page !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
   table, th, td {
     border-color: #000000 !important;
     background-color: #ffffff !important;

@@ -3,6 +3,7 @@
 import React, { useRef, useState, useLayoutEffect } from "react";
 import StickerPrintSheet from "@/components/StickerPrintSheet";
 import StickerPrintSheetSE from "@/components/StickerPrintSheetSE";
+import StickerRollGrozziie from "@/components/StickerRollGrozziie";
 import { PaperSize } from "@/components/StickerPrintSheet";
 
 interface StickerGizi {
@@ -14,8 +15,11 @@ interface StickerGizi {
 }
 
 interface StickerPreviewProps {
-  templateType?: "classic" | "se2026";
+  templateType?: "classic" | "se2026" | "grozziie";
   paperSize?: PaperSize;
+  grozziieWidthMm?: number;
+  grozziieHeightMm?: number;
+  grozziiePairMode?: "both" | "left_only" | "right_only";
   capacity: number;
   mode: "all_besar" | "all_kecil" | "split";
   countBesar: number;
@@ -92,7 +96,22 @@ export default function StickerPreview(props: StickerPreviewProps) {
             willChange: "transform",
           }}
         >
-          {props.templateType === "se2026" ? (
+          {props.templateType === "grozziie" ? (
+            <StickerRollGrozziie
+              widthMm={props.grozziieWidthMm}
+              heightMm={props.grozziieHeightMm}
+              pairMode={props.grozziiePairMode || "both"}
+              sppgName={props.sppgName}
+              subWilayah={props.subWilayah}
+              menu={props.menu}
+              tanggal={props.tanggal}
+              jamSelesai={props.jamSelesai}
+              jamBatas={props.jamBatas}
+              waPengaduan={props.waPengaduan}
+              tiktokPengaduan={props.tiktokPengaduan}
+              igPengaduan={props.igPengaduan}
+            />
+          ) : props.templateType === "se2026" ? (
             <StickerPrintSheetSE
               paperSize={props.paperSize}
               capacity={props.capacity}

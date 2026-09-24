@@ -20,8 +20,8 @@ export interface StickerRollGrozziieProps {
 
 export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
   const {
-    widthMm = 130,
-    heightMm = 80,
+    widthMm = 78,
+    heightMm = 100,
     sppgName = "SPPG KOTA BANDUNG",
     subWilayah = "Kawasan Pelayanan Mandiri",
     jamBatas = "10.00",

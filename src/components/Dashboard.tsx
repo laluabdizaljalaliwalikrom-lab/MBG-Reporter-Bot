@@ -348,11 +348,12 @@ export default function Dashboard() {
   // Standalone Stiker Tab States
   const [standaloneStikerTemplate, setStandaloneStikerTemplate] = useState<"se2026" | "classic" | "grozziie">("grozziie");
   const [standaloneStikerSEPairMode, setStandaloneStikerSEPairMode] = useState<"pair" | "left_only" | "right_only">("pair");
-  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(130);
-  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(80);
+  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(78);
+  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(100);
   const [standaloneGrozziiePairMode, setStandaloneGrozziiePairMode] = useState<"both" | "left_only" | "right_only">("both");
   const [standaloneGrozziieXOffset, setStandaloneGrozziieXOffset] = useState<number>(0);
   const [standaloneGrozziieDirection, setStandaloneGrozziieDirection] = useState<0 | 1>(0);
+  const [standaloneGrozziieRotate90, setStandaloneGrozziieRotate90] = useState<boolean>(false);
   const [standaloneStikerSubWilayah, setStandaloneStikerSubWilayah] = useState<string>("Kawasan Pelayanan Mandiri");
   const [standaloneStikerWaPengaduan, setStandaloneStikerWaPengaduan] = useState<string>("081234567890");
   const [standaloneStikerTiktok, setStandaloneStikerTiktok] = useState<string>("sppg_bandung");
@@ -399,6 +400,7 @@ export default function Dashboard() {
         await directPrintElementViaBle(pageEl, w, h, (msg) => setBleStatusText(msg), {
           xOffsetDots: Math.round(standaloneGrozziieXOffset * 8), // convert mm to dots
           direction: standaloneGrozziieDirection,
+          rotate90: standaloneGrozziieRotate90,
         });
       }
 
@@ -2764,7 +2766,7 @@ export default function Dashboard() {
                                 min={40}
                                 max={250}
                                 value={standaloneGrozziieWidth}
-                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 130)}
+                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 78)}
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
                               />
                             </div>
@@ -2775,7 +2777,7 @@ export default function Dashboard() {
                                 min={30}
                                 max={200}
                                 value={standaloneGrozziieHeight}
-                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 80)}
+                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 100)}
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
                               />
                             </div>
@@ -2813,31 +2815,47 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <div className="space-y-1 pt-1">
-                            <label className="text-[10px] font-semibold text-slate-400">Arah Orientasi Cetak (Direction)</label>
-                            <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-slate-400">Rotasi Desain (90°)</label>
                               <button
                                 type="button"
-                                onClick={() => setStandaloneGrozziieDirection(0)}
-                                className={`p-1.5 text-xs rounded-lg border font-semibold transition-all ${
-                                  standaloneGrozziieDirection === 0
-                                    ? "bg-emerald-600/30 border-emerald-500 text-emerald-300"
+                                onClick={() => setStandaloneGrozziieRotate90(!standaloneGrozziieRotate90)}
+                                className={`w-full p-2 text-xs rounded-lg border font-bold transition-all ${
+                                  standaloneGrozziieRotate90
+                                    ? "bg-emerald-600/30 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/50"
                                     : "bg-slate-900 border-slate-800 text-slate-400"
                                 }`}
                               >
-                                Normal (0°)
+                                {standaloneGrozziieRotate90 ? "Aktif (Putar 90°)" : "Nonaktif (0°)"}
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => setStandaloneGrozziieDirection(1)}
-                                className={`p-1.5 text-xs rounded-lg border font-semibold transition-all ${
-                                  standaloneGrozziieDirection === 1
-                                    ? "bg-emerald-600/30 border-emerald-500 text-emerald-300"
-                                    : "bg-slate-900 border-slate-800 text-slate-400"
-                                }`}
-                              >
-                                Putar 180° (Balik)
-                              </button>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-slate-400">Arah Printhead (Direction)</label>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setStandaloneGrozziieDirection(0)}
+                                  className={`p-2 text-[11px] rounded-lg border font-semibold transition-all ${
+                                    standaloneGrozziieDirection === 0
+                                      ? "bg-emerald-600/30 border-emerald-500 text-emerald-300"
+                                      : "bg-slate-900 border-slate-800 text-slate-400"
+                                  }`}
+                                >
+                                  0°
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setStandaloneGrozziieDirection(1)}
+                                  className={`p-2 text-[11px] rounded-lg border font-semibold transition-all ${
+                                    standaloneGrozziieDirection === 1
+                                      ? "bg-emerald-600/30 border-emerald-500 text-emerald-300"
+                                      : "bg-slate-900 border-slate-800 text-slate-400"
+                                  }`}
+                                >
+                                  180°
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>

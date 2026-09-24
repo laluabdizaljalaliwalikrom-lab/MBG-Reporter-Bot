@@ -225,6 +225,7 @@ export function imageToTsplBytes(
     yOffsetDots?: number;
     direction?: 0 | 1;
     gapMm?: number;
+    rotate90?: boolean;
   } = {}
 ): Uint8Array {
   // Standard thermal print resolution: 203 DPI ≈ 8 dots per mm
@@ -234,6 +235,7 @@ export function imageToTsplBytes(
   const yOffset = options.yOffsetDots ?? 0;
   const dir = options.direction ?? 0;
   const gap = options.gapMm ?? 2;
+  const shouldRotate = options.rotate90 ?? false;
 
   // Create an accurately sized offscreen canvas matched exactly to the physical print dots
   const offscreen = document.createElement("canvas");
@@ -246,9 +248,17 @@ export function imageToTsplBytes(
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, targetDotsWidth, targetDotsHeight);
 
-  // Draw source image shifted directly by xOffset and yOffset on the canvas itself!
-  // This guarantees physical shifting even if the printer's BITMAP command ignores x offset.
-  ctx.drawImage(sourceCanvas, xOffset, yOffset, targetDotsWidth, targetDotsHeight);
+  if (shouldRotate) {
+    // Rotate 90 degrees clockwise to print landscape design across vertical 78x100mm feed
+    ctx.save();
+    ctx.translate(targetDotsWidth / 2 + xOffset, targetDotsHeight / 2 + yOffset);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(sourceCanvas, -targetDotsHeight / 2, -targetDotsWidth / 2, targetDotsHeight, targetDotsWidth);
+    ctx.restore();
+  } else {
+    // Standard direct drawing
+    ctx.drawImage(sourceCanvas, xOffset, yOffset, targetDotsWidth, targetDotsHeight);
+  }
 
   const imgData = ctx.getImageData(0, 0, targetDotsWidth, targetDotsHeight);
   const pixels = imgData.data;
@@ -311,6 +321,7 @@ export async function directPrintElementViaBle(
     yOffsetDots?: number;
     direction?: 0 | 1;
     gapMm?: number;
+    rotate90?: boolean;
   } = {}
 ): Promise<void> {
   const { toCanvas } = await import("html-to-image");

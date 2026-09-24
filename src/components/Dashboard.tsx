@@ -348,8 +348,8 @@ export default function Dashboard() {
   // Standalone Stiker Tab States
   const [standaloneStikerTemplate, setStandaloneStikerTemplate] = useState<"se2026" | "classic" | "grozziie">("grozziie");
   const [standaloneStikerSEPairMode, setStandaloneStikerSEPairMode] = useState<"pair" | "left_only" | "right_only">("pair");
-  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(78);
-  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(100);
+  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(100);
+  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(78);
   const [standaloneGrozziiePairMode, setStandaloneGrozziiePairMode] = useState<"both" | "left_only" | "right_only">("both");
   const [standaloneGrozziieXOffset, setStandaloneGrozziieXOffset] = useState<number>(0);
   const [standaloneGrozziieDirection, setStandaloneGrozziieDirection] = useState<0 | 1>(0);
@@ -2766,7 +2766,7 @@ export default function Dashboard() {
                                 min={40}
                                 max={250}
                                 value={standaloneGrozziieWidth}
-                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 78)}
+                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 100)}
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
                               />
                             </div>
@@ -2777,7 +2777,7 @@ export default function Dashboard() {
                                 min={30}
                                 max={200}
                                 value={standaloneGrozziieHeight}
-                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 100)}
+                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 78)}
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
                               />
                             </div>

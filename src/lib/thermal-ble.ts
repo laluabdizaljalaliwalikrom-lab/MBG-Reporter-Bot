@@ -228,63 +228,98 @@ export function imageToTsplBytes(
     rotate90?: boolean;
   } = {}
 ): Uint8Array {
+  /**
+   * PENTING — konvensi dimensi:
+   * widthMm  = lebar FISIK kertas (arah melintang / cross-feed), mis. 78mm
+   * heightMm = panjang FISIK label (arah feed), mis. 100mm
+   *
+   * TSPL SIZE harus selalu sesuai dimensi fisik kertas,
+   * bukan dimensi visual label. Jika gambar sumber landscape
+   * (lebar > tinggi) tapi kertas portrait (tinggi > lebar),
+   * gambar dirotasi 90° otomatis di canvas agar secara visual
+   * tetap landscape tanpa melebihi batas cetak kertas.
+   */
+
   // Standard thermal print resolution: 203 DPI ≈ 8 dots per mm
-  const targetDotsWidth = Math.round(widthMm * 8);
-  const targetDotsHeight = Math.round(heightMm * 8);
+  // widthMm/heightMm harus sesuai dimensi FISIK kertas
+  const physDotsW = Math.round(widthMm * 8);   // dots searah lebar kertas
+  const physDotsH = Math.round(heightMm * 8);  // dots searah panjang feed
   const xOffset = options.xOffsetDots ?? 0;
   const yOffset = options.yOffsetDots ?? 0;
   const dir = options.direction ?? 0;
   const gap = options.gapMm ?? 2;
-  const shouldRotate = options.rotate90 ?? false;
 
-  // Create an accurately sized offscreen canvas matched exactly to the physical print dots
+  // Deteksi apakah perlu rotasi:
+  // Sumber landscape (lebar > tinggi) tapi kertas portrait (tinggi > lebar) → putar 90°
+  // atau user memaksa rotate90 = true
+  const srcIsLandscape = sourceCanvas.width > sourceCanvas.height;
+  const paperIsPortrait = physDotsH > physDotsW;
+  const autoRotate = (srcIsLandscape && paperIsPortrait) || (options.rotate90 ?? false);
+
+  // Canvas offscreen selalu sesuai dimensi FISIK kertas
   const offscreen = document.createElement("canvas");
-  offscreen.width = targetDotsWidth;
-  offscreen.height = targetDotsHeight;
+  offscreen.width = physDotsW;
+  offscreen.height = physDotsH;
   const ctx = offscreen.getContext("2d");
   if (!ctx) throw new Error("Gagal menginisialisasi canvas bitmap printer.");
 
-  // Fill with pure white background
+  // Latar belakang putih
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, targetDotsWidth, targetDotsHeight);
+  ctx.fillRect(0, 0, physDotsW, physDotsH);
 
-  if (shouldRotate) {
-    // When rotating 90 degrees:
-    // sourceCanvas is landscape (width > height), to fit onto portrait canvas (targetDotsWidth x targetDotsHeight)
-    // The rotated image has dimensions: targetDotsHeight (along Y) and targetDotsWidth (along X)
-    const scale = Math.min(targetDotsWidth / sourceCanvas.height, targetDotsHeight / sourceCanvas.width);
+  /**
+   * CATATAN KOORDINAT PRINTER:
+   * Tidak semua printer TSPL memiliki x=0 di sisi kiri fisik kertas.
+   * Pada Grozziie TP876Plus, x=0 berada di sisi KANAN fisik kertas.
+   * Oleh karena itu kita TIDAK boleh memberikan margin hanya di satu sisi.
+   * Solusi: center konten di tengah persis (physDotsW/2) dengan margin
+   * SIMETRIS di kedua sisi, sehingga apapun orientasi x-axis printer,
+   * konten tetap berada di tengah kertas.
+   */
+
+  // Margin simetris 6% di kiri-kanan, 2% di atas-bawah
+  const marginW = Math.round(physDotsW * 0.06); // ~4.7mm pada 78mm kertas
+  const marginH = Math.round(physDotsH * 0.02);
+  const printW = physDotsW - marginW * 2;  // area cetak aktif (horizontal)
+  const printH = physDotsH - marginH * 2;  // area cetak aktif (vertikal)
+
+  if (autoRotate) {
+    // Gambar dirotasi 90° CW — sumbu landscape-x menjadi sumbu canvas-y dan sebaliknya.
+    // Setelah rotasi: src.width → arah H canvas, src.height → arah W canvas
+    const scale = Math.min(printW / sourceCanvas.height, printH / sourceCanvas.width);
     const drawW = sourceCanvas.width * scale;
     const drawH = sourceCanvas.height * scale;
 
+    // Center tepat di tengah canvas — xOffset untuk kalibrasi manual
+    const cx = physDotsW / 2 + xOffset;
+    const cy = physDotsH / 2 + yOffset;
+
     ctx.save();
-    ctx.translate(targetDotsWidth / 2 + xOffset, targetDotsHeight / 2 + yOffset);
+    ctx.translate(cx, cy);
     ctx.rotate(Math.PI / 2);
     ctx.drawImage(sourceCanvas, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
   } else {
-    // Fit source canvas proportionately with safe margins
-    // Grozziie TP876Plus has a 72mm active print zone on a 78mm paper (approx 3mm unprintable margin on edges)
-    const safeWidth = Math.max(targetDotsWidth - 24, 100); // 24 dots ≈ 3mm margin
-    const scale = Math.min(safeWidth / sourceCanvas.width, targetDotsHeight / sourceCanvas.height);
+    // Tanpa rotasi — center konten secara simetris
+    const scale = Math.min(printW / sourceCanvas.width, printH / sourceCanvas.height);
     const drawW = sourceCanvas.width * scale;
     const drawH = sourceCanvas.height * scale;
-    // Center horizontally with user offset
-    const posX = Math.max(0, Math.round((targetDotsWidth - drawW) / 2) + xOffset);
-    const posY = Math.max(0, Math.round((targetDotsHeight - drawH) / 2) + yOffset);
+    const posX = Math.round((physDotsW - drawW) / 2) + xOffset;
+    const posY = Math.round((physDotsH - drawH) / 2) + yOffset;
 
     ctx.drawImage(sourceCanvas, posX, posY, drawW, drawH);
   }
 
-  const imgData = ctx.getImageData(0, 0, targetDotsWidth, targetDotsHeight);
+  const imgData = ctx.getImageData(0, 0, physDotsW, physDotsH);
   const pixels = imgData.data;
 
   // In TSPL, byteWidth is the number of bytes per horizontal line: ceil(width / 8)
-  const byteWidth = Math.ceil(targetDotsWidth / 8);
-  const bitmapBuffer = new Uint8Array(byteWidth * targetDotsHeight);
+  const byteWidth = Math.ceil(physDotsW / 8);
+  const bitmapBuffer = new Uint8Array(byteWidth * physDotsH);
 
-  for (let y = 0; y < targetDotsHeight; y++) {
-    for (let x = 0; x < targetDotsWidth; x++) {
-      const idx = (y * targetDotsWidth + x) * 4;
+  for (let y = 0; y < physDotsH; y++) {
+    for (let x = 0; x < physDotsW; x++) {
+      const idx = (y * physDotsW + x) * 4;
       const r = pixels[idx];
       const g = pixels[idx + 1];
       const b = pixels[idx + 2];
@@ -301,7 +336,7 @@ export function imageToTsplBytes(
     }
   }
 
-  // Build TSPL command header & footer with REFERENCE and SHIFT compensation
+  // Build TSPL command — SIZE pakai dimensi FISIK kertas agar tidak terpotong
   const encoder = new TextEncoder();
   const header = encoder.encode(
     `SIZE ${widthMm} mm,${heightMm} mm\r\n` +
@@ -309,7 +344,7 @@ export function imageToTsplBytes(
     `DIRECTION ${dir}\r\n` +
     `REFERENCE 0,0\r\n` +
     `CLS\r\n` +
-    `BITMAP 0,0,${byteWidth},${targetDotsHeight},0,`
+    `BITMAP 0,0,${byteWidth},${physDotsH},0,`
   );
   const footer = encoder.encode(`\r\nPRINT 1,1\r\n`);
 
@@ -321,6 +356,125 @@ export function imageToTsplBytes(
   combined.set(footer, header.length + bitmapBuffer.length);
 
   return combined;
+}
+
+/**
+ * Cetak pola diagnostik untuk menentukan area cetak aktual printer.
+ * Hasilnya: baris berulang bertanda kolom (setiap blok = 8 dots = 1mm).
+ * Baca nomor kolom pertama & terakhir yang tercetak untuk mengetahui offset printhead.
+ */
+export function buildTestPatternBytes(
+  widthMm: number,
+  heightMm: number,
+  direction: 0 | 1 = 0,
+  gapMm: number = 2
+): Uint8Array {
+  const dotsW = Math.round(widthMm * 8);
+  const dotsH = Math.round(heightMm * 8);
+  const byteWidth = Math.ceil(dotsW / 8);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = dotsW;
+  canvas.height = dotsH;
+  const ctx = canvas.getContext("2d")!;
+
+  // Latar putih
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, dotsW, dotsH);
+
+  // Border luar hitam 4 dots
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, dotsW, 4);          // top
+  ctx.fillRect(0, dotsH - 4, dotsW, 4); // bottom
+  ctx.fillRect(0, 0, 4, dotsH);         // left
+  ctx.fillRect(dotsW - 4, 0, 4, dotsH); // right
+
+  // Kolom vertikal tiap 8 dots (= 1mm), dengan nomor mm
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 18px monospace";
+  ctx.textBaseline = "top";
+  for (let mm = 0; mm < widthMm; mm++) {
+    const x = mm * 8;
+    // Garis tipis tiap mm
+    if (mm % 5 === 0) {
+      // Garis tebal tiap 5mm
+      ctx.fillRect(x, 4, 2, 20);
+      // Tulis nomor
+      const label = `${mm}`;
+      ctx.fillText(label, x + 2, 22);
+    } else {
+      ctx.fillRect(x, 4, 1, 12);
+    }
+  }
+
+  // Blok solid 8x8 di pojok kiri atas dan kanan atas (untuk identifikasi arah x)
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, 8, 30);    // sudut kiri atas = mm ke-0
+  ctx.fillRect(dotsW - 8, 0, 8, 30); // sudut kanan atas = mm terakhir
+
+  // Teks label pojok untuk identifikasi
+  ctx.font = "bold 14px monospace";
+  ctx.fillText("x=0", 10, dotsH - 25);
+  ctx.fillText(`x=${widthMm}`, dotsW - 60, dotsH - 25);
+
+  // Diagonal dari pojok kiri atas ke kanan bawah (untuk deteksi mirror)
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(8, 35);
+  ctx.lineTo(dotsW - 8, dotsH - 35);
+  ctx.stroke();
+
+  // Extract bitmap dari canvas
+  const imgData = ctx.getImageData(0, 0, dotsW, dotsH);
+  const pixels = imgData.data;
+  const bitmapBuffer = new Uint8Array(byteWidth * dotsH);
+
+  for (let y = 0; y < dotsH; y++) {
+    for (let x = 0; x < dotsW; x++) {
+      const idx = (y * dotsW + x) * 4;
+      const lum = pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114;
+      if (pixels[idx + 3] > 50 && lum < 190) {
+        const byteIdx = y * byteWidth + Math.floor(x / 8);
+        bitmapBuffer[byteIdx] |= 1 << (7 - (x % 8));
+      }
+    }
+  }
+
+  const encoder = new TextEncoder();
+  const header = encoder.encode(
+    `SIZE ${widthMm} mm,${heightMm} mm\r\n` +
+    `GAP ${gapMm} mm,0 mm\r\n` +
+    `DIRECTION ${direction}\r\n` +
+    `REFERENCE 0,0\r\n` +
+    `CLS\r\n` +
+    `BITMAP 0,0,${byteWidth},${dotsH},0,`
+  );
+  const footer = encoder.encode(`\r\nPRINT 1,1\r\n`);
+
+  const combined = new Uint8Array(header.length + bitmapBuffer.length + footer.length);
+  combined.set(header, 0);
+  combined.set(bitmapBuffer, header.length);
+  combined.set(footer, header.length + bitmapBuffer.length);
+  return combined;
+}
+
+/**
+ * Kirim pola diagnostik ke printer Bluetooth
+ */
+export async function printTestPatternViaBle(
+  widthMm: number,
+  heightMm: number,
+  direction: 0 | 1 = 0,
+  onStatusUpdate?: (status: string) => void
+): Promise<void> {
+  onStatusUpdate?.("Menghubungkan ke printer...");
+  const conn = await connectBluetoothPrinter();
+  onStatusUpdate?.("Membangun pola test...");
+  const bytes = buildTestPatternBytes(widthMm, heightMm, direction);
+  onStatusUpdate?.("Mengirim pola test ke printer...");
+  await sendChunkedData(conn.characteristic, bytes, 120);
+  onStatusUpdate?.("Test pattern terkirim!");
 }
 
 /**

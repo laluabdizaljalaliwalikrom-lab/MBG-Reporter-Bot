@@ -51,7 +51,7 @@ import StickerPrintSheetSE from "@/components/StickerPrintSheetSE";
 import StickerRollGrozziie from "@/components/StickerRollGrozziie";
 import StickerPreview from "@/components/StickerPreview";
 import MBGMaker from "@/components/MBGMaker";
-import { directPrintElementViaBle, isWebBluetoothSupported } from "@/lib/thermal-ble";
+import { directPrintElementViaBle, isWebBluetoothSupported, printTestPatternViaBle } from "@/lib/thermal-ble";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 
@@ -390,17 +390,23 @@ export default function Dashboard() {
         throw new Error("Label Grozziie tidak ditemukan di layar.");
       }
 
-      const w = standaloneGrozziieWidth || 130;
-      const h = standaloneGrozziieHeight || 80;
+      // UI menampilkan label landscape (widthMm > heightMm), mis. 100×78.
+      // Tapi kertas FISIK portrait: lebar roll = heightMm (78mm), panjang feed = widthMm (100mm).
+      // Tukar w↔h saat kirim ke printer agar TSPL SIZE cocok dimensi fisik kertas.
+      const visualW = standaloneGrozziieWidth || 100;
+      const visualH = standaloneGrozziieHeight || 78;
+      // physW = lebar fisik kertas (sisi sempit roll), physH = panjang feed label
+      const physW = visualH; // 78mm
+      const physH = visualW; // 100mm
 
       // Print each rendered label sequentially
       for (let i = 0; i < pages.length; i++) {
         const pageEl = pages[i] as HTMLElement;
         setBleStatusText(`Mencetak label ${i + 1} dari ${pages.length}...`);
-        await directPrintElementViaBle(pageEl, w, h, (msg) => setBleStatusText(msg), {
+        await directPrintElementViaBle(pageEl, physW, physH, (msg) => setBleStatusText(msg), {
           xOffsetDots: Math.round(standaloneGrozziieXOffset * 8), // convert mm to dots
           direction: standaloneGrozziieDirection,
-          rotate90: standaloneGrozziieRotate90,
+          rotate90: standaloneGrozziieRotate90, // override rotasi manual jika perlu
         });
       }
 
@@ -2804,15 +2810,47 @@ export default function Dashboard() {
                               <input
                                 type="number"
                                 min={-30}
-                                max={50}
+                                max={30}
                                 step={1}
                                 value={standaloneGrozziieXOffset}
                                 onChange={(e) => setStandaloneGrozziieXOffset(parseInt(e.target.value) || 0)}
                                 placeholder="0 mm"
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
-                                title="Gunakan nilai positif (+mm) jika hasil cetak terpotong di kiri, atau negatif (-mm) jika berlebih ke kanan"
+                                title="Nilai negatif (-) geser konten ke kanan fisik. Nilai positif (+) geser ke kiri fisik. Mulai dari 0, sesuaikan jika masih terpotong."
                               />
+                              <p className="text-[9px] text-slate-500">− = geser kanan &nbsp;|&nbsp; + = geser kiri</p>
                             </div>
+                          </div>
+
+                          {/* Test Print Button */}
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              disabled={isPrintingBle}
+                              onClick={async () => {
+                                setIsPrintingBle(true);
+                                setBleStatusText("Mencetak pola test diagnostik...");
+                                try {
+                                  await printTestPatternViaBle(
+                                    standaloneGrozziieWidth || 78,
+                                    standaloneGrozziieHeight || 100,
+                                    standaloneGrozziieDirection,
+                                    (msg) => setBleStatusText(msg)
+                                  );
+                                  showSettingsToast("Test pattern terkirim! Lihat nomor mm yang tercetak.", "success");
+                                } catch (err: unknown) {
+                                  const msg = err instanceof Error ? err.message : "Gagal test print.";
+                                  showSettingsToast(msg, "error");
+                                } finally {
+                                  setIsPrintingBle(false);
+                                  setBleStatusText("");
+                                }
+                              }}
+                              className="w-full p-2 text-xs rounded-lg border font-bold bg-amber-900/30 border-amber-600 text-amber-300 hover:bg-amber-800/40 transition-all disabled:opacity-50"
+                            >
+                              🔬 Cetak Pola Test (Diagnostik Area Cetak)
+                            </button>
+                            <p className="text-[9px] text-slate-500 mt-1">Lihat nomor mm yang tercetak → tentukan offset & area cetak aktual printer</p>
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 pt-1">

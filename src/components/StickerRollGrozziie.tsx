@@ -280,7 +280,7 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
             borderTop: "1px solid #cbd5e1",
           }}
         >
-          <span>SE BGN NO. 21 / 2026 {fmtDate !== "-" ? `• TGL: ${fmtDate}` : ""}</span>
+          <span>STANDAR KELAYAKAN MAKANAN</span>
           <span style={{ color: "#000000", fontWeight: 900, letterSpacing: "1px" }}>
             SEGEL KIRI
           </span>

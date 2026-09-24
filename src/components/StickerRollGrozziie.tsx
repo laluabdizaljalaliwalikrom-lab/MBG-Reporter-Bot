@@ -24,7 +24,6 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
     heightMm = 80,
     sppgName = "SPPG KOTA BANDUNG",
     subWilayah = "Kawasan Pelayanan Mandiri",
-    tanggal = "",
     jamBatas = "10.00",
     waPengaduan = "081234567890",
     tiktokPengaduan = "sppg_official",
@@ -32,9 +31,6 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
     qrBaseUrl = "",
     pairMode = "both",
   } = props;
-
-  // Format tanggal display (DD/MM/YYYY)
-  const fmtDate = tanggal ? tanggal.split("-").reverse().join("/") : "-";
 
   // Format jam display (e.g. 10:00 -> 10.00)
   const formatJamDisplay = (val: string) => {

@@ -230,6 +230,10 @@ export function imageToTsplBytes(
   // Standard thermal print resolution: 203 DPI ≈ 8 dots per mm
   const targetDotsWidth = Math.round(widthMm * 8);
   const targetDotsHeight = Math.round(heightMm * 8);
+  const xOffset = options.xOffsetDots ?? 0;
+  const yOffset = options.yOffsetDots ?? 0;
+  const dir = options.direction ?? 0;
+  const gap = options.gapMm ?? 2;
 
   // Create an accurately sized offscreen canvas matched exactly to the physical print dots
   const offscreen = document.createElement("canvas");
@@ -238,12 +242,13 @@ export function imageToTsplBytes(
   const ctx = offscreen.getContext("2d");
   if (!ctx) throw new Error("Gagal menginisialisasi canvas bitmap printer.");
 
-  // Fill with white background
+  // Fill with pure white background
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, targetDotsWidth, targetDotsHeight);
 
-  // Draw source image scaled to fit the exact label dimension
-  ctx.drawImage(sourceCanvas, 0, 0, targetDotsWidth, targetDotsHeight);
+  // Draw source image shifted directly by xOffset and yOffset on the canvas itself!
+  // This guarantees physical shifting even if the printer's BITMAP command ignores x offset.
+  ctx.drawImage(sourceCanvas, xOffset, yOffset, targetDotsWidth, targetDotsHeight);
 
   const imgData = ctx.getImageData(0, 0, targetDotsWidth, targetDotsHeight);
   const pixels = imgData.data;
@@ -271,19 +276,15 @@ export function imageToTsplBytes(
     }
   }
 
-  const xPos = options.xOffsetDots ?? 0;
-  const yPos = options.yOffsetDots ?? 0;
-  const dir = options.direction ?? 0;
-  const gap = options.gapMm ?? 2;
-
-  // Build TSPL command header & footer
+  // Build TSPL command header & footer with REFERENCE and SHIFT compensation
   const encoder = new TextEncoder();
   const header = encoder.encode(
     `SIZE ${widthMm} mm,${heightMm} mm\r\n` +
     `GAP ${gap} mm,0 mm\r\n` +
     `DIRECTION ${dir}\r\n` +
+    `REFERENCE 0,0\r\n` +
     `CLS\r\n` +
-    `BITMAP ${xPos},${yPos},${byteWidth},${targetDotsHeight},0,`
+    `BITMAP 0,0,${byteWidth},${targetDotsHeight},0,`
   );
   const footer = encoder.encode(`\r\nPRINT 1,1\r\n`);
 

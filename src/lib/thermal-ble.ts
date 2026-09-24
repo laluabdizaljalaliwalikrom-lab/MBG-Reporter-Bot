@@ -249,15 +249,30 @@ export function imageToTsplBytes(
   ctx.fillRect(0, 0, targetDotsWidth, targetDotsHeight);
 
   if (shouldRotate) {
-    // Rotate 90 degrees clockwise to print landscape design across vertical 78x100mm feed
+    // When rotating 90 degrees:
+    // sourceCanvas is landscape (width > height), to fit onto portrait canvas (targetDotsWidth x targetDotsHeight)
+    // The rotated image has dimensions: targetDotsHeight (along Y) and targetDotsWidth (along X)
+    const scale = Math.min(targetDotsWidth / sourceCanvas.height, targetDotsHeight / sourceCanvas.width);
+    const drawW = sourceCanvas.width * scale;
+    const drawH = sourceCanvas.height * scale;
+
     ctx.save();
     ctx.translate(targetDotsWidth / 2 + xOffset, targetDotsHeight / 2 + yOffset);
     ctx.rotate(Math.PI / 2);
-    ctx.drawImage(sourceCanvas, -targetDotsHeight / 2, -targetDotsWidth / 2, targetDotsHeight, targetDotsWidth);
+    ctx.drawImage(sourceCanvas, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
   } else {
-    // Standard direct drawing
-    ctx.drawImage(sourceCanvas, xOffset, yOffset, targetDotsWidth, targetDotsHeight);
+    // Fit source canvas proportionately with safe margins
+    // Grozziie TP876Plus has a 72mm active print zone on a 78mm paper (approx 3mm unprintable margin on edges)
+    const safeWidth = Math.max(targetDotsWidth - 24, 100); // 24 dots ≈ 3mm margin
+    const scale = Math.min(safeWidth / sourceCanvas.width, targetDotsHeight / sourceCanvas.height);
+    const drawW = sourceCanvas.width * scale;
+    const drawH = sourceCanvas.height * scale;
+    // Center horizontally with user offset
+    const posX = Math.max(0, Math.round((targetDotsWidth - drawW) / 2) + xOffset);
+    const posY = Math.max(0, Math.round((targetDotsHeight - drawH) / 2) + yOffset);
+
+    ctx.drawImage(sourceCanvas, posX, posY, drawW, drawH);
   }
 
   const imgData = ctx.getImageData(0, 0, targetDotsWidth, targetDotsHeight);

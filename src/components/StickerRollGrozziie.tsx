@@ -67,6 +67,7 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
         overflow: "hidden",
         display: "flex",
         flexDirection: "row",
+        padding: "0.5mm",
       }}
     >
       {/* ── AREA LIDAH SEGEL SISI KIRI (Untuk dilipat & direkatkan ke samping ompreng) ── */}
@@ -304,6 +305,7 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
         overflow: "hidden",
         display: "flex",
         flexDirection: "row",
+        padding: "0.5mm",
       }}
     >
       {/* ── KONTEN UTAMA SEGEL KANAN (2 PERINGATAN + KOTAK PENGADUAN) ── */}

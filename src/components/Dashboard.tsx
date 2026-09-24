@@ -381,9 +381,9 @@ export default function Dashboard() {
   const getPaperDimensionsMm = () => {
     if (standaloneStikerTemplate === "grozziie") {
       return {
-        widthMm: standaloneGrozziieWidth || 80,
-        heightMm: standaloneGrozziieHeight || 130,
-        format: [standaloneGrozziieWidth || 80, standaloneGrozziieHeight || 130] as [number, number],
+        widthMm: standaloneGrozziieWidth || 130,
+        heightMm: standaloneGrozziieHeight || 80,
+        format: [standaloneGrozziieWidth || 130, standaloneGrozziieHeight || 80] as [number, number],
       };
     }
     if (standaloneStikerPaperSize === "a3") return { widthMm: 297, heightMm: 420, format: "a3" as const };
@@ -395,14 +395,40 @@ export default function Dashboard() {
     // Dynamically inject @page rule for Grozziie custom dimensions if active
     let dynamicStyleEl = document.getElementById("dynamic-grozziie-page-style");
     if (standaloneStikerTemplate === "grozziie") {
-      const w = standaloneGrozziieWidth || 80;
-      const h = standaloneGrozziieHeight || 130;
+      const w = standaloneGrozziieWidth || 130;
+      const h = standaloneGrozziieHeight || 80;
       if (!dynamicStyleEl) {
         dynamicStyleEl = document.createElement("style");
         dynamicStyleEl.id = "dynamic-grozziie-page-style";
         document.head.appendChild(dynamicStyleEl);
       }
-      dynamicStyleEl.innerHTML = `@media print { @page { size: ${w}mm ${h}mm !important; margin: 0 !important; } }`;
+      dynamicStyleEl.innerHTML = `
+        @media print {
+          @page {
+            size: ${w}mm ${h}mm !important;
+            margin: 0 !important;
+          }
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          #sticker-print-root {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .grozziie-label-page {
+            width: ${w}mm !important;
+            height: ${h}mm !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+        }
+      `;
     } else {
       if (dynamicStyleEl) {
         dynamicStyleEl.remove();

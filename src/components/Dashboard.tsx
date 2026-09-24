@@ -346,8 +346,8 @@ export default function Dashboard() {
   // Standalone Stiker Tab States
   const [standaloneStikerTemplate, setStandaloneStikerTemplate] = useState<"se2026" | "classic" | "grozziie">("grozziie");
   const [standaloneStikerSEPairMode, setStandaloneStikerSEPairMode] = useState<"pair" | "left_only" | "right_only">("pair");
-  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(80);
-  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(130);
+  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(130);
+  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(80);
   const [standaloneGrozziiePairMode, setStandaloneGrozziiePairMode] = useState<"both" | "left_only" | "right_only">("both");
   const [standaloneStikerSubWilayah, setStandaloneStikerSubWilayah] = useState<string>("Kawasan Pelayanan Mandiri");
   const [standaloneStikerWaPengaduan, setStandaloneStikerWaPengaduan] = useState<string>("081234567890");
@@ -463,13 +463,13 @@ export default function Dashboard() {
         if (pages.length === 0) throw new Error("Label Grozziie tidak ditemukan");
 
         const pdfDoc = new jsPDF({
-          orientation: "portrait",
+          orientation: widthMm > heightMm ? "landscape" : "portrait",
           unit: "mm",
           format: format,
         });
 
         for (let i = 0; i < pages.length; i++) {
-          if (i > 0) pdfDoc.addPage(format, "portrait");
+          if (i > 0) pdfDoc.addPage(format, widthMm > heightMm ? "landscape" : "portrait");
           const pageEl = pages[i] as HTMLElement;
           const w = pageEl.scrollWidth || pageEl.offsetWidth;
           const h = pageEl.scrollHeight || pageEl.offsetHeight;
@@ -599,23 +599,7 @@ export default function Dashboard() {
   // Gemini API Key state
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState("");
   const [isSavingGeminiKey, setIsSavingGeminiKey] = useState(false);
-  const [isLoadingGeminiKey, setIsLoadingGeminiKey] = useState(false);
   const [showGeminiKeySecret, setShowGeminiKeySecret] = useState(false);
-
-  const fetchGeminiKey = useCallback(async () => {
-    setIsLoadingGeminiKey(true);
-    try {
-      const res = await fetch("/api/settings?key=gemini_api_key");
-      const json = await res.json();
-      if (json.value) {
-        setGeminiApiKeyInput(json.value);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setIsLoadingGeminiKey(false);
-    }
-  }, []);
 
   const handleSaveGeminiKey = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -643,8 +627,23 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchGeminiKey();
-  }, [fetchGeminiKey]);
+    let mounted = true;
+    async function loadKey() {
+      try {
+        const res = await fetch("/api/settings?key=gemini_api_key");
+        const json = await res.json();
+        if (mounted && json.value) {
+          setGeminiApiKeyInput(json.value);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadKey();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(() => {
@@ -660,12 +659,12 @@ export default function Dashboard() {
       const res = await fetch("/api/sppg");
       const json = await res.json();
       if (json.status === "success" && Array.isArray(json.data)) {
-        const list = json.data;
+        const list: SppgData[] = json.data;
         setSppgList(list);
         if (list.length > 0) {
           // Otomatis sinkronkan form stiker dengan SPPG pertama dari database jika masih default
           setStandaloneStikerSppg((prev) => {
-            if (!prev || prev === "SPPG KOTA BANDUNG" || !list.some((s: any) => s.nama_sppg === prev)) {
+            if (!prev || prev === "SPPG KOTA BANDUNG" || !list.some((s: SppgData) => s.nama_sppg === prev)) {
               const first = list[0];
               if (first.kontak_pengaduan) setStandaloneStikerWaPengaduan(first.kontak_pengaduan);
               if (first.sub_wilayah) setStandaloneStikerSubWilayah(first.sub_wilayah);
@@ -2527,7 +2526,7 @@ export default function Dashboard() {
                             <span>Grozziie (Thermal Roll)</span>
                           </div>
                           <p className="text-[10px] text-slate-400 mt-1 leading-tight">
-                            Bluetooth & USB (80×130mm / Custom), cetak via Android/iOS/PC
+                            Bluetooth & USB (Horizontal 130×80mm / Custom), cetak via Android/iOS/PC
                           </p>
                         </button>
 
@@ -2640,16 +2639,19 @@ export default function Dashboard() {
                         />
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-slate-400">Nama Menu</label>
-                        <input
-                          type="text"
-                          value={standaloneStikerMenu}
-                          onChange={(e) => setStandaloneStikerMenu(e.target.value)}
-                          placeholder="Menu makanan..."
-                          className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
-                        />
-                      </div>
+                      {/* Nama Menu (Hanya untuk template lembaran yang memerlukan menu) */}
+                      {standaloneStikerTemplate !== "grozziie" && (
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-slate-400">Nama Menu</label>
+                          <input
+                            type="text"
+                            value={standaloneStikerMenu}
+                            onChange={(e) => setStandaloneStikerMenu(e.target.value)}
+                            placeholder="Menu makanan..."
+                            className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                      )}
 
                       {/* KHUSUS: Setting Kertas Printer Grozziie (Roll) */}
                       {standaloneStikerTemplate === "grozziie" ? (
@@ -2657,7 +2659,7 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                               <SlidersHorizontal size={13} />
-                              <span>Ukuran Kertas Label Roll Grozziie</span>
+                              <span>Ukuran Kertas Label Roll Grozziie (Horizontal)</span>
                             </span>
                             <span className="text-[10px] text-slate-400">Dapat diubah</span>
                           </div>
@@ -2668,20 +2670,20 @@ export default function Dashboard() {
                               <input
                                 type="number"
                                 min={40}
-                                max={120}
+                                max={250}
                                 value={standaloneGrozziieWidth}
-                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 80)}
+                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 130)}
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
                               />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-semibold text-slate-400">Tinggi / Panjang (mm)</label>
+                              <label className="text-[10px] font-semibold text-slate-400">Tinggi (mm)</label>
                               <input
                                 type="number"
-                                min={50}
-                                max={250}
+                                min={30}
+                                max={200}
                                 value={standaloneGrozziieHeight}
-                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 130)}
+                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 80)}
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
                               />
                             </div>
@@ -2766,11 +2768,26 @@ export default function Dashboard() {
                               )}
                             </select>
                           </div>
+
+                          {standaloneStikerTemplate === "se2026" && (
+                            <div className="space-y-1 sm:col-span-2">
+                              <label className="text-[11px] font-semibold text-slate-400">Format Cetak Segel SE</label>
+                              <select
+                                value={standaloneStikerSEPairMode}
+                                onChange={(e) => setStandaloneStikerSEPairMode(e.target.value as "pair" | "left_only" | "right_only")}
+                                className="w-full p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-emerald-300 outline-none focus:border-indigo-500 cursor-pointer"
+                              >
+                                <option value="pair">Pasangan Segel (Kiri Jam Batas & Kanan Edukasi Berdampingan)</option>
+                                <option value="left_only">Semua Segel Kiri (Jam Batas Konsumsi)</option>
+                                <option value="right_only">Semua Segel Kanan (Edukasi & Pengaduan)</option>
+                              </select>
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {/* Tanggal & Jam Batas */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-800/60">
+                      <div className={`grid gap-2 pt-2 border-t border-slate-800/60 ${standaloneStikerTemplate === "grozziie" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3"}`}>
                         <div className="space-y-1">
                           <label className="text-[10px] font-semibold text-slate-400">Tanggal</label>
                           <input
@@ -2780,15 +2797,17 @@ export default function Dashboard() {
                             className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 outline-none [color-scheme:dark]"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-slate-400">Selesai Produksi</label>
-                          <input
-                            type="time"
-                            value={standaloneStikerJamSelesai}
-                            onChange={(e) => setStandaloneStikerJamSelesai(e.target.value)}
-                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 outline-none [color-scheme:dark]"
-                          />
-                        </div>
+                        {standaloneStikerTemplate !== "grozziie" && (
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-slate-400">Selesai Produksi</label>
+                            <input
+                              type="time"
+                              value={standaloneStikerJamSelesai}
+                              onChange={(e) => setStandaloneStikerJamSelesai(e.target.value)}
+                              className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 outline-none [color-scheme:dark]"
+                            />
+                          </div>
+                        )}
                         <div className="space-y-1">
                           <label className="text-[10px] font-semibold text-rose-400">Batas Konsumsi</label>
                           <input
@@ -2858,13 +2877,13 @@ export default function Dashboard() {
 
                         {/* Tips Cetak di Android & iOS */}
                         {standaloneStikerTemplate === "grozziie" && (
-                          <div className="p-3 bg-emerald-950/30 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-300 leading-relaxed mt-2 space-y-1">
-                            <strong className="block text-emerald-200 font-bold">💡 Tips Cetak via Android & iPhone:</strong>
+                          <div className="p-3 bg-emerald-950/30 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-300 leading-relaxed mt-2 space-y-1.5">
+                            <strong className="block text-emerald-200 font-bold">💡 Fitur Label & QR Code Dinamis:</strong>
                             <p>
-                              1. <strong>Cetak Langsung:</strong> Hubungkan printer Grozziie via Bluetooth / USB, lalu klik tombol <em>Cetak (80×130mm)</em> di atas.
+                              • <strong>QR Code Menu & Gizi:</strong> QR code pada segel kanan bersifat <em>statis</em> dan mengarah ke link verifikasi resmi menu. Saat orang tua / guru / siswa scan QR tersebut, sistem akan langsung menampilkan data menu dan kandungan gizi terbaru yang dilaporkan SPPG ini.
                             </p>
                             <p>
-                              2. <strong>Via Aplikasi Grozziie:</strong> Anda juga bisa klik <em>Download PNG</em> atau <em>Download PDF</em>, lalu buka file dari aplikasi resmi Grozziie di HP untuk mencetak instan!
+                              • <strong>Cetak via HP (Android/iOS):</strong> Sambungkan printer Grozziie via Bluetooth / USB lalu cetak langsung via browser, atau klik <em>Download PNG/PDF</em> untuk dibuka di aplikasi Grozziie.
                             </p>
                           </div>
                         )}

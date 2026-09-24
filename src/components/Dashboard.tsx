@@ -44,7 +44,6 @@ import {
   Smartphone,
   SlidersHorizontal,
   Bluetooth,
-  Wifi
 } from "lucide-react";
 import WeeklyReportView from "@/components/WeeklyReportView";
 import StickerPrintSheet from "@/components/StickerPrintSheet";
@@ -352,6 +351,8 @@ export default function Dashboard() {
   const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(130);
   const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(80);
   const [standaloneGrozziiePairMode, setStandaloneGrozziiePairMode] = useState<"both" | "left_only" | "right_only">("both");
+  const [standaloneGrozziieXOffset, setStandaloneGrozziieXOffset] = useState<number>(0);
+  const [standaloneGrozziieDirection, setStandaloneGrozziieDirection] = useState<0 | 1>(0);
   const [standaloneStikerSubWilayah, setStandaloneStikerSubWilayah] = useState<string>("Kawasan Pelayanan Mandiri");
   const [standaloneStikerWaPengaduan, setStandaloneStikerWaPengaduan] = useState<string>("081234567890");
   const [standaloneStikerTiktok, setStandaloneStikerTiktok] = useState<string>("sppg_bandung");
@@ -395,7 +396,10 @@ export default function Dashboard() {
       for (let i = 0; i < pages.length; i++) {
         const pageEl = pages[i] as HTMLElement;
         setBleStatusText(`Mencetak label ${i + 1} dari ${pages.length}...`);
-        await directPrintElementViaBle(pageEl, w, h, (msg) => setBleStatusText(msg));
+        await directPrintElementViaBle(pageEl, w, h, (msg) => setBleStatusText(msg), {
+          xOffsetDots: Math.round(standaloneGrozziieXOffset * 8), // convert mm to dots
+          direction: standaloneGrozziieDirection,
+        });
       }
 
       showSettingsToast("Label berhasil dicetak langsung ke printer Grozziie!", "success");
@@ -2777,17 +2781,64 @@ export default function Dashboard() {
                             </div>
                           </div>
 
+                          <div className="grid grid-cols-2 gap-3 pt-1">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-slate-400">Format Cetak Segel</label>
+                              <select
+                                value={standaloneGrozziiePairMode}
+                                onChange={(e) => setStandaloneGrozziiePairMode(e.target.value as "both" | "left_only" | "right_only")}
+                                className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
+                              >
+                                <option value="both">Pasangan (Kiri & Kanan)</option>
+                                <option value="left_only">Hanya Segel Kiri</option>
+                                <option value="right_only">Hanya Segel Kanan</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-semibold text-slate-400">Geser Posisi (X-Offset)</label>
+                                <span className="text-[9px] text-emerald-400 font-mono">{standaloneGrozziieXOffset > 0 ? `+${standaloneGrozziieXOffset}mm` : `${standaloneGrozziieXOffset}mm`}</span>
+                              </div>
+                              <input
+                                type="number"
+                                min={-30}
+                                max={50}
+                                step={1}
+                                value={standaloneGrozziieXOffset}
+                                onChange={(e) => setStandaloneGrozziieXOffset(parseInt(e.target.value) || 0)}
+                                placeholder="0 mm"
+                                className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
+                                title="Gunakan nilai positif (+mm) jika hasil cetak terpotong di kiri, atau negatif (-mm) jika berlebih ke kanan"
+                              />
+                            </div>
+                          </div>
+
                           <div className="space-y-1 pt-1">
-                            <label className="text-[10px] font-semibold text-slate-400">Format Cetak Segel Roll</label>
-                            <select
-                              value={standaloneGrozziiePairMode}
-                              onChange={(e) => setStandaloneGrozziiePairMode(e.target.value as "both" | "left_only" | "right_only")}
-                              className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
-                            >
-                              <option value="both">Pasangan: Kiri (Jam Batas) & Kanan (Pengaduan)</option>
-                              <option value="left_only">Hanya Segel Kiri (Jam Batas Konsumsi)</option>
-                              <option value="right_only">Hanya Segel Kanan (Layanan Pengaduan)</option>
-                            </select>
+                            <label className="text-[10px] font-semibold text-slate-400">Arah Orientasi Cetak (Direction)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setStandaloneGrozziieDirection(0)}
+                                className={`p-1.5 text-xs rounded-lg border font-semibold transition-all ${
+                                  standaloneGrozziieDirection === 0
+                                    ? "bg-emerald-600/30 border-emerald-500 text-emerald-300"
+                                    : "bg-slate-900 border-slate-800 text-slate-400"
+                                }`}
+                              >
+                                Normal (0°)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setStandaloneGrozziieDirection(1)}
+                                className={`p-1.5 text-xs rounded-lg border font-semibold transition-all ${
+                                  standaloneGrozziieDirection === 1
+                                    ? "bg-emerald-600/30 border-emerald-500 text-emerald-300"
+                                    : "bg-slate-900 border-slate-800 text-slate-400"
+                                }`}
+                              >
+                                Putar 180° (Balik)
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ) : (

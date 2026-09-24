@@ -214,36 +214,54 @@ async function sendChunkedData(
 }
 
 /**
- * Convert an HTML Image element to TSPL bitmap command bytes
+ * Convert a rendered canvas element to TSPL bitmap command bytes accurately scaled to 203 DPI (8 dots/mm)
  */
 export function imageToTsplBytes(
-  canvas: HTMLCanvasElement,
+  sourceCanvas: HTMLCanvasElement,
   widthMm: number,
-  heightMm: number
+  heightMm: number,
+  options: {
+    xOffsetDots?: number;
+    yOffsetDots?: number;
+    direction?: 0 | 1;
+    gapMm?: number;
+  } = {}
 ): Uint8Array {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Gagal menginisialisasi canvas.");
+  // Standard thermal print resolution: 203 DPI ≈ 8 dots per mm
+  const targetDotsWidth = Math.round(widthMm * 8);
+  const targetDotsHeight = Math.round(heightMm * 8);
 
-  const width = canvas.width;
-  const height = canvas.height;
-  const imgData = ctx.getImageData(0, 0, width, height);
+  // Create an accurately sized offscreen canvas matched exactly to the physical print dots
+  const offscreen = document.createElement("canvas");
+  offscreen.width = targetDotsWidth;
+  offscreen.height = targetDotsHeight;
+  const ctx = offscreen.getContext("2d");
+  if (!ctx) throw new Error("Gagal menginisialisasi canvas bitmap printer.");
+
+  // Fill with white background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, targetDotsWidth, targetDotsHeight);
+
+  // Draw source image scaled to fit the exact label dimension
+  ctx.drawImage(sourceCanvas, 0, 0, targetDotsWidth, targetDotsHeight);
+
+  const imgData = ctx.getImageData(0, 0, targetDotsWidth, targetDotsHeight);
   const pixels = imgData.data;
 
-  // Each byte holds 8 horizontal monochrome pixels (1 = black, 0 = white in TSPL bitmap)
-  const byteWidth = Math.ceil(width / 8);
-  const bitmapBuffer = new Uint8Array(byteWidth * height);
+  // In TSPL, byteWidth is the number of bytes per horizontal line: ceil(width / 8)
+  const byteWidth = Math.ceil(targetDotsWidth / 8);
+  const bitmapBuffer = new Uint8Array(byteWidth * targetDotsHeight);
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      // Convert to luminance
+  for (let y = 0; y < targetDotsHeight; y++) {
+    for (let x = 0; x < targetDotsWidth; x++) {
+      const idx = (y * targetDotsWidth + x) * 4;
       const r = pixels[idx];
       const g = pixels[idx + 1];
       const b = pixels[idx + 2];
       const a = pixels[idx + 3];
 
-      // Threshold: darker than 180 is considered black dot
-      const isBlack = a > 50 && (r * 0.299 + g * 0.587 + b * 0.114) < 185;
+      // Threshold: luminance < 190 and opaque
+      const isBlack = a > 50 && (r * 0.299 + g * 0.587 + b * 0.114) < 190;
 
       if (isBlack) {
         const byteIndex = y * byteWidth + Math.floor(x / 8);
@@ -253,14 +271,19 @@ export function imageToTsplBytes(
     }
   }
 
+  const xPos = options.xOffsetDots ?? 0;
+  const yPos = options.yOffsetDots ?? 0;
+  const dir = options.direction ?? 0;
+  const gap = options.gapMm ?? 2;
+
   // Build TSPL command header & footer
   const encoder = new TextEncoder();
   const header = encoder.encode(
     `SIZE ${widthMm} mm,${heightMm} mm\r\n` +
-    `GAP 2 mm,0 mm\r\n` +
-    `DIRECTION 0\r\n` +
+    `GAP ${gap} mm,0 mm\r\n` +
+    `DIRECTION ${dir}\r\n` +
     `CLS\r\n` +
-    `BITMAP 0,0,${byteWidth},${height},0,`
+    `BITMAP ${xPos},${yPos},${byteWidth},${targetDotsHeight},0,`
   );
   const footer = encoder.encode(`\r\nPRINT 1,1\r\n`);
 
@@ -281,7 +304,13 @@ export async function directPrintElementViaBle(
   element: HTMLElement,
   widthMm: number,
   heightMm: number,
-  onStatusUpdate?: (status: string) => void
+  onStatusUpdate?: (status: string) => void,
+  options: {
+    xOffsetDots?: number;
+    yOffsetDots?: number;
+    direction?: 0 | 1;
+    gapMm?: number;
+  } = {}
 ): Promise<void> {
   const { toCanvas } = await import("html-to-image");
 
@@ -289,15 +318,18 @@ export async function directPrintElementViaBle(
   const conn = await connectBluetoothPrinter();
 
   onStatusUpdate?.("Merender label stiker...");
-  const canvas = await toCanvas(element, {
+  // Render DOM element with 2x scale for sharp vector/text extraction
+  const renderedCanvas = await toCanvas(element, {
     quality: 1,
-    pixelRatio: 2.5, // 203 DPI thermal resolution approximation
+    pixelRatio: 2.0,
     backgroundColor: "#ffffff",
   });
 
+  onStatusUpdate?.("Menyesuaikan ukuran & margin thermal...");
+  const tsplBytes = imageToTsplBytes(renderedCanvas, widthMm, heightMm, options);
+
   onStatusUpdate?.("Mengirim data cetak ke printer...");
-  const tsplBytes = imageToTsplBytes(canvas, widthMm, heightMm);
-  await sendChunkedData(conn.characteristic, tsplBytes, 100);
+  await sendChunkedData(conn.characteristic, tsplBytes, 120);
 
   onStatusUpdate?.("Selesai mencetak!");
 }

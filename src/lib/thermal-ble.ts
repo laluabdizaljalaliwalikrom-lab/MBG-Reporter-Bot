@@ -3,15 +3,17 @@
  * Supports sending TSPL bitmap commands directly to BLE GATT characteristic.
  */
 
-// Common Thermal Printer Service UUIDs
+// Common Thermal Printer Service UUIDs (Grozziie, ESC/POS, TSPL, Zebra, Goojprt, Xprinter, etc.)
 const PRINTER_SERVICES = [
   "000018f0-0000-1000-8000-00805f9b34fb", // Common Serial / POS
   "0000ff00-0000-1000-8000-00805f9b34fb", // Custom POS / Label
+  "0000fee7-0000-1000-8000-00805f9b34fb", // Tencent / Chinese Printer Protocol
   "49535343-fe7d-4ae5-8fa9-9fafd205e455", // ISSC Transparent Serial
   "e7810a71-73ae-499d-8c15-faa9aef0c3f2", // Common BLE Label printer
-  "0000fee7-0000-1000-8000-00805f9b34fb", // Tencent / Chinese Printer Protocol
   "0000ae30-0000-1000-8000-00805f9b34fb",
   "0000fff0-0000-1000-8000-00805f9b34fb",
+  "00001800-0000-1000-8000-00805f9b34fb", // Generic Access
+  "00001801-0000-1000-8000-00805f9b34fb", // Generic Attribute
 ];
 
 export interface BleDeviceConnection {
@@ -24,6 +26,7 @@ interface BluetoothDevice extends EventTarget {
   id: string;
   name?: string;
   gatt?: BluetoothRemoteGATTServer;
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
 }
 
 interface BluetoothRemoteGATTServer {
@@ -60,7 +63,21 @@ export function isWebBluetoothSupported(): boolean {
 }
 
 /**
- * Connect to a nearby Bluetooth Thermal Printer
+ * Reset cached connection if connection lost or failed
+ */
+export function disconnectBluetoothPrinter(): void {
+  try {
+    if (cachedConnection?.device?.gatt?.connected) {
+      cachedConnection.device.gatt.disconnect();
+    }
+  } catch {
+    // Ignore error
+  }
+  cachedConnection = null;
+}
+
+/**
+ * Connect to a nearby Bluetooth Thermal Printer with retry mechanism
  */
 export async function connectBluetoothPrinter(): Promise<BleDeviceConnection> {
   if (!isWebBluetoothSupported()) {
@@ -71,6 +88,9 @@ export async function connectBluetoothPrinter(): Promise<BleDeviceConnection> {
   if (cachedConnection?.device?.gatt?.connected && cachedConnection.characteristic) {
     return cachedConnection;
   }
+
+  // Reset any dead cache
+  cachedConnection = null;
 
   const nav = navigator as unknown as {
     bluetooth: {
@@ -87,15 +107,53 @@ export async function connectBluetoothPrinter(): Promise<BleDeviceConnection> {
     throw new Error("GATT server tidak ditemukan pada perangkat Bluetooth ini.");
   }
 
-  const server = await device.gatt.connect();
+  // Listen for device disconnection to cleanly reset cache
+  device.addEventListener("gattserverdisconnected", () => {
+    cachedConnection = null;
+  });
+
+  // Attempt connect with retry (printers often need a retry if busy or waking up)
+  let server: BluetoothRemoteGATTServer | null = null;
+  let lastConnectErr: unknown = null;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      if (device.gatt.connected) {
+        server = device.gatt;
+        break;
+      }
+      server = await device.gatt.connect();
+      if (server?.connected) break;
+    } catch (err) {
+      lastConnectErr = err;
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+  }
+
+  if (!server || !server.connected) {
+    const detail = lastConnectErr instanceof Error ? lastConnectErr.message : "Connection attempt failed";
+    throw new Error(
+      `Gagal terhubung ke printer Bluetooth (${detail}).\n` +
+      "Langkah perbaikan:\n" +
+      "1. Pastikan printer dalam kondisi ON & standby.\n" +
+      "2. Pastikan printer TIDAK sedang terhubung ke aplikasi HP lain (Grozziie app/driver lain).\n" +
+      "3. Matikan dan hidupkan kembali printer (restart), lalu coba klik tombol print lagi."
+    );
+  }
 
   // Discover primary service
   let primaryService: BluetoothRemoteGATTService | null = null;
   const services = await server.getPrimaryServices().catch(() => []);
 
   for (const s of services) {
-    primaryService = s;
-    break;
+    if (!s.uuid.includes("1800") && !s.uuid.includes("1801")) {
+      primaryService = s;
+      break;
+    }
+  }
+
+  if (!primaryService && services.length > 0) {
+    primaryService = services[0];
   }
 
   if (!primaryService) {

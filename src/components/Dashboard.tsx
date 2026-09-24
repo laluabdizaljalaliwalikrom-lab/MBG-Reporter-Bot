@@ -42,7 +42,9 @@ import {
   Key,
   Sparkles,
   Smartphone,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Bluetooth,
+  Wifi
 } from "lucide-react";
 import WeeklyReportView from "@/components/WeeklyReportView";
 import StickerPrintSheet from "@/components/StickerPrintSheet";
@@ -50,6 +52,7 @@ import StickerPrintSheetSE from "@/components/StickerPrintSheetSE";
 import StickerRollGrozziie from "@/components/StickerRollGrozziie";
 import StickerPreview from "@/components/StickerPreview";
 import MBGMaker from "@/components/MBGMaker";
+import { directPrintElementViaBle, isWebBluetoothSupported } from "@/lib/thermal-ble";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 
@@ -367,6 +370,47 @@ export default function Dashboard() {
   const [standaloneStikerGiziKecil, setStandaloneStikerGiziKecil] = useState({ energi: "450", protein: "15", lemak: "12", karbohidrat: "60", serat: "4" });
   const [isDownloadingStickerPDF, setIsDownloadingStickerPDF] = useState<boolean>(false);
   const [isDownloadingStickerPNG, setIsDownloadingStickerPNG] = useState<boolean>(false);
+  const [isPrintingBle, setIsPrintingBle] = useState<boolean>(false);
+  const [bleStatusText, setBleStatusText] = useState<string>("");
+
+  const handleDirectBluetoothPrint = async () => {
+    if (!isWebBluetoothSupported()) {
+      showSettingsToast("Browser Anda tidak mendukung Web Bluetooth. Buka di Chrome/Edge PC atau Chrome Android.", "error");
+      return;
+    }
+
+    setIsPrintingBle(true);
+    setBleStatusText("Mencari printer Bluetooth...");
+
+    try {
+      const pages = document.querySelectorAll("#app-root .grozziie-label-page");
+      if (pages.length === 0) {
+        throw new Error("Label Grozziie tidak ditemukan di layar.");
+      }
+
+      const w = standaloneGrozziieWidth || 130;
+      const h = standaloneGrozziieHeight || 80;
+
+      // Print each rendered label sequentially
+      for (let i = 0; i < pages.length; i++) {
+        const pageEl = pages[i] as HTMLElement;
+        setBleStatusText(`Mencetak label ${i + 1} dari ${pages.length}...`);
+        await directPrintElementViaBle(pageEl, w, h, (msg) => setBleStatusText(msg));
+      }
+
+      showSettingsToast("Label berhasil dicetak langsung ke printer Grozziie!", "success");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Gagal mencetak via Bluetooth.";
+      console.error("Direct BLE print error:", err);
+      // If user cancelled device selector dialog, don't show scary error
+      if (!errMsg.includes("User cancelled") && !errMsg.includes("cancelled")) {
+        showSettingsToast(errMsg, "error");
+      }
+    } finally {
+      setIsPrintingBle(false);
+      setBleStatusText("");
+    }
+  };
 
   const getStickerTargetNode = () => {
     // Find the actual rendered sticker sheet inside the preview area.
@@ -2507,10 +2551,28 @@ export default function Dashboard() {
                       <span>{isDownloadingStickerPDF ? "Menyimpan PDF..." : "Download PDF"}</span>
                     </button>
 
+                    {standaloneStikerTemplate === "grozziie" && (
+                      <button
+                        type="button"
+                        onClick={handleDirectBluetoothPrint}
+                        disabled={isPrintingBle}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-650/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                        title="Cetak langsung ke printer Grozziie via Bluetooth tanpa dialog"
+                      >
+                        {isPrintingBle ? (
+                          <RefreshCw size={15} className="animate-spin text-white" />
+                        ) : (
+                          <Bluetooth size={15} className="text-white" />
+                        )}
+                        <span>{isPrintingBle ? (bleStatusText || "Mencetak...") : "Direct Print Bluetooth"}</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={handlePrintSticker}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 via-indigo-600 to-indigo-500 hover:from-emerald-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+                      title="Cetak via browser atau Chrome Kiosk Mode (100% tanpa dialog jika Kiosk aktif)"
                     >
                       <Printer size={15} />
                       <span>
@@ -2904,12 +2966,15 @@ export default function Dashboard() {
                         {/* Tips Cetak di Android & iOS */}
                         {standaloneStikerTemplate === "grozziie" && (
                           <div className="p-3 bg-emerald-950/30 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-300 leading-relaxed mt-2 space-y-1.5">
-                            <strong className="block text-emerald-200 font-bold">💡 Fitur Label & QR Code Dinamis:</strong>
+                            <strong className="block text-emerald-200 font-bold">💡 Opsi Cetak 1-Klik Tanpa Dialog:</strong>
                             <p>
-                              • <strong>QR Code Menu & Gizi:</strong> QR code pada segel kanan bersifat <em>statis</em> dan mengarah ke link verifikasi resmi menu. Saat orang tua / guru / siswa scan QR tersebut, sistem akan langsung menampilkan data menu dan kandungan gizi terbaru yang dilaporkan SPPG ini.
+                              • <strong>Direct Print Bluetooth (Tombol Hijau):</strong> Mengirim data stiker langsung ke printer Grozziie via Web Bluetooth tanpa membuka jendela dialog cetak sama sekali (didukung di Google Chrome PC & Chrome Android).
                             </p>
                             <p>
-                              • <strong>Cetak via HP (Android/iOS):</strong> Sambungkan printer Grozziie via Bluetooth / USB lalu cetak langsung via browser, atau klik <em>Download PNG/PDF</em> untuk dibuka di aplikasi Grozziie.
+                              • <strong>Chrome Kiosk Mode (PC Kasir):</strong> Tambahkan <code>--kiosk-printing</code> di shortcut Chrome Anda. Tombol <em>Cetak</em> akan langsung memproses cetak instan 1 detik tanpa memunculkan dialog preview.
+                            </p>
+                            <p>
+                              • <strong>QR Code Terintegrasi:</strong> Otomatis menampilkan menu makanan dan rincian gizi terbaru saat discan.
                             </p>
                           </div>
                         )}

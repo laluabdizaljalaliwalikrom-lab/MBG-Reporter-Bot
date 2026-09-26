@@ -18,7 +18,7 @@ function formatIndonesianDate(dateStr: string): string {
     const monthName = months[date.getMonth()];
     const year = date.getFullYear();
     return `${dayName}, ${day} ${monthName} ${year}`;
-  } catch (e) {
+  } catch {
     return dateStr;
   }
 }
@@ -45,10 +45,7 @@ interface ExtractedMBGReport {
   sppg_address?: string;
 }
 
-// ----------------------------------------------------
-// TEMPLATE 1: Modern Classic (Original Teal & Royal Blue)
-// ----------------------------------------------------
-function buildTemplate1(params: {
+export interface PosterTemplateParams {
   logoBase64: string;
   embeddedPhotoUrl: string;
   sppgName: string;
@@ -66,12 +63,28 @@ function buildTemplate1(params: {
   lemakKecil: number;
   karbohidratKecil: number;
   seratKecil: number;
-}) {
+  instagram?: string;
+  tiktok?: string;
+  kontakPengaduan?: string;
+}
+
+// ----------------------------------------------------
+// TEMPLATE 1: Modern Classic (Original Teal & Royal Blue)
+// ----------------------------------------------------
+function buildTemplate1(params: PosterTemplateParams) {
   const {
     logoBase64, embeddedPhotoUrl, sppgName, sppgAddress, formattedDate, menuItems,
     energiBesar, proteinBesar, lemakBesar, karbohidratBesar, seratBesar,
-    energiKecil, proteinKecil, lemakKecil, karbohidratKecil, seratKecil
+    energiKecil, proteinKecil, lemakKecil, karbohidratKecil, seratKecil,
+    instagram, tiktok, kontakPengaduan
   } = params;
+
+  const igHandle = instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : `@${sppgName.toLowerCase().replace(/[^a-z0-9_]/g, '')}`;
+  const secondContact = tiktok
+    ? (tiktok.startsWith('@') ? `TikTok: ${tiktok}` : `TikTok: @${tiktok}`)
+    : kontakPengaduan
+    ? `WA: ${kontakPengaduan}`
+    : `MBG: ${sppgName}`;
 
   return React.createElement('div', {
     style: {
@@ -163,8 +176,8 @@ function buildTemplate1(params: {
     React.createElement('div', {
       style: { display: 'flex', justifyContent: 'space-around', alignItems: 'center', width: '100%', backgroundColor: '#2b4cbf', borderRadius: '50px', padding: '18px 45px', marginTop: 'auto' }
     }, [
-      React.createElement('span', { style: { color: '#ffffff', fontSize: '16px', fontWeight: 'bold' } }, 'Instagram: @sppg_official'),
-      React.createElement('span', { style: { color: '#ffffff', fontSize: '16px', fontWeight: 'bold' } }, `FB: ${sppgName}`)
+      React.createElement('span', { style: { color: '#ffffff', fontSize: '16px', fontWeight: 'bold' } }, `Instagram: ${igHandle}`),
+      React.createElement('span', { style: { color: '#ffffff', fontSize: '16px', fontWeight: 'bold' } }, secondContact)
     ])
   ]);
 }
@@ -172,7 +185,7 @@ function buildTemplate1(params: {
 // ----------------------------------------------------
 // TEMPLATE 2: Classic Beige & Sticky Note (Ref Image 1)
 // ----------------------------------------------------
-function buildTemplate2(params: any) {
+function buildTemplate2(params: PosterTemplateParams) {
   const {
     logoBase64, embeddedPhotoUrl, sppgName, sppgAddress, formattedDate, menuItems,
     energiBesar, proteinBesar, lemakBesar, karbohidratBesar, seratBesar,
@@ -240,7 +253,7 @@ function buildTemplate2(params: any) {
     ]),
 
     // Bottom Section: 2 Rounded Cards for Nutrition
-    React.createElement('div', { style: { display: 'flex', width: '100%', gap: '30px', marginTop: 'auto' } }, [
+    React.createElement('div', { style: { display: 'flex', width: '100%', gap: '30px', marginTop: 'auto', marginBottom: '20px' } }, [
       // Porsi Besar Card
       React.createElement('div', {
         style: { width: '50%', backgroundColor: '#fff1f2', border: '2px solid #fda4af', borderRadius: '20px', padding: '20px 25px', display: 'flex', flexDirection: 'column' }
@@ -273,6 +286,15 @@ function buildTemplate2(params: any) {
           React.createElement('span', { style: { fontWeight: 'bold' } }, `: ${r.val}`)
         ])))
       ])
+    ]),
+
+    // Footer Social Media
+    React.createElement('div', {
+      style: { display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', borderTop: '2px solid #e2e8f0', paddingTop: '15px' }
+    }, [
+      React.createElement('span', { style: { color: '#475569', fontSize: '16px', fontWeight: 'bold' } },
+        params.instagram ? `${params.instagram.startsWith('@') ? params.instagram : `@${params.instagram}`} — ${sppgName}` : sppgName
+      )
     ])
   ]);
 }
@@ -280,11 +302,11 @@ function buildTemplate2(params: any) {
 // ----------------------------------------------------
 // TEMPLATE 3: Sky Blue Grid & Yellow Table (Ref Image 2)
 // ----------------------------------------------------
-function buildTemplate3(params: any) {
+function buildTemplate3(params: PosterTemplateParams) {
   const {
-    logoBase64, embeddedPhotoUrl, sppgName, sppgAddress, formattedDate, menuItems, totalBeneficiaries,
-    energiBesar, proteinBesar, lemakBesar, karbohidratBesar, seratBesar,
-    energiKecil, proteinKecil, lemakKecil, karbohidratKecil, seratKecil
+    logoBase64, embeddedPhotoUrl, sppgName, formattedDate, totalBeneficiaries,
+    energiBesar, proteinBesar, lemakBesar, karbohidratBesar,
+    energiKecil, proteinKecil, lemakKecil, karbohidratKecil
   } = params;
 
   return React.createElement('div', {
@@ -360,7 +382,11 @@ function buildTemplate3(params: any) {
 
     // Footer Wave Bar
     React.createElement('div', { style: { display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', backgroundColor: '#22c55e', borderRadius: '40px', padding: '15px 40px', marginTop: 'auto' } }, [
-      React.createElement('span', { style: { color: '#ffffff', fontSize: '18px', fontWeight: '900' } }, `MBG ${sppgName} — Sehat & Bergizi`)
+      React.createElement('span', { style: { color: '#ffffff', fontSize: '18px', fontWeight: '900' } },
+        params.instagram
+          ? `${params.instagram.startsWith('@') ? params.instagram : `@${params.instagram}`} — ${sppgName}`
+          : `MBG ${sppgName} — Sehat & Bergizi`
+      )
     ])
   ]);
 }
@@ -368,12 +394,18 @@ function buildTemplate3(params: any) {
 // ----------------------------------------------------
 // TEMPLATE 4: Bold Royal Blue & Starburst Badge (Ref Image 3)
 // ----------------------------------------------------
-function buildTemplate4(params: any) {
+function buildTemplate4(params: PosterTemplateParams) {
   const {
     embeddedPhotoUrl, sppgName, sppgAddress, formattedDate, menuItems, totalBeneficiaries,
     energiBesar, proteinBesar, lemakBesar, karbohidratBesar,
-    energiKecil, proteinKecil, lemakKecil, karbohidratKecil
+    energiKecil, proteinKecil, lemakKecil, karbohidratKecil,
+    instagram, tiktok
   } = params;
+
+  const igHandle = instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : `@${sppgName.toLowerCase().replace(/[^a-z0-9_]/g, '')}`;
+  const socialText = tiktok
+    ? `${igHandle} • TikTok: ${tiktok.startsWith('@') ? tiktok : `@${tiktok}`} — ${sppgName}`
+    : `${igHandle} — ${sppgName}`;
 
   return React.createElement('div', {
     style: {
@@ -454,7 +486,7 @@ function buildTemplate4(params: any) {
 
     // Footer
     React.createElement('div', { style: { display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', marginTop: 'auto', paddingTop: '20px' } }, [
-      React.createElement('span', { style: { color: '#475569', fontSize: '16px', fontWeight: 'bold' } }, `@sppg_official — ${sppgName}`)
+      React.createElement('span', { style: { color: '#475569', fontSize: '16px', fontWeight: 'bold' } }, socialText)
     ])
   ]);
 }
@@ -462,12 +494,18 @@ function buildTemplate4(params: any) {
 // ----------------------------------------------------
 // TEMPLATE 5: Eco Green Fresh (Ref Image 4)
 // ----------------------------------------------------
-function buildTemplate5(params: any) {
+function buildTemplate5(params: PosterTemplateParams) {
   const {
     logoBase64, embeddedPhotoUrl, sppgName, formattedDate,
     energiBesar, proteinBesar, lemakBesar, karbohidratBesar, seratBesar,
-    energiKecil, proteinKecil, lemakKecil, karbohidratKecil, seratKecil
+    energiKecil, proteinKecil, lemakKecil, karbohidratKecil, seratKecil,
+    instagram, tiktok
   } = params;
+
+  const igHandle = instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : `@${sppgName.toLowerCase().replace(/[^a-z0-9_]/g, '')}`;
+  const socialText = tiktok
+    ? `${igHandle} • TikTok: ${tiktok.startsWith('@') ? tiktok : `@${tiktok}`} — ${sppgName}`
+    : `${igHandle} — ${sppgName}`;
 
   return React.createElement('div', {
     style: {
@@ -476,7 +514,7 @@ function buildTemplate5(params: any) {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justify: 'space-between',
+      justifyContent: 'space-between',
       backgroundColor: '#ffffff',
       padding: '50px 60px',
       fontFamily: 'Poppins',
@@ -540,7 +578,7 @@ function buildTemplate5(params: any) {
 
     // Footer
     React.createElement('div', { style: { display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', backgroundColor: '#15803d', borderRadius: '40px', padding: '15px 40px', marginTop: 'auto' } }, [
-      React.createElement('span', { style: { color: '#ffffff', fontSize: '18px', fontWeight: '900' } }, `@sppg_official — ${sppgName}`)
+      React.createElement('span', { style: { color: '#ffffff', fontSize: '18px', fontWeight: '900' } }, socialText)
     ])
   ]);
 }
@@ -548,7 +586,7 @@ function buildTemplate5(params: any) {
 // ----------------------------------------------------
 // TEMPLATE 6: Executive Gold & 5 Column Stat Pills (Ref Image 5)
 // ----------------------------------------------------
-function buildTemplate6(params: any) {
+function buildTemplate6(params: PosterTemplateParams) {
   const {
     logoBase64, embeddedPhotoUrl, sppgName, formattedDate, totalBeneficiaries,
     energiBesar, proteinBesar, lemakBesar, karbohidratBesar, seratBesar,
@@ -610,10 +648,17 @@ function buildTemplate6(params: any) {
       ])
     ]),
 
-    // Bottom Beneficiary Pill Badge
-    React.createElement('div', { style: { display: 'flex', alignItems: 'center', backgroundColor: '#1e3a8a', borderRadius: '30px', padding: '6px', color: '#ffffff', fontSize: '16px', fontWeight: 'bold', gap: '10px', marginTop: 'auto' } }, [
-      React.createElement('span', { style: { paddingLeft: '20px' } }, 'Penerima Manfaat'),
-      React.createElement('div', { style: { backgroundColor: '#d97706', borderRadius: '20px', padding: '6px 20px', color: '#ffffff' } }, `${totalBeneficiaries.toLocaleString('id-ID')} PM`)
+    // Bottom Row: Beneficiary Pill Badge & Social Media
+    React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 'auto' } }, [
+      React.createElement('div', { style: { display: 'flex', alignItems: 'center', backgroundColor: '#1e3a8a', borderRadius: '30px', padding: '6px', color: '#ffffff', fontSize: '16px', fontWeight: 'bold', gap: '10px' } }, [
+        React.createElement('span', { style: { paddingLeft: '20px' } }, 'Penerima Manfaat'),
+        React.createElement('div', { style: { backgroundColor: '#d97706', borderRadius: '20px', padding: '6px 20px', color: '#ffffff' } }, `${totalBeneficiaries.toLocaleString('id-ID')} PM`)
+      ]),
+      React.createElement('span', { style: { color: '#475569', fontSize: '16px', fontWeight: 'bold' } },
+        params.instagram
+          ? `${params.instagram.startsWith('@') ? params.instagram : `@${params.instagram}`}`
+          : sppgName
+      )
     ])
   ]);
 }
@@ -699,6 +744,24 @@ export async function generatePoster(reportId: string, templateId: string = '1')
 
   const totalBeneficiaries = (report.porsi_besar || 0) + (report.porsi_kecil || 0);
 
+  // 1.8. Fetch SPPG reference data (Instagram, TikTok, Kontak Pengaduan)
+  let sppgRefData: { instagram?: string; tiktok?: string; kontak_pengaduan?: string } | null = null;
+  const sppgName = ext.sppg_name || report.whatsapp_from || '';
+  if (sppgName) {
+    try {
+      const { data: sppgDb } = await supabase
+        .from('sppg_data')
+        .select('instagram, tiktok, kontak_pengaduan')
+        .eq('nama_sppg', sppgName)
+        .maybeSingle();
+      if (sppgDb) {
+        sppgRefData = sppgDb;
+      }
+    } catch (err) {
+      console.warn('Failed to query sppg_data for poster:', err);
+    }
+  }
+
   const templateParams = {
     logoBase64,
     embeddedPhotoUrl,
@@ -717,6 +780,9 @@ export async function generatePoster(reportId: string, templateId: string = '1')
     lemakKecil: kecil.Lemak || kecil.lemak || 0,
     karbohidratKecil: kecil.Karbohidrat || kecil.karbohidrat || 0,
     seratKecil: kecil.Serat || kecil.serat || 0,
+    instagram: sppgRefData?.instagram || '',
+    tiktok: sppgRefData?.tiktok || '',
+    kontakPengaduan: sppgRefData?.kontak_pengaduan || '',
   };
 
   // Select Template Builder based on templateId

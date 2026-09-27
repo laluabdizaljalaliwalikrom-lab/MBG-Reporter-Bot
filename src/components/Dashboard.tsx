@@ -348,8 +348,8 @@ export default function Dashboard() {
   // Standalone Stiker Tab States
   const [standaloneStikerTemplate, setStandaloneStikerTemplate] = useState<"se2026" | "classic" | "grozziie">("grozziie");
   const [standaloneStikerSEPairMode, setStandaloneStikerSEPairMode] = useState<"pair" | "left_only" | "right_only">("pair");
-  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(100);
-  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(78);
+  const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(70);
+  const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(50);
   const [standaloneGrozziiePairMode, setStandaloneGrozziiePairMode] = useState<"both" | "left_only" | "right_only">("both");
   const [standaloneGrozziieXOffset, setStandaloneGrozziieXOffset] = useState<number>(0);
   const [standaloneGrozziieDirection, setStandaloneGrozziieDirection] = useState<0 | 1>(0);
@@ -390,14 +390,14 @@ export default function Dashboard() {
         throw new Error("Label Grozziie tidak ditemukan di layar.");
       }
 
-      // UI menampilkan label landscape (widthMm > heightMm), mis. 100×78.
-      // Tapi kertas FISIK portrait: lebar roll = heightMm (78mm), panjang feed = widthMm (100mm).
+      // UI menampilkan label landscape (widthMm > heightMm), mis. 70×50 mm (SE BGN).
+      // Kertas FISIK portrait pada roll: lebar roll = heightMm (50mm), panjang feed = widthMm (70mm).
       // Tukar w↔h saat kirim ke printer agar TSPL SIZE cocok dimensi fisik kertas.
-      const visualW = standaloneGrozziieWidth || 100;
-      const visualH = standaloneGrozziieHeight || 78;
+      const visualW = standaloneGrozziieWidth || 70;
+      const visualH = standaloneGrozziieHeight || 50;
       // physW = lebar fisik kertas (sisi sempit roll), physH = panjang feed label
-      const physW = visualH; // 78mm
-      const physH = visualW; // 100mm
+      const physW = visualH; // 50mm
+      const physH = visualW; // 70mm
 
       // Print each rendered label sequentially
       for (let i = 0; i < pages.length; i++) {
@@ -437,9 +437,9 @@ export default function Dashboard() {
   const getPaperDimensionsMm = () => {
     if (standaloneStikerTemplate === "grozziie") {
       return {
-        widthMm: standaloneGrozziieWidth || 130,
-        heightMm: standaloneGrozziieHeight || 80,
-        format: [standaloneGrozziieWidth || 130, standaloneGrozziieHeight || 80] as [number, number],
+        widthMm: standaloneGrozziieWidth || 70,
+        heightMm: standaloneGrozziieHeight || 50,
+        format: [standaloneGrozziieWidth || 70, standaloneGrozziieHeight || 50] as [number, number],
       };
     }
     if (standaloneStikerPaperSize === "a3") return { widthMm: 297, heightMm: 420, format: "a3" as const };
@@ -451,8 +451,8 @@ export default function Dashboard() {
     // Dynamically inject @page rule for Grozziie custom dimensions if active
     let dynamicStyleEl = document.getElementById("dynamic-grozziie-page-style");
     if (standaloneStikerTemplate === "grozziie") {
-      const w = standaloneGrozziieWidth || 130;
-      const h = standaloneGrozziieHeight || 80;
+      const w = standaloneGrozziieWidth || 70;
+      const h = standaloneGrozziieHeight || 50;
       if (!dynamicStyleEl) {
         dynamicStyleEl = document.createElement("style");
         dynamicStyleEl.id = "dynamic-grozziie-page-style";
@@ -2626,7 +2626,7 @@ export default function Dashboard() {
                             <span>Grozziie (Thermal Roll)</span>
                           </div>
                           <p className="text-[10px] text-slate-400 mt-1 leading-tight">
-                            Bluetooth & USB (Horizontal 130×80mm / Custom), cetak via Android/iOS/PC
+                            Bluetooth & USB (Standar SE BGN 70×50mm / Custom), cetak via Android/iOS/PC
                           </p>
                         </button>
 
@@ -2759,9 +2759,55 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                               <SlidersHorizontal size={13} />
-                              <span>Ukuran Kertas Label Roll Grozziie (Horizontal)</span>
+                              <span>Ukuran Kertas Label Roll Thermal</span>
                             </span>
-                            <span className="text-[10px] text-slate-400">Dapat diubah</span>
+                            <span className="text-[10px] text-emerald-400 font-medium">Standar SE BGN: 70×50 mm</span>
+                          </div>
+
+                          {/* Quick Preset Buttons */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStandaloneGrozziieWidth(70);
+                                setStandaloneGrozziieHeight(50);
+                              }}
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                                standaloneGrozziieWidth === 70 && standaloneGrozziieHeight === 50
+                                  ? "bg-emerald-600/30 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/50 shadow-sm"
+                                  : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                              }`}
+                            >
+                              ⭐ 70 × 50 mm (SE BGN)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStandaloneGrozziieWidth(100);
+                                setStandaloneGrozziieHeight(78);
+                              }}
+                              className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                                standaloneGrozziieWidth === 100 && standaloneGrozziieHeight === 78
+                                  ? "bg-emerald-600/30 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/50 shadow-sm"
+                                  : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                              }`}
+                            >
+                              100 × 78 mm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStandaloneGrozziieWidth(130);
+                                setStandaloneGrozziieHeight(80);
+                              }}
+                              className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                                standaloneGrozziieWidth === 130 && standaloneGrozziieHeight === 80
+                                  ? "bg-emerald-600/30 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/50 shadow-sm"
+                                  : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                              }`}
+                            >
+                              130 × 80 mm
+                            </button>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3">
@@ -2772,7 +2818,7 @@ export default function Dashboard() {
                                 min={40}
                                 max={250}
                                 value={standaloneGrozziieWidth}
-                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 100)}
+                                onChange={(e) => setStandaloneGrozziieWidth(parseInt(e.target.value) || 70)}
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
                               />
                             </div>
@@ -2783,7 +2829,7 @@ export default function Dashboard() {
                                 min={30}
                                 max={200}
                                 value={standaloneGrozziieHeight}
-                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 78)}
+                                onChange={(e) => setStandaloneGrozziieHeight(parseInt(e.target.value) || 50)}
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
                               />
                             </div>
@@ -2832,8 +2878,8 @@ export default function Dashboard() {
                                 setBleStatusText("Mencetak pola test diagnostik...");
                                 try {
                                   await printTestPatternViaBle(
-                                    standaloneGrozziieWidth || 78,
-                                    standaloneGrozziieHeight || 100,
+                                    standaloneGrozziieHeight || 50,
+                                    standaloneGrozziieWidth || 70,
                                     standaloneGrozziieDirection,
                                     (msg) => setBleStatusText(msg)
                                   );

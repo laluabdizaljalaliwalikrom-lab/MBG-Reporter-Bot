@@ -277,9 +277,10 @@ export function imageToTsplBytes(
    * konten tetap berada di tengah kertas.
    */
 
-  // Margin simetris 6% di kiri-kanan, 2% di atas-bawah
-  const marginW = Math.round(physDotsW * 0.06); // ~4.7mm pada 78mm kertas
-  const marginH = Math.round(physDotsH * 0.02);
+  // Margin simetris aman untuk thermal: 2.5% di kiri-kanan (~1.5-2mm), 1.5% di atas-bawah (~1mm)
+  // Menjaga konten tidak menempel ke tepi roll namun tidak memangkas layout
+  const marginW = Math.max(8, Math.round(physDotsW * 0.025)); 
+  const marginH = Math.max(6, Math.round(physDotsH * 0.015));
   const printW = physDotsW - marginW * 2;  // area cetak aktif (horizontal)
   const printH = physDotsH - marginH * 2;  // area cetak aktif (vertikal)
 

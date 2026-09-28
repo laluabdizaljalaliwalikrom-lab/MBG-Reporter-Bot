@@ -24,7 +24,7 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
     heightMm = 50,
     sppgName = "SPPG KOTA BANDUNG",
     subWilayah = "Kawasan Pelayanan Mandiri",
-    jamBatas = "10.00",
+    jamBatas = "10.30",
     waPengaduan = "081234567890",
     tiktokPengaduan = "sppg_official",
     igPengaduan = "sppg_official",
@@ -32,9 +32,9 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
     pairMode = "both",
   } = props;
 
-  // Format jam display (e.g. 10:00 -> 10.00)
+  // Format jam display (e.g. 10:30 -> 10.30)
   const formatJamDisplay = (val: string) => {
-    if (!val) return "10.00";
+    if (!val) return "10.30";
     return val.replace(":", ".");
   };
 

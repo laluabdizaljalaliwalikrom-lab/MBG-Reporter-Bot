@@ -350,6 +350,7 @@ export default function Dashboard() {
   const [standaloneStikerSEPairMode, setStandaloneStikerSEPairMode] = useState<"pair" | "left_only" | "right_only">("pair");
   const [standaloneGrozziieWidth, setStandaloneGrozziieWidth] = useState<number>(70);
   const [standaloneGrozziieHeight, setStandaloneGrozziieHeight] = useState<number>(50);
+  const [standaloneGrozziieRollOrientation, setStandaloneGrozziieRollOrientation] = useState<"horizontal" | "vertical">("horizontal");
   const [standaloneGrozziiePairMode, setStandaloneGrozziiePairMode] = useState<"both" | "left_only" | "right_only">("both");
   const [standaloneGrozziieXOffset, setStandaloneGrozziieXOffset] = useState<number>(0);
   const [standaloneGrozziieDirection, setStandaloneGrozziieDirection] = useState<0 | 1>(0);
@@ -367,7 +368,7 @@ export default function Dashboard() {
   const [standaloneStikerCountBesar, setStandaloneStikerCountBesar] = useState<number>(6);
   const [standaloneStikerTanggal, setStandaloneStikerTanggal] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [standaloneStikerJamSelesai, setStandaloneStikerJamSelesai] = useState<string>("05:30");
-  const [standaloneStikerJamBatas, setStandaloneStikerJamBatas] = useState<string>("10:00");
+  const [standaloneStikerJamBatas, setStandaloneStikerJamBatas] = useState<string>("10:30");
   const [standaloneStikerGiziBesar, setStandaloneStikerGiziBesar] = useState({ energi: "650", protein: "22", lemak: "18", karbohidrat: "85", serat: "6" });
   const [standaloneStikerGiziKecil, setStandaloneStikerGiziKecil] = useState({ energi: "450", protein: "15", lemak: "12", karbohidrat: "60", serat: "4" });
   const [isDownloadingStickerPDF, setIsDownloadingStickerPDF] = useState<boolean>(false);
@@ -390,14 +391,16 @@ export default function Dashboard() {
         throw new Error("Label Grozziie tidak ditemukan di layar.");
       }
 
-      // UI menampilkan label landscape (widthMm > heightMm), mis. 70×50 mm (SE BGN).
-      // Kertas FISIK portrait pada roll: lebar roll = heightMm (50mm), panjang feed = widthMm (70mm).
-      // Tukar w↔h saat kirim ke printer agar TSPL SIZE cocok dimensi fisik kertas.
+      // Dimensi desain visual label (misal 70mm x 50mm)
       const visualW = standaloneGrozziieWidth || 70;
       const visualH = standaloneGrozziieHeight || 50;
-      // physW = lebar fisik kertas (sisi sempit roll), physH = panjang feed label
-      const physW = visualH; // 50mm
-      const physH = visualW; // 70mm
+
+      // Orientasi fisik gulungan kertas pada printer:
+      // - "horizontal": Kertas keluar mendatar (lebar roll = visualW misal 70mm, panjang feed = visualH misal 50mm).
+      // - "vertical": Kertas keluar tegak (lebar roll = visualH misal 50mm, panjang feed = visualW misal 70mm).
+      const isRollHorizontal = standaloneGrozziieRollOrientation === "horizontal";
+      const physW = isRollHorizontal ? visualW : visualH;
+      const physH = isRollHorizontal ? visualH : visualW;
 
       // Print each rendered label sequentially
       for (let i = 0; i < pages.length; i++) {
@@ -2835,6 +2838,48 @@ export default function Dashboard() {
                             </div>
                           </div>
 
+                          {/* Orientasi Roll Kertas Fisik */}
+                          <div className="space-y-1.5 pt-1 border-t border-slate-800/80">
+                            <label className="text-[10px] font-semibold text-slate-300 flex items-center justify-between">
+                              <span>Orientasi Gulungan Kertas di Printer</span>
+                              <span className="text-[9px] text-emerald-400 font-bold">
+                                {standaloneGrozziieRollOrientation === "horizontal"
+                                  ? "Horizontal (Lebar Roll 70mm)"
+                                  : "Vertikal (Lebar Roll 50mm)"}
+                              </span>
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setStandaloneGrozziieRollOrientation("horizontal")}
+                                className={`p-2 rounded-lg border text-left transition-all ${
+                                  standaloneGrozziieRollOrientation === "horizontal"
+                                    ? "bg-emerald-600/30 border-emerald-500 text-white ring-1 ring-emerald-500/50"
+                                    : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                                }`}
+                              >
+                                <div className="text-[11px] font-bold">↔ Horizontal (Lebar 70mm)</div>
+                                <div className="text-[9px] text-slate-400 mt-0.5 leading-tight">
+                                  Kertas keluar mendatar sejajar desain (Feed panjang 50mm)
+                                </div>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setStandaloneGrozziieRollOrientation("vertical")}
+                                className={`p-2 rounded-lg border text-left transition-all ${
+                                  standaloneGrozziieRollOrientation === "vertical"
+                                    ? "bg-emerald-600/30 border-emerald-500 text-white ring-1 ring-emerald-500/50"
+                                    : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                                }`}
+                              >
+                                <div className="text-[11px] font-bold">↕ Vertikal (Lebar 50mm)</div>
+                                <div className="text-[9px] text-slate-400 mt-0.5 leading-tight">
+                                  Kertas keluar tegak sempit (Feed panjang 70mm, auto-rotate 90°)
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-3 pt-1">
                             <div className="space-y-1">
                               <label className="text-[10px] font-semibold text-slate-400">Format Cetak Segel</label>
@@ -2877,9 +2922,12 @@ export default function Dashboard() {
                                 setIsPrintingBle(true);
                                 setBleStatusText("Mencetak pola test diagnostik...");
                                 try {
+                                  const isRollHorizontal = standaloneGrozziieRollOrientation === "horizontal";
+                                  const physW = isRollHorizontal ? (standaloneGrozziieWidth || 70) : (standaloneGrozziieHeight || 50);
+                                  const physH = isRollHorizontal ? (standaloneGrozziieHeight || 50) : (standaloneGrozziieWidth || 70);
                                   await printTestPatternViaBle(
-                                    standaloneGrozziieHeight || 50,
-                                    standaloneGrozziieWidth || 70,
+                                    physW,
+                                    physH,
                                     standaloneGrozziieDirection,
                                     (msg) => setBleStatusText(msg)
                                   );

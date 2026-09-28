@@ -136,8 +136,6 @@ export default function StickerPrintSheetSE(props: StickerPrintSheetSEProps) {
   }
 
   // Dimension helpers - Enhanced for maximum clarity, bolder hierarchy, and minimal empty space
-  const logoH = tier === "jumbo" ? "34px" : tier === "large" ? "27px" : tier === "medium" ? "22px" : "18px";
-  const titleBgn = tier === "jumbo" ? "9.5pt" : tier === "large" ? "7.8pt" : tier === "medium" ? "6.8pt" : "5.8pt";
   const titleSppg = tier === "jumbo" ? "10.5pt" : tier === "large" ? "8.8pt" : tier === "medium" ? "7.5pt" : "6.5pt";
   const subWilayahSize = tier === "jumbo" ? "7.5pt" : tier === "large" ? "6.2pt" : tier === "medium" ? "5.4pt" : "4.8pt";
   const noticeTitleSize = tier === "jumbo" ? "10.5pt" : tier === "large" ? "9pt" : tier === "medium" ? "7.8pt" : "6.8pt";

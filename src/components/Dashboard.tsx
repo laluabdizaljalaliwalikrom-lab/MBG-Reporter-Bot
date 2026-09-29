@@ -353,6 +353,7 @@ export default function Dashboard() {
   const [standaloneGrozziieRollOrientation, setStandaloneGrozziieRollOrientation] = useState<"horizontal" | "vertical">("horizontal");
   const [standaloneGrozziiePairMode, setStandaloneGrozziiePairMode] = useState<"both" | "left_only" | "right_only">("both");
   const [standaloneGrozziieXOffset, setStandaloneGrozziieXOffset] = useState<number>(0);
+  const [standaloneGrozziieYOffset, setStandaloneGrozziieYOffset] = useState<number>(0);
   const [standaloneGrozziieDirection, setStandaloneGrozziieDirection] = useState<0 | 1>(0);
   const [standaloneGrozziieRotate90, setStandaloneGrozziieRotate90] = useState<boolean>(false);
   const [standaloneStikerSubWilayah, setStandaloneStikerSubWilayah] = useState<string>("Kawasan Pelayanan Mandiri");
@@ -408,6 +409,7 @@ export default function Dashboard() {
         setBleStatusText(`Mencetak label ${i + 1} dari ${pages.length}...`);
         await directPrintElementViaBle(pageEl, physW, physH, (msg) => setBleStatusText(msg), {
           xOffsetDots: Math.round(standaloneGrozziieXOffset * 8), // convert mm to dots
+          yOffsetDots: Math.round(standaloneGrozziieYOffset * 8), // convert mm to dots
           direction: standaloneGrozziieDirection,
           rotate90: standaloneGrozziieRotate90, // override rotasi manual jika perlu
         });
@@ -451,47 +453,84 @@ export default function Dashboard() {
   };
 
   const handlePrintSticker = () => {
-    // Dynamically inject @page rule for Grozziie custom dimensions if active
+    // Dynamically inject @page rule agar dialog print browser mengikuti ukuran & orientasi kertas yang dipilih
     let dynamicStyleEl = document.getElementById("dynamic-grozziie-page-style");
+    if (!dynamicStyleEl) {
+      dynamicStyleEl = document.createElement("style");
+      dynamicStyleEl.id = "dynamic-grozziie-page-style";
+      document.head.appendChild(dynamicStyleEl);
+    }
+
     if (standaloneStikerTemplate === "grozziie") {
-      const w = standaloneGrozziieWidth || 70;
-      const h = standaloneGrozziieHeight || 50;
-      if (!dynamicStyleEl) {
-        dynamicStyleEl = document.createElement("style");
-        dynamicStyleEl.id = "dynamic-grozziie-page-style";
-        document.head.appendChild(dynamicStyleEl);
-      }
+      const isRollHorizontal = standaloneGrozziieRollOrientation === "horizontal";
+      // Untuk kertas keluar horizontal: lebar 70mm, tinggi 50mm landscape
+      // Untuk kertas keluar vertikal: lebar 50mm, tinggi 70mm portrait
+      const w = isRollHorizontal ? (standaloneGrozziieWidth || 70) : (standaloneGrozziieHeight || 50);
+      const h = isRollHorizontal ? (standaloneGrozziieHeight || 50) : (standaloneGrozziieWidth || 70);
+      const orient = isRollHorizontal ? "landscape" : "portrait";
+
       dynamicStyleEl.innerHTML = `
         @media print {
           @page {
-            size: ${w}mm ${h}mm !important;
-            margin: 0 !important;
+            size: ${w}mm ${h}mm ${orient} !important;
+            margin: 0mm !important;
           }
-          body {
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            box-sizing: border-box !important;
+          }
+          html, body {
             margin: 0 !important;
             padding: 0 !important;
+            width: ${w}mm !important;
+            height: ${h}mm !important;
+            overflow: visible !important;
+            background: #ffffff !important;
           }
           #sticker-print-root {
-            position: absolute !important;
+            position: relative !important;
             top: 0 !important;
             left: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
-          }
-          .grozziie-label-page {
             width: ${w}mm !important;
-            height: ${h}mm !important;
-            page-break-after: always !important;
-            break-after: page !important;
+            overflow: visible !important;
+          }
+          .grozziie-print-container {
             margin: 0 !important;
             padding: 0 !important;
+            gap: 0 !important;
+          }
+          .grozziie-label-page {
+            width: ${standaloneGrozziieWidth || 70}mm !important;
+            height: ${standaloneGrozziieHeight || 50}mm !important;
+            max-height: ${standaloneGrozziieHeight || 50}mm !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            top: ${standaloneGrozziieYOffset}mm !important;
+            left: ${standaloneGrozziieXOffset}mm !important;
+            transform-origin: top left !important;
           }
         }
       `;
     } else {
-      if (dynamicStyleEl) {
-        dynamicStyleEl.remove();
-      }
+      const paperDimensions = getPaperDimensionsMm();
+      const pW = paperDimensions.widthMm;
+      const pH = paperDimensions.heightMm;
+      dynamicStyleEl.innerHTML = `
+        @media print {
+          @page {
+            size: ${pW}mm ${pH}mm portrait !important;
+            margin: 0 !important;
+          }
+        }
+      `;
     }
     window.print();
   };
@@ -2880,36 +2919,55 @@ export default function Dashboard() {
                             </div>
                           </div>
 
+                          <div className="space-y-1 pt-1">
+                            <label className="text-[10px] font-semibold text-slate-400">Format Cetak Segel</label>
+                            <select
+                              value={standaloneGrozziiePairMode}
+                              onChange={(e) => setStandaloneGrozziiePairMode(e.target.value as "both" | "left_only" | "right_only")}
+                              className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
+                            >
+                              <option value="both">Pasangan (Kiri & Kanan)</option>
+                              <option value="left_only">Hanya Segel Kiri</option>
+                              <option value="right_only">Hanya Segel Kanan</option>
+                            </select>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-3 pt-1">
                             <div className="space-y-1">
-                              <label className="text-[10px] font-semibold text-slate-400">Format Cetak Segel</label>
-                              <select
-                                value={standaloneGrozziiePairMode}
-                                onChange={(e) => setStandaloneGrozziiePairMode(e.target.value as "both" | "left_only" | "right_only")}
-                                className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
-                              >
-                                <option value="both">Pasangan (Kiri & Kanan)</option>
-                                <option value="left_only">Hanya Segel Kiri</option>
-                                <option value="right_only">Hanya Segel Kanan</option>
-                              </select>
-                            </div>
-                            <div className="space-y-1">
                               <div className="flex items-center justify-between">
-                                <label className="text-[10px] font-semibold text-slate-400">Geser Posisi (X-Offset)</label>
+                                <label className="text-[10px] font-semibold text-slate-400">Geser Horizontal (X)</label>
                                 <span className="text-[9px] text-emerald-400 font-mono">{standaloneGrozziieXOffset > 0 ? `+${standaloneGrozziieXOffset}mm` : `${standaloneGrozziieXOffset}mm`}</span>
                               </div>
                               <input
                                 type="number"
                                 min={-30}
                                 max={30}
-                                step={1}
+                                step={0.5}
                                 value={standaloneGrozziieXOffset}
-                                onChange={(e) => setStandaloneGrozziieXOffset(parseInt(e.target.value) || 0)}
+                                onChange={(e) => setStandaloneGrozziieXOffset(parseFloat(e.target.value) || 0)}
                                 placeholder="0 mm"
                                 className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
-                                title="Nilai negatif (-) geser konten ke kanan fisik. Nilai positif (+) geser ke kiri fisik. Mulai dari 0, sesuaikan jika masih terpotong."
+                                title="Nilai positif (+) geser ke kanan. Nilai negatif (-) geser ke kiri."
                               />
-                              <p className="text-[9px] text-slate-500">− = geser kanan &nbsp;|&nbsp; + = geser kiri</p>
+                              <p className="text-[9px] text-slate-500 text-center">+ kanan | − kiri</p>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-semibold text-slate-400">Geser Vertikal (Y)</label>
+                                <span className="text-[9px] text-emerald-400 font-mono">{standaloneGrozziieYOffset > 0 ? `+${standaloneGrozziieYOffset}mm` : `${standaloneGrozziieYOffset}mm`}</span>
+                              </div>
+                              <input
+                                type="number"
+                                min={-30}
+                                max={30}
+                                step={0.5}
+                                value={standaloneGrozziieYOffset}
+                                onChange={(e) => setStandaloneGrozziieYOffset(parseFloat(e.target.value) || 0)}
+                                placeholder="0 mm"
+                                className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 text-center"
+                                title="Nilai negatif (-) geser ke atas. Nilai positif (+) geser ke bawah."
+                              />
+                              <p className="text-[9px] text-slate-500 text-center">− ke atas | + bawah</p>
                             </div>
                           </div>
 

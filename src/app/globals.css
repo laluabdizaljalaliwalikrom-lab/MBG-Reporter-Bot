@@ -348,10 +348,8 @@ body {
 
 /* Printable Document CSS Override */
 @media print {
-  /* Zero page margins for everything. Weekly report and sticker sheet each
-     emulate their own insets internally (see rules below). */
+  /* Zero page margins. Dimensi kertas dikontrol oleh container atau style @page dinamis */
   @page {
-    size: A4 portrait;
     margin: 0;
   }
 
@@ -441,12 +439,12 @@ body {
 
   #sticker-print-root {
     display: block !important;
-    position: absolute !important;
+    position: relative !important;
     left: 0 !important;
     top: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: auto !important;
+    width: 100% !important;
     box-shadow: none !important;
   }
 

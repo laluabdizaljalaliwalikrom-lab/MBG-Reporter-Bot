@@ -63,8 +63,8 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
         boxSizing: "border-box",
         backgroundColor: "#ffffff",
         color: "#000000",
-        border: "2px solid #000000",
-        borderRadius: "6px",
+        border: "1.5px solid #000000",
+        borderRadius: "4px",
         fontFamily: "'Arial Black', 'Arial', 'Helvetica', sans-serif",
         position: "relative",
         pageBreakAfter: "always",
@@ -72,7 +72,7 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
         overflow: "hidden",
         display: "flex",
         flexDirection: "row",
-        padding: "0.5mm",
+        padding: "0.8mm",
       }}
     >
       {/* ── AREA LIDAH SEGEL SISI KIRI (Untuk dilipat & direkatkan ke samping ompreng) ── */}
@@ -307,8 +307,8 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
         boxSizing: "border-box",
         backgroundColor: "#ffffff",
         color: "#000000",
-        border: "2px solid #000000",
-        borderRadius: "6px",
+        border: "1.5px solid #000000",
+        borderRadius: "4px",
         fontFamily: "'Arial Black', 'Arial', 'Helvetica', sans-serif",
         position: "relative",
         pageBreakAfter: "always",
@@ -316,7 +316,7 @@ export default function StickerRollGrozziie(props: StickerRollGrozziieProps) {
         overflow: "hidden",
         display: "flex",
         flexDirection: "row",
-        padding: "0.5mm",
+        padding: "0.8mm",
       }}
     >
       {/* ── KONTEN UTAMA SEGEL KANAN (2 PERINGATAN + KOTAK PENGADUAN) ── */}

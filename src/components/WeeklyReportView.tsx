@@ -378,37 +378,37 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
   return (
     <div className="space-y-6">
       {/* Top Filter & Control Panel (Hidden on Print) */}
-      <div className="print:hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-md">
+      <div className="print:hidden bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <FileText className="w-6 h-6 text-indigo-400" />
+            <h2 className="text-lg font-bold text-[#4e73df] uppercase tracking-wide flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[#4e73df]" />
               Generator Laporan Mingguan MBG
             </h2>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-xs text-[#858796] dark:text-gray-400 mt-1">
               Rekapitulasi menu harian & nilai gizi sesuai format resmi Badan Gizi Nasional.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Unified Download Dropdown Button */}
             <div className="relative">
               <button
                 type="button"
                 disabled={isPdfGenerating}
                 onClick={() => setShowDownloadDropdown((prev) => !prev)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl font-semibold text-sm transition-all shadow-md shadow-emerald-600/20"
+                className="flex items-center gap-2 px-3.5 py-2 bg-[#1cc88a] hover:bg-[#17a673] disabled:opacity-50 text-white rounded-[0.35rem] font-bold text-xs transition-all shadow-sm"
               >
                 <Download className="w-4 h-4" />
                 <span>{isPdfGenerating ? "Mengunduh PDF..." : "Download"}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showDownloadDropdown ? "rotate-180" : ""}`} />
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showDownloadDropdown ? "rotate-180" : ""}`} />
               </button>
 
               {showDownloadDropdown && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowDownloadDropdown(false)} />
                   
-                  <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-20 overflow-hidden py-1 divide-y divide-slate-800/80">
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] shadow-xl z-20 overflow-hidden py-1 divide-y divide-[#e3e6f0] dark:divide-gray-700">
                     <button
                       type="button"
                       disabled={isPdfGenerating}
@@ -416,9 +416,9 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
                         setShowDownloadDropdown(false);
                         handleDownloadPDF();
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white transition-colors text-left font-medium disabled:opacity-50"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#5a5c69] dark:text-gray-200 hover:bg-[#f8f9fc] dark:hover:bg-gray-700 hover:text-[#4e73df] transition-colors text-left font-bold disabled:opacity-50"
                     >
-                      <Download className="w-4 h-4 text-indigo-400" />
+                      <Download className="w-4 h-4 text-[#4e73df]" />
                       <span>Unduh PDF (.pdf)</span>
                     </button>
                     <button
@@ -427,9 +427,9 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
                         setShowDownloadDropdown(false);
                         handleDownloadWord();
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white transition-colors text-left font-medium"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#5a5c69] dark:text-gray-200 hover:bg-[#f8f9fc] dark:hover:bg-gray-700 hover:text-[#1cc88a] transition-colors text-left font-bold"
                     >
-                      <Download className="w-4 h-4 text-emerald-400" />
+                      <Download className="w-4 h-4 text-[#1cc88a]" />
                       <span>Unduh Word (.doc)</span>
                     </button>
                   </div>
@@ -441,7 +441,7 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
             <button
               type="button"
               onClick={handlePrint}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-indigo-600/30"
+              className="flex items-center gap-2 px-4 py-2 bg-[#4e73df] hover:bg-[#2e59d9] text-white rounded-[0.35rem] font-bold text-xs transition-all shadow-sm"
             >
               <Printer className="w-4 h-4" />
               <span>Cetak</span>
@@ -451,35 +451,35 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
 
         {/* Quick Period Presets */}
         <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs font-semibold text-slate-400">Pilih Cepat Periode:</span>
+          <span className="text-xs font-bold text-[#858796] dark:text-gray-400 uppercase tracking-wider">Pilih Cepat Periode:</span>
           <button
             type="button"
             onClick={() => setQuickPeriod("thisWeek")}
-            className="px-2.5 py-1 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-800/60 rounded-lg text-xs font-medium transition-all"
+            className="px-2.5 py-1 bg-[#4e73df]/10 hover:bg-[#4e73df]/20 text-[#4e73df] border border-[#4e73df]/30 rounded-[0.35rem] text-xs font-bold transition-all"
           >
             Minggu Ini
           </button>
           <button
             type="button"
             onClick={() => setQuickPeriod("lastWeek")}
-            className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 rounded-lg text-xs font-medium transition-all"
+            className="px-2.5 py-1 bg-[#f8f9fc] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 text-[#5a5c69] dark:text-gray-300 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] text-xs font-bold transition-all"
           >
             Minggu Lalu
           </button>
           <button
             type="button"
             onClick={() => setQuickPeriod("thisMonth")}
-            className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 rounded-lg text-xs font-medium transition-all"
+            className="px-2.5 py-1 bg-[#f8f9fc] dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 text-[#5a5c69] dark:text-gray-300 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] text-xs font-bold transition-all"
           >
             Bulan Ini
           </button>
         </div>
 
         {/* Filters Form Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 pt-4 border-t border-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 pt-4 border-t border-[#e3e6f0] dark:border-gray-700">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-bold text-[#5a5c69] dark:text-gray-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#4e73df]" />
               Tanggal Mulai
             </label>
             <input
@@ -487,13 +487,13 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors [color-scheme:dark] cursor-pointer"
+              className="w-full bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-xs text-[#5a5c69] dark:text-gray-200 focus:outline-none focus:border-[#bac8f3] transition-colors cursor-pointer"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-bold text-[#5a5c69] dark:text-gray-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#4e73df]" />
               Tanggal Selesai
             </label>
             <input
@@ -501,13 +501,13 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors [color-scheme:dark] cursor-pointer"
+              className="w-full bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-xs text-[#5a5c69] dark:text-gray-200 focus:outline-none focus:border-[#bac8f3] transition-colors cursor-pointer"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-bold text-[#5a5c69] dark:text-gray-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-[#4e73df]" />
               Pilih SPPG
             </label>
             <select
@@ -519,7 +519,7 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
                   setSppgDetailName(val);
                 }
               }}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-xs text-[#5a5c69] dark:text-gray-200 focus:outline-none focus:border-[#bac8f3] transition-colors cursor-pointer"
             >
               <option value="All">Semua SPPG</option>
               {sppgList.map((sppg, i) => (
@@ -531,8 +531,8 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-bold text-[#5a5c69] dark:text-gray-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-[#4e73df]" />
               Kabupaten / Kota
             </label>
             <input
@@ -540,13 +540,13 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
               value={kabupaten}
               onChange={(e) => setKabupaten(e.target.value.toUpperCase())}
               placeholder="e.g. LOMBOK TIMUR"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors uppercase"
+              className="w-full bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-xs text-[#5a5c69] dark:text-gray-200 focus:outline-none focus:border-[#bac8f3] transition-colors uppercase font-bold"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-bold text-[#5a5c69] dark:text-gray-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-[#4e73df]" />
               Kecamatan & Kode SPPG
             </label>
             <input
@@ -554,16 +554,16 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
               value={sppgDetailName}
               onChange={(e) => setSppgDetailName(e.target.value)}
               placeholder="e.g. SIKUR 02"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-xs text-[#5a5c69] dark:text-gray-200 focus:outline-none focus:border-[#bac8f3] transition-colors font-bold"
             />
           </div>
         </div>
 
         {/* Second Row for Pejabat / Signatures Info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 mt-3 border-t border-slate-800/60">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 mt-3 border-t border-[#e3e6f0] dark:border-gray-700">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-bold text-[#5a5c69] dark:text-gray-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-[#4e73df]" />
               Nama Pengawas Gizi SPPG
             </label>
             <input
@@ -571,13 +571,13 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
               value={namaPengawasGizi}
               onChange={(e) => setNamaPengawasGizi(e.target.value)}
               placeholder="e.g. Ns. Fatimah, S.Gz"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-xs text-[#5a5c69] dark:text-gray-200 focus:outline-none focus:border-[#bac8f3] transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-bold text-[#5a5c69] dark:text-gray-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-[#4e73df]" />
               Nama Kepala SPPG
             </label>
             <input
@@ -585,14 +585,14 @@ export default function WeeklyReportView({ reports = [], sppgList = [] }: Weekly
               value={namaKepalaSppg}
               onChange={(e) => setNamaKepalaSppg(e.target.value)}
               placeholder="e.g. Drs. Ahmad Hidayat, M.Si"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-xs text-[#5a5c69] dark:text-gray-200 focus:outline-none focus:border-[#bac8f3] transition-colors"
             />
           </div>
         </div>
       </div>
 
       {/* Report Document Preview Container */}
-      <div id="printable-weekly-report" className="print-only-document bg-white text-slate-900 rounded-2xl p-8 md:p-12 shadow-2xl overflow-x-auto print:shadow-none print:p-0 print:m-0 print:rounded-none">
+      <div id="printable-weekly-report" className="print-only-document bg-white text-slate-900 rounded-[0.35rem] p-8 md:p-12 shadow-sm border border-[#e3e6f0] overflow-x-auto print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none">
         {/* Document Header matching Google Doc template */}
         <div className="text-center mb-8 font-serif uppercase tracking-wide">
           <div className="flex items-center justify-center gap-4 mb-2">

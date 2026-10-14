@@ -1,8 +1,37 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  /* SB Admin 2 palette */
+  --color-sb-primary: #4e73df;
+  --color-sb-secondary: #858796;
+  --color-sb-success: #1cc88a;
+  --color-sb-info: #36b9cc;
+  --color-sb-warning: #f6c23e;
+  --color-sb-danger: #e74a3b;
+  --color-sb-light: #f2f2f2;
+  --color-sb-dark: #252525;
+  --color-sb-body: #6e707e;
+  --color-sb-surface: #f8f9fc;
+
+  /* Dark shell and card tokens aligned with Tailwind's slate scale */
+  --color-sb-shell: #111827;
+  --color-sb-card: #1f2937;
+  --color-sb-border: #374151;
+  --color-sb-text: #9ca3af;
+
+  /* SB Admin 2 typography */
+  --font-nunito: var(--font-nunito), "Segoe UI", sans-serif;
+}
+
 :root {
   --background: #0b0f19;
   --foreground: #f8fafc;
+}
+
+html, body, #app-root, button, input, select, textarea {
+  font-family: var(--font-nunito), "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
 /* Light Mode Global Theme Override */
@@ -13,35 +42,78 @@ html.light {
 }
 
 html.light #app-root {
-  background-color: #f1f5f9 !important;
-  color: #0f172a !important;
+  background-color: #f8f9fc !important;
+  color: #5a5c69 !important;
 }
 
+/* SB Admin 2 Sidebar - Iconic Gradient in Both Themes */
+aside,
 html.light aside {
-  background-color: rgba(255, 255, 255, 0.92) !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01) !important;
+  background: linear-gradient(180deg, #4e73df 10%, #224abe 100%) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
 }
 
+.sidebar-logo-header,
 html.light .sidebar-logo-header {
-  background-color: rgba(248, 250, 252, 0.8) !important;
-  border-color: #e2e8f0 !important;
+  background-color: transparent !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-html.light aside h1 {
-  background: linear-gradient(to right, #0f172a, #334155, #4f46e5) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  color: transparent !important;
+aside h1,
+html.light aside h1,
+aside span,
+html.light aside span,
+aside p,
+html.light aside p,
+aside h4,
+html.light aside h4 {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+}
+
+/* Force white text in SB Admin 2 sidebar in light mode */
+html.light aside .text-white,
+html.light aside span.text-white,
+html.light aside svg.text-white,
+html.light aside button.text-white {
+  color: #ffffff !important;
+}
+
+html.light aside .text-white\/80 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+html.light aside .text-white\/70 {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html.light aside .text-white\/60 {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+html.light aside .text-white\/40 {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+html.light aside sup {
+  color: #ffffff !important;
+}
+
+/* SB Admin 2 Topbar Header */
+header,
+html.light header {
+  border-bottom: 1px solid #e3e6f0 !important;
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.12) !important;
 }
 
 html.light header {
-  background-color: rgba(255, 255, 255, 0.88) !important;
-  border-color: #e2e8f0 !important;
+  background-color: #ffffff !important;
 }
 
 html.light header h2 {
-  color: #0f172a !important;
+  color: #5a5c69 !important;
 }
 
 html.light .bg-slate-900\/90,
@@ -93,10 +165,50 @@ html.light .divide-slate-800\/80 {
   border-color: #e2e8f0 !important;
 }
 
-html.light .text-white {
-  color: #0f172a !important;
+/* Preserve white text on solid colored buttons, badges, avatars, and sidebar items */
+button.text-white,
+button.text-white *,
+.text-white[class*="bg-"],
+[class*="bg-[#4e73df]"],
+[class*="bg-[#4e73df]"] *,
+[class*="bg-[#1cc88a]"],
+[class*="bg-[#1cc88a]"] *,
+[class*="bg-[#e74a3b]"],
+[class*="bg-[#e74a3b]"] *,
+[class*="bg-[#36b9cc]"],
+[class*="bg-[#36b9cc]"] *,
+[class*="bg-[#858796]"],
+[class*="bg-[#858796]"] *,
+[class*="bg-sb-primary"],
+[class*="bg-sb-primary"] *,
+[class*="bg-indigo-600"],
+[class*="bg-indigo-600"] *,
+[class*="bg-emerald-600"],
+[class*="bg-emerald-600"] *,
+[class*="bg-rose-600"],
+[class*="bg-rose-600"] *,
+[class*="bg-blue-600"],
+[class*="bg-blue-600"] *,
+aside h1,
+aside p.font-bold,
+aside .sidebar-logo-header span {
+  color: #ffffff !important;
 }
 
+/* In Light Mode, prevent unstyled text-white on white cards from being invisible */
+html.light p.text-white:not([class*="bg-"]):not(button.text-white *):not(aside *),
+html.light h1.text-white:not(aside *):not(button.text-white *):not([class*="bg-"]),
+html.light h2.text-white:not(aside *):not(button.text-white *):not([class*="bg-"]),
+html.light h3.text-white:not(aside *):not(button.text-white *):not([class*="bg-"]),
+html.light h4.text-white:not(aside *):not(button.text-white *):not([class*="bg-"]),
+html.light h5.text-white:not(aside *):not(button.text-white *):not([class*="bg-"]),
+html.light h6.text-white:not(aside *):not(button.text-white *):not([class*="bg-"]),
+html.light span.text-white:not([class*="bg-"]):not(button.text-white *):not(aside *):not(.badge):not([role="status"]),
+html.light td.text-white:not([class*="bg-"]):not(button.text-white *) {
+  color: #2e384d !important;
+}
+
+/* Light mode text color helpers for legacy slate classes */
 html.light .text-slate-100 {
   color: #1e293b !important;
 }
@@ -123,75 +235,65 @@ html.light nav button.text-slate-400:hover {
   color: #0f172a !important;
 }
 
-html.light nav button.bg-indigo-600 {
-  color: #ffffff !important;
-}
-
-html.light nav button.bg-indigo-600 span {
-  color: #ffffff !important;
-}
-
 html.light .hover\:bg-slate-800:hover,
 html.light .hover\:bg-slate-900:hover {
   background-color: #f1f5f9 !important;
 }
 
-html.light input,
+/* SB Admin 2 Form Controls (Light Mode) */
+html.light input:not([type="checkbox"]):not([type="radio"]),
 html.light select,
 html.light textarea {
   background-color: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  color: #0f172a !important;
+  border-color: #d1d3e2 !important;
+  color: #5a5c69 !important;
 }
 
 html.light input::placeholder,
 html.light textarea::placeholder {
-  color: #94a3b8 !important;
+  color: #b7b9cc !important;
 }
 
-/* Light mode table & modal styles */
+/* SB Admin 2 Form Controls (Dark Mode) */
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark select,
+html.dark textarea {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #f3f4f6 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* SB Admin 2 Tables (Light Mode) */
 html.light thead {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+  background-color: #f8f9fc !important;
+  border-color: #e3e6f0 !important;
 }
 
 html.light thead th {
-  color: #64748b !important;
+  color: #4e73df !important;
 }
 
 html.light tbody tr:hover {
-  background-color: #f8fafc !important;
+  background-color: #f8f9fc !important;
 }
 
-html.light [role="dialog"],
-html.light .fixed.inset-0 > div:not(.bg-slate-950\/60):not(.bg-slate-950\/70):not(.bg-slate-950\/80):not(.bg-black\/60):not(.bg-black\/70):not(.bg-black\/80) {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  color: #0f172a !important;
+/* SB Admin 2 Tables (Dark Mode) */
+html.dark thead {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
 }
 
-html.light [role="dialog"] h3,
-html.light [role="dialog"] h4,
-html.light [role="dialog"] p.text-white,
-html.light [role="dialog"] span.text-white {
-  color: #0f172a !important;
+html.dark thead th {
+  color: #bac8f3 !important;
 }
 
-/* Preserve colored badges in light mode */
-html.light .bg-indigo-600,
-html.light .bg-emerald-600,
-html.light .bg-amber-600,
-html.light .bg-rose-600,
-html.light .bg-blue-600 {
-  color: #ffffff !important;
-}
-
-html.light .bg-indigo-600 *,
-html.light .bg-emerald-600 *,
-html.light .bg-amber-600 *,
-html.light .bg-rose-600 *,
-html.light .bg-blue-600 * {
-  color: #ffffff !important;
+html.dark tbody tr:hover {
+  background-color: rgba(55, 65, 81, 0.4) !important;
 }
 
 html.light .bg-emerald-500\/10,
@@ -287,8 +389,20 @@ html.light .shadow-2xl {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-nunito), "Segoe UI", system-ui, sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.sb-admin-shell {
+  --sb-shell-bg: #111827;
+  background-color: var(--sb-shell-bg);
+  color: #e5e7eb;
+}
+
+html.light .sb-admin-shell {
+  --sb-shell-bg: #f8f9fc;
+  background-color: var(--sb-shell-bg);
+  color: #5a5c69;
 }
 
 /* Custom Minimalist & Modern Scrollbar */

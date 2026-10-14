@@ -1,4 +1,4 @@
-const CACHE = "mbg-cache-v1";
+const CACHE = "mbg-cache-v2";
 const STATIC_ASSETS = [
   "/manifest.json",
   "/icons/icon-72.png",
@@ -34,9 +34,13 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API calls — stale-while-revalidate
+  // API calls — GET: network-first (no stale cache for mutations)
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(staleWhileRevalidate(request));
+    if (request.method !== "GET") {
+      event.respondWith(fetch(request));
+      return;
+    }
+    event.respondWith(networkFirst(request));
     return;
   }
 

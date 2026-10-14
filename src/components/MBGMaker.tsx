@@ -827,23 +827,23 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
   const renderIngredientEditor = (key: VariantKey, ingredients: Ingredient[]) => (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold text-slate-300">Komposisi Bahan</label>
+        <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Komposisi Bahan</label>
         <button
           type="button"
           onClick={() => updateVariant(key, (v) => v.komposisi.push({ bahan: "", jumlah_per_porsi: 0, satuan: "gram" }))}
-          className="text-xs flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition-colors"
+          className="text-xs flex items-center gap-1 px-2.5 py-1 rounded-[0.35rem] bg-[#4e73df]/10 text-[#4e73df] hover:bg-[#4e73df]/20 font-bold transition-colors"
         >
           <Plus size={12} /> Tambah Bahan
         </button>
       </div>
 
       {ingredients.length === 0 && (
-        <p className="text-xs text-slate-500 italic py-3 text-center">Belum ada bahan. Klik &quot;Tambah Bahan&quot; untuk mulai.</p>
+        <p className="text-xs text-[#858796] dark:text-gray-400 italic py-3 text-center">Belum ada bahan. Klik &quot;Tambah Bahan&quot; untuk mulai.</p>
       )}
 
       {ingredients.map((ing, idx) => (
         <div key={idx} className="flex items-center gap-2 group">
-          <GripVertical size={14} className="text-slate-600 shrink-0" />
+          <GripVertical size={14} className="text-[#b7b9cc] dark:text-gray-500 shrink-0" />
           <input
             type="text"
             value={ing.bahan}
@@ -853,7 +853,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               })
             }
             placeholder="Nama bahan"
-            className="flex-1 min-w-0 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+            className="flex-1 min-w-0 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors"
           />
           <input
             type="number"
@@ -864,7 +864,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               })
             }
             placeholder="Qty"
-            className="w-20 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 text-right focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+            className="w-20 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 text-right focus:border-[#4e73df] focus:outline-none transition-colors"
           />
           <select
             value={ing.satuan}
@@ -873,7 +873,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 v.komposisi[idx].satuan = e.target.value;
               })
             }
-            className="w-24 bg-slate-800/60 border border-slate-700/60 rounded-lg px-2 py-2 text-sm text-slate-200 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors appearance-none"
+            className="w-24 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-2 py-2 text-sm text-[#5a5c69] dark:text-gray-200 focus:border-[#4e73df] focus:outline-none transition-colors appearance-none"
           >
             {SATUAN_OPTIONS.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -882,7 +882,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           <button
             type="button"
             onClick={() => updateVariant(key, (v) => v.komposisi.splice(idx, 1))}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+            className="p-1.5 rounded-[0.35rem] text-[#858796] hover:text-[#e74a3b] hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
           >
             <Trash2 size={14} />
           </button>
@@ -899,23 +899,23 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-slate-300">{label}</label>
+          <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">{label}</label>
           <button
             type="button"
             onClick={() => updateVariant(key, (v) => (v[field] as string[]).push(""))}
-            className="text-xs flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition-colors"
+            className="text-xs flex items-center gap-1 px-2.5 py-1 rounded-[0.35rem] bg-[#4e73df]/10 text-[#4e73df] hover:bg-[#4e73df]/20 font-bold transition-colors"
           >
             <Plus size={12} /> Tambah Langkah
           </button>
         </div>
 
         {steps.length === 0 && (
-          <p className="text-xs text-slate-500 italic py-2 text-center">Belum ada langkah.</p>
+          <p className="text-xs text-[#858796] dark:text-gray-400 italic py-2 text-center">Belum ada langkah.</p>
         )}
 
         {steps.map((step, idx) => (
           <div key={idx} className="flex items-start gap-2 group">
-            <span className="w-6 h-8 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">{idx + 1}.</span>
+            <span className="w-6 h-8 flex items-center justify-center text-xs font-bold text-[#858796] dark:text-gray-400 shrink-0">{idx + 1}.</span>
             <textarea
               value={step}
               onChange={(e) =>
@@ -925,12 +925,12 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               }
               placeholder={`Langkah ${idx + 1}...`}
               rows={2}
-              className="flex-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors resize-none"
+              className="flex-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors resize-none"
             />
             <button
               type="button"
               onClick={() => updateVariant(key, (v) => (v[field] as string[]).splice(idx, 1))}
-              className="p-1.5 mt-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+              className="p-1.5 mt-1 rounded-[0.35rem] text-[#858796] hover:text-[#e74a3b] hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
             >
               <Trash2 size={14} />
             </button>
@@ -949,12 +949,12 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-slate-300">Nilai Gizi (per porsi)</label>
+          <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Nilai Gizi (per porsi)</label>
           <button
             type="button"
             onClick={() => handleAiEstimateGizi(key)}
             disabled={isCalculating}
-            className="text-xs flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+            className="text-xs flex items-center gap-1.5 px-2.5 py-1 rounded-[0.35rem] bg-[#1cc88a]/10 text-[#1cc88a] border border-[#1cc88a]/30 hover:bg-[#1cc88a]/20 font-bold transition-colors disabled:opacity-50"
             title="Hitung otomatis nilai gizi dari bahan komposisi menggunakan AI"
           >
             {isCalculating ? (
@@ -968,7 +968,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {(["energi", "protein", "lemak", "karbohidrat", "serat"] as (keyof NilaiGizi)[]).map((field) => (
             <div key={field}>
-              <label className="text-[10px] text-slate-400 uppercase tracking-wider">{field} {field === "energi" ? "(kcal)" : "(g)"}</label>
+              <label className="text-[10px] text-[#858796] dark:text-gray-400 uppercase tracking-wider">{field} {field === "energi" ? "(kcal)" : "(g)"}</label>
               <input
                 type="number"
                 value={gizi[field] || ""}
@@ -977,7 +977,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                     v.nilai_gizi[field] = Number(e.target.value) || 0;
                   })
                 }
-                className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 text-right focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                className="w-full bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-sm text-[#5a5c69] dark:text-gray-200 text-right focus:border-[#4e73df] focus:outline-none transition-colors"
               />
             </div>
           ))}
@@ -998,7 +998,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
       <div className="space-y-4">
         {/* "Same as" toggle for non-primary variants */}
         {isRef && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-800/40 border border-slate-700/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700">
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -1015,9 +1015,9 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                       });
                     }
                   }}
-                  className="w-4 h-4 rounded border-slate-600 text-indigo-500 focus:ring-indigo-500/30 bg-slate-800"
+                  className="w-4 h-4 rounded border-[#d1d3e2] dark:border-gray-600 text-[#4e73df] focus:ring-[#4e73df]/30 bg-white dark:bg-gray-800"
                 />
-                <span className="text-sm text-slate-300">Sama dengan</span>
+                <span className="text-sm font-semibold text-[#5a5c69] dark:text-gray-200">Sama dengan</span>
               </label>
               {isSame && (
                 <select
@@ -1027,7 +1027,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                       (v as MenuVariantWithRef).sama_dengan = e.target.value;
                     })
                   }
-                  className="bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                  className="bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-sm text-[#5a5c69] dark:text-gray-200 focus:border-[#4e73df] focus:outline-none transition-colors"
                 >
                   {REFERENCE_OPTIONS.filter((o) => o.value !== key).map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -1041,7 +1041,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               type="button"
               onClick={() => handleAiAdaptVariant(key)}
               disabled={aiAdaptingVariant === key}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[0.35rem] text-xs font-semibold bg-[#4e73df]/10 text-[#4e73df] border border-[#4e73df]/20 hover:bg-[#4e73df]/20 transition-colors disabled:opacity-50"
               title="Gunakan AI untuk mengadaptasi takaran dan tekstur dari Porsi Besar khusus untuk kelompok ini"
             >
               {aiAdaptingVariant === key ? (
@@ -1055,38 +1055,38 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         )}
 
         {isSame ? (
-          <div className="flex items-center gap-2 p-4 rounded-xl bg-slate-800/30 border border-dashed border-slate-700/40">
-            <Layers size={16} className="text-slate-500" />
-            <p className="text-sm text-slate-400">
-              Menu {config.label} menggunakan menu yang sama dengan <strong className="text-slate-300">{getVariantLabel(varRef!.sama_dengan!)}</strong>
+          <div className="flex items-center gap-2 p-4 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900/60 border border-dashed border-[#d1d3e2] dark:border-gray-700">
+            <Layers size={16} className="text-[#858796] dark:text-gray-400" />
+            <p className="text-sm text-[#5a5c69] dark:text-gray-300">
+              Menu {config.label} menggunakan menu yang sama dengan <strong className="text-[#4e73df] dark:text-indigo-400">{getVariantLabel(varRef!.sama_dengan!)}</strong>
             </p>
           </div>
         ) : (
           <>
             {/* Menu name */}
             <div>
-              <label className="text-xs font-semibold text-slate-300">Nama Menu</label>
+              <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Nama Menu</label>
               <input
                 type="text"
                 value={variant.nama_menu}
                 onChange={(e) => updateVariant(key, (v) => { v.nama_menu = e.target.value; })}
                 placeholder={`Contoh: Nasi Ayam Goreng, Tumis Buncis, Buah`}
-                className="w-full mt-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                className="w-full mt-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors"
               />
             </div>
 
             {/* Jumlah porsi */}
             <div>
-              <label className="text-xs font-semibold text-slate-300">Jumlah Porsi</label>
+              <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Jumlah Porsi</label>
               <input
                 type="number"
                 value={variant.jumlah_porsi || ""}
                 onChange={(e) => updateVariant(key, (v) => { v.jumlah_porsi = Number(e.target.value) || 0; })}
                 placeholder="0"
-                className="w-full mt-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                className="w-full mt-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors"
               />
               {formSppgId && (
-                <p className="text-[10px] text-slate-500 mt-1">Auto-fill dari data SPPG</p>
+                <p className="text-[10px] text-[#858796] dark:text-gray-400 mt-1">Auto-fill dari data SPPG</p>
               )}
             </div>
 
@@ -1095,16 +1095,16 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
             {/* Auto-calculated total */}
             {variant.komposisi.length > 0 && variant.jumlah_porsi > 0 && (
-              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                <p className="text-xs font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
+              <div className="p-3 rounded-[0.35rem] bg-emerald-500/10 dark:bg-emerald-950/20 border border-emerald-500/20">
+                <p className="text-xs font-bold text-[#1cc88a] mb-2 flex items-center gap-1.5">
                   <ShoppingCart size={13} /> Total Bahan untuk {formatNumber(variant.jumlah_porsi)} Porsi
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {variant.komposisi.filter((i) => i.bahan).map((ing, idx) => (
-                    <div key={idx} className="text-xs text-slate-300">
-                      <span className="text-emerald-400 font-semibold">{formatNumber(ing.jumlah_per_porsi * variant.jumlah_porsi)}</span>
-                      <span className="text-slate-500"> {ing.satuan}</span>
-                      <span className="text-slate-400"> — {ing.bahan}</span>
+                    <div key={idx} className="text-xs text-[#5a5c69] dark:text-gray-300">
+                      <span className="text-[#1cc88a] font-bold">{formatNumber(ing.jumlah_per_porsi * variant.jumlah_porsi)}</span>
+                      <span className="text-[#858796] dark:text-gray-400"> {ing.satuan}</span>
+                      <span className="text-[#5a5c69] dark:text-gray-300"> — {ing.bahan}</span>
                     </div>
                   ))}
                 </div>
@@ -1113,13 +1113,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
             {/* Recipe */}
             <div>
-              <label className="text-xs font-semibold text-slate-300">Resep / Deskripsi Menu</label>
+              <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Resep / Deskripsi Menu</label>
               <textarea
                 value={variant.resep}
                 onChange={(e) => updateVariant(key, (v) => { v.resep = e.target.value; })}
                 placeholder="Deskripsi singkat resep menu..."
                 rows={3}
-                className="w-full mt-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors resize-none"
+                className="w-full mt-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors resize-none"
               />
             </div>
 
@@ -1145,8 +1145,8 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
     if (isSame) {
       return (
-        <div className="flex items-center gap-2 text-sm text-slate-400 italic">
-          <Layers size={14} className="text-slate-500" />
+        <div className="flex items-center gap-2 text-sm text-[#858796] dark:text-gray-400 italic">
+          <Layers size={14} className="text-[#858796] dark:text-gray-400" />
           Sama dengan {getVariantLabel((variant as MenuVariantWithRef).sama_dengan!)}
         </div>
       );
@@ -1155,11 +1155,11 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
     return (
       <div className="space-y-3">
         {resolved.nama_menu && (
-          <p className="text-sm font-semibold text-slate-200">{resolved.nama_menu}</p>
+          <p className="text-sm font-bold text-[#5a5c69] dark:text-gray-100">{resolved.nama_menu}</p>
         )}
 
         {resolved.jumlah_porsi > 0 && (
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-[#858796] dark:text-gray-400">
             <Users size={13} /> {formatNumber(resolved.jumlah_porsi)} porsi
           </div>
         )}
@@ -1167,15 +1167,15 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         {/* Ingredients */}
         {resolved.komposisi.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1.5">Komposisi Bahan:</p>
+            <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 mb-1.5">Komposisi Bahan:</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
               {resolved.komposisi.map((ing, i) => (
-                <div key={i} className="text-xs text-slate-300 flex items-baseline gap-1">
-                  <span className="text-slate-500">•</span>
-                  <span>{ing.bahan}</span>
-                  <span className="text-slate-500">— {ing.jumlah_per_porsi} {ing.satuan}/porsi</span>
+                <div key={i} className="text-xs text-[#5a5c69] dark:text-gray-300 flex items-baseline gap-1">
+                  <span className="text-[#b7b9cc] dark:text-gray-500">•</span>
+                  <span className="font-medium">{ing.bahan}</span>
+                  <span className="text-[#858796] dark:text-gray-400">— {ing.jumlah_per_porsi} {ing.satuan}/porsi</span>
                   {resolved.jumlah_porsi > 0 && (
-                    <span className="text-emerald-400 font-medium">(Total: {formatNumber(ing.jumlah_per_porsi * resolved.jumlah_porsi)} {ing.satuan})</span>
+                    <span className="text-[#1cc88a] font-bold">(Total: {formatNumber(ing.jumlah_per_porsi * resolved.jumlah_porsi)} {ing.satuan})</span>
                   )}
                 </div>
               ))}
@@ -1186,18 +1186,18 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         {/* Recipe */}
         {resolved.resep && (
           <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1">Resep:</p>
-            <p className="text-sm text-slate-300 whitespace-pre-wrap">{resolved.resep}</p>
+            <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 mb-1">Resep:</p>
+            <p className="text-sm text-[#5a5c69] dark:text-gray-300 whitespace-pre-wrap">{resolved.resep}</p>
           </div>
         )}
 
         {/* Preparation */}
         {resolved.langkah_persiapan.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1">Langkah Persiapan:</p>
+            <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 mb-1">Langkah Persiapan:</p>
             <ol className="list-decimal list-inside space-y-0.5">
               {resolved.langkah_persiapan.map((s, i) => (
-                <li key={i} className="text-sm text-slate-300">{s}</li>
+                <li key={i} className="text-sm text-[#5a5c69] dark:text-gray-300">{s}</li>
               ))}
             </ol>
           </div>
@@ -1206,10 +1206,10 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         {/* Cooking */}
         {resolved.langkah_pengolahan.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1">Langkah Pengolahan:</p>
+            <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 mb-1">Langkah Pengolahan:</p>
             <ol className="list-decimal list-inside space-y-0.5">
               {resolved.langkah_pengolahan.map((s, i) => (
-                <li key={i} className="text-sm text-slate-300">{s}</li>
+                <li key={i} className="text-sm text-[#5a5c69] dark:text-gray-300">{s}</li>
               ))}
             </ol>
           </div>
@@ -1218,12 +1218,12 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         {/* Nutrition */}
         {(resolved.nilai_gizi.energi > 0 || resolved.nilai_gizi.protein > 0) && (
           <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1.5">Nilai Gizi (per porsi):</p>
+            <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 mb-1.5">Nilai Gizi (per porsi):</p>
             <div className="flex flex-wrap gap-3">
               {Object.entries(resolved.nilai_gizi).map(([k, v]) => (
-                <div key={k} className="px-2.5 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40">
-                  <span className="text-[10px] text-slate-500 uppercase">{k}</span>
-                  <p className="text-sm font-semibold text-slate-200">{v} {k === "energi" ? "kcal" : "g"}</p>
+                <div key={k} className="px-2.5 py-1.5 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 shadow-xs">
+                  <span className="text-[10px] text-[#858796] dark:text-gray-400 uppercase font-bold">{k}</span>
+                  <p className="text-sm font-bold text-[#4e73df] dark:text-indigo-400">{v} {k === "energi" ? "kcal" : "g"}</p>
                 </div>
               ))}
             </div>
@@ -1239,10 +1239,10 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
     <div className="space-y-6 relative">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-24 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl border backdrop-blur-xl animate-in slide-in-from-right duration-300 ${
+        <div className={`fixed top-24 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-[0.35rem] shadow-lg border animate-in slide-in-from-right duration-300 ${
           toast.type === "success"
-            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-            : "bg-red-500/10 border-red-500/30 text-red-400"
+            ? "bg-emerald-50 dark:bg-emerald-950/80 border-[#1cc88a] text-[#1cc88a]"
+            : "bg-red-50 dark:bg-red-950/80 border-[#e74a3b] text-[#e74a3b]"
         }`}>
           {toast.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
           <span className="text-sm font-medium">{toast.message}</span>
@@ -1257,11 +1257,11 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           {/* Top actions */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <ChefHat size={22} className="text-amber-400" />
+              <h3 className="text-lg font-bold text-[#5a5c69] dark:text-gray-100 flex items-center gap-2">
+                <ChefHat size={22} className="text-[#f6c23e]" />
                 {showTemplates ? "Template Menu" : "Daftar Menu"}
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-[#858796] dark:text-gray-400 mt-0.5">
                 {showTemplates
                   ? `${templates.length} template tersimpan`
                   : `${menus.length} menu dibuat`}
@@ -1270,10 +1270,10 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setShowTemplates(!showTemplates)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-[0.35rem] text-xs font-semibold transition-all ${
                   showTemplates
-                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                    : "bg-slate-800/60 text-slate-400 border border-slate-700/40 hover:text-slate-200"
+                    ? "bg-[#f6c23e]/20 text-[#f6c23e] border border-[#f6c23e]/40 font-bold"
+                    : "bg-white dark:bg-gray-800 text-[#5a5c69] dark:text-gray-300 border border-[#d1d3e2] dark:border-gray-700 hover:bg-[#f8f9fc] dark:hover:bg-gray-700"
                 }`}
               >
                 <Bookmark size={14} />
@@ -1285,7 +1285,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                   setView("create");
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[0.35rem] bg-[#4e73df] hover:bg-[#2e59d9] text-white text-xs font-bold shadow-sm hover:shadow transition-all"
               >
                 <Plus size={16} strokeWidth={2.5} /> Buat Menu Baru
               </button>
@@ -1295,25 +1295,25 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           {/* Search & Filter */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b7b9cc] dark:text-gray-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari menu..."
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/60 rounded-xl text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors"
               />
             </div>
             {!showTemplates && (
-              <div className="flex items-center gap-1.5 p-1 bg-slate-800/60 border border-slate-700/60 rounded-xl">
+              <div className="flex items-center gap-1 p-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem]">
                 {(["ALL", "DRAFT", "FINALIZED"] as const).map((s) => (
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-[0.35rem] text-xs font-semibold transition-all ${
                       statusFilter === s
-                        ? "bg-indigo-600 text-white shadow-md"
-                        : "text-slate-400 hover:text-slate-200"
+                        ? "bg-[#4e73df] text-white shadow-xs font-bold"
+                        : "text-[#858796] dark:text-gray-400 hover:text-[#5a5c69] dark:hover:text-gray-200"
                     }`}
                   >
                     {s === "ALL" ? "Semua" : s === "DRAFT" ? "Draft" : "Final"}
@@ -1326,20 +1326,20 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           {/* Loading */}
           {loading && (
             <div className="flex items-center justify-center py-16">
-              <RefreshCw size={24} className="text-indigo-400 animate-spin" />
+              <RefreshCw size={24} className="text-[#4e73df] animate-spin" />
             </div>
           )}
 
           {/* Empty state */}
           {!loading && displayList.length === 0 && (
             <div className="text-center py-16">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800/60 flex items-center justify-center mx-auto mb-4">
-                <ChefHat size={32} className="text-slate-600" />
+              <div className="w-16 h-16 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 flex items-center justify-center mx-auto mb-4">
+                <ChefHat size={32} className="text-[#b7b9cc] dark:text-gray-500" />
               </div>
-              <h4 className="text-sm font-semibold text-slate-400">
+              <h4 className="text-sm font-bold text-[#5a5c69] dark:text-gray-300">
                 {showTemplates ? "Belum ada template" : "Belum ada menu"}
               </h4>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[#858796] dark:text-gray-400 mt-1">
                 {showTemplates ? "Simpan menu sebagai template untuk dipakai ulang." : "Klik \"Buat Menu Baru\" untuk memulai."}
               </p>
             </div>
@@ -1362,29 +1362,29 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 return (
                   <div
                     key={menu.id}
-                    className="group bg-slate-800/40 border border-slate-700/40 rounded-2xl p-4 hover:border-indigo-500/30 hover:bg-slate-800/60 transition-all cursor-pointer relative overflow-hidden"
+                    className="group bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-4 shadow-sm hover:border-[#4e73df] dark:hover:border-indigo-500/40 transition-all cursor-pointer relative overflow-hidden"
                     onClick={() => {
                       setSelectedMenu(menu);
                       setView("detail");
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >
-                    {/* Gradient accent */}
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* Top border accent */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-[#4e73df] opacity-0 group-hover:opacity-100 transition-opacity" />
 
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-bold text-white truncate">{menu.is_template ? (menu.template_name || menu.nama_menu) : menu.nama_menu}</h4>
+                        <h4 className="text-sm font-bold text-[#5a5c69] dark:text-gray-100 truncate">{menu.is_template ? (menu.template_name || menu.nama_menu) : menu.nama_menu}</h4>
                         {sppgName && (
-                          <p className="text-[10px] text-indigo-400 font-medium mt-0.5 truncate">{sppgName}</p>
+                          <p className="text-[10px] text-[#4e73df] font-bold mt-0.5 truncate">{sppgName}</p>
                         )}
                       </div>
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ml-2 ${
+                      <span className={`px-2 py-0.5 rounded-[0.25rem] text-[10px] font-bold shrink-0 ml-2 ${
                         menu.is_template
-                          ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                          ? "bg-[#f6c23e]/20 text-[#f6c23e] border border-[#f6c23e]/30"
                           : menu.status === "FINALIZED"
-                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-                            : "bg-slate-700/50 text-slate-400 border border-slate-600/30"
+                            ? "bg-[#1cc88a]/20 text-[#1cc88a] border border-[#1cc88a]/30"
+                            : "bg-gray-100 dark:bg-gray-700 text-[#858796] dark:text-gray-300 border border-[#d1d3e2] dark:border-gray-600"
                       }`}>
                         {menu.is_template ? "TEMPLATE" : menu.status}
                       </span>
@@ -1393,12 +1393,12 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                     {/* Quick info */}
                     <div className="flex flex-wrap gap-2 mb-3">
                       {menu.tanggal && (
-                        <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                        <span className="flex items-center gap-1 text-[11px] text-[#858796] dark:text-gray-400">
                           <Calendar size={11} /> {menu.tanggal}
                         </span>
                       )}
                       {totalPorsi > 0 && (
-                        <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                        <span className="flex items-center gap-1 text-[11px] text-[#858796] dark:text-gray-400">
                           <Users size={11} /> {formatNumber(totalPorsi)} porsi
                         </span>
                       )}
@@ -1411,10 +1411,10 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                         if (!resolved.nama_menu) return null;
                         const isSame = vc.key !== "porsi_besar" && (md[vc.key] as MenuVariantWithRef).sama_dengan != null;
                         return (
-                          <span key={vc.key} className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${
+                          <span key={vc.key} className={`px-2 py-0.5 rounded-[0.25rem] text-[10px] font-medium border ${
                             isSame
-                              ? "bg-slate-800/40 text-slate-500 border-slate-700/30"
-                              : `bg-${vc.color}-500/10 text-${vc.color}-400 border-${vc.color}-500/20`
+                              ? "bg-gray-100 dark:bg-gray-700 text-[#858796] dark:text-gray-400 border-[#d1d3e2] dark:border-gray-600"
+                              : `bg-${vc.color}-500/10 text-${vc.color}-600 dark:text-${vc.color}-400 border-${vc.color}-500/20`
                           }`}>
                             {vc.label}
                           </span>
@@ -1423,7 +1423,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-700/30 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 mt-3 pt-3 border-t border-[#e3e6f0] dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => {
                           setSelectedMenu(menu);
@@ -1431,19 +1431,19 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                           setView("edit");
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-[0.35rem] text-[11px] font-bold text-[#4e73df] hover:bg-[#4e73df]/10 transition-colors"
                       >
                         <Edit size={12} /> Edit
                       </button>
                       <button
                         onClick={() => handleDuplicate(menu)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-[0.35rem] text-[11px] font-bold text-[#36b9cc] hover:bg-[#36b9cc]/10 transition-colors"
                       >
                         <Copy size={12} /> Duplikat
                       </button>
                       <button
                         onClick={() => handleDelete(menu.id)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors ml-auto"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-[0.35rem] text-[11px] font-bold text-[#e74a3b] hover:bg-[#e74a3b]/10 transition-colors ml-auto"
                       >
                         <Trash2 size={12} /> Hapus
                       </button>
@@ -1468,29 +1468,29 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 resetForm();
                 setView("list");
               }}
-              className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/40 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+              className="p-2 rounded-[0.35rem] bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 text-[#5a5c69] dark:text-gray-300 hover:bg-[#f8f9fc] dark:hover:bg-gray-700 transition-colors"
             >
               <ArrowLeft size={18} />
             </button>
             <div>
-              <h3 className="text-lg font-bold text-white">
+              <h3 className="text-lg font-bold text-[#5a5c69] dark:text-gray-100">
                 {view === "edit" ? "Edit Menu" : "Buat Menu Baru"}
               </h3>
-              <p className="text-xs text-slate-400">Isi detail menu dan komposisi bahan</p>
+              <p className="text-xs text-[#858796] dark:text-gray-400">Isi detail menu dan komposisi bahan</p>
             </div>
             <div className="ml-auto flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => handleAiGetSuggestions()}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-[0.35rem] text-xs font-bold bg-[#1cc88a]/10 text-[#1cc88a] border border-[#1cc88a]/30 hover:bg-[#1cc88a]/20 transition-colors"
                 title="Dapatkan evaluasi gizi dan rekomendasi keamanan pangan dari AI Ahli Gizi"
               >
-                <Sparkles size={14} className="text-emerald-400" /> Telaah Gizi AI
+                <Sparkles size={14} className="text-[#1cc88a]" /> Telaah Gizi AI
               </button>
               <button
                 type="button"
                 onClick={() => setShowAiModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-[0.35rem] text-xs font-bold bg-[#4e73df] hover:bg-[#2e59d9] text-white shadow-sm transition-all"
                 title="Buka asisten AI untuk membuat resep dan komposisi otomatis"
               >
                 <Wand2 size={14} /> ✨ Buat dengan AI
@@ -1498,7 +1498,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               <button
                 type="button"
                 onClick={() => setShowLoadTemplateModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-[0.35rem] text-xs font-bold bg-[#f6c23e]/10 text-[#f6c23e] border border-[#f6c23e]/30 hover:bg-[#f6c23e]/20 transition-colors"
               >
                 <BookTemplate size={14} /> Muat Template
               </button>
@@ -1506,53 +1506,53 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           </div>
 
           {/* ── Section: Info Umum ───────────────────────────────────────── */}
-          <div className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] shadow-sm overflow-hidden">
             <button
               onClick={() => toggleSection("info")}
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800/40 transition-colors"
+              className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#f8f9fc] dark:hover:bg-gray-700/50 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600/20 flex items-center justify-center">
-                  <FileText size={16} className="text-indigo-400" />
+                <div className="w-8 h-8 rounded-[0.35rem] bg-[#4e73df]/10 flex items-center justify-center">
+                  <FileText size={16} className="text-[#4e73df]" />
                 </div>
-                <span className="text-sm font-bold text-white">Informasi Umum</span>
+                <span className="text-sm font-bold text-[#5a5c69] dark:text-gray-100">Informasi Umum</span>
               </div>
-              {expandedSections.has("info") ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+              {expandedSections.has("info") ? <ChevronUp size={18} className="text-[#858796] dark:text-gray-400" /> : <ChevronDown size={18} className="text-[#858796] dark:text-gray-400" />}
             </button>
 
             {expandedSections.has("info") && (
-              <div className="px-5 pb-5 space-y-4 border-t border-slate-700/30 pt-4">
+              <div className="px-5 pb-5 space-y-4 border-t border-[#e3e6f0] dark:border-gray-700 pt-4">
                 {/* Nama Menu */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-300">Nama Menu <span className="text-red-400">*</span></label>
+                  <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Nama Menu <span className="text-[#e74a3b]">*</span></label>
                   <input
                     type="text"
                     value={formNamaMenu}
                     onChange={(e) => setFormNamaMenu(e.target.value)}
                     placeholder="Contoh: Menu Senin - Ayam Goreng Kuning"
-                    className="w-full mt-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                    className="w-full mt-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Tanggal */}
                   <div>
-                    <label className="text-xs font-semibold text-slate-300">Tanggal</label>
+                    <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Tanggal</label>
                     <input
                       type="date"
                       value={formTanggal}
                       onChange={(e) => setFormTanggal(e.target.value)}
-                      className="w-full mt-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                      className="w-full mt-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 focus:border-[#4e73df] focus:outline-none transition-colors"
                     />
                   </div>
 
                   {/* SPPG Selection */}
                   <div>
-                    <label className="text-xs font-semibold text-slate-300">SPPG (opsional)</label>
+                    <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">SPPG (opsional)</label>
                     <select
                       value={formSppgId}
                       onChange={(e) => handleSppgChange(e.target.value)}
-                      className="w-full mt-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                      className="w-full mt-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 focus:border-[#4e73df] focus:outline-none transition-colors"
                     >
                       <option value="">— Pilih SPPG —</option>
                       {sppgList.map((s) => (
@@ -1562,36 +1562,36 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                       ))}
                     </select>
                     {formSppgId && (
-                      <p className="text-[10px] text-emerald-400 mt-1">✓ Jumlah porsi akan otomatis terisi dari data SPPG</p>
+                      <p className="text-[10px] text-[#1cc88a] font-bold mt-1">✓ Jumlah porsi akan otomatis terisi dari data SPPG</p>
                     )}
                   </div>
                 </div>
 
                 {/* All same toggle */}
-                <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/40">
+                <div className="p-3 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900 border border-[#d1d3e2] dark:border-gray-700">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={allSameMenu}
                       onChange={(e) => handleAllSameMenuToggle(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-600 text-indigo-500 focus:ring-indigo-500/30 bg-slate-800"
+                      className="w-4 h-4 rounded border-[#d1d3e2] dark:border-gray-600 text-[#4e73df] focus:ring-[#4e73df]/30 bg-white dark:bg-gray-800"
                     />
                     <div>
-                      <span className="text-sm font-medium text-slate-200">Semua jenis porsi menggunakan menu yang sama</span>
-                      <p className="text-[10px] text-slate-500">Porsi Kecil, PMT Balita, Bumil, dan Busui akan mengikuti Porsi Besar</p>
+                      <span className="text-sm font-semibold text-[#5a5c69] dark:text-gray-200">Semua jenis porsi menggunakan menu yang sama</span>
+                      <p className="text-[10px] text-[#858796] dark:text-gray-400">Porsi Kecil, PMT Balita, Bumil, dan Busui akan mengikuti Porsi Besar</p>
                     </div>
                   </label>
                 </div>
 
                 {/* Catatan */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-300">Catatan (opsional)</label>
+                  <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Catatan (opsional)</label>
                   <textarea
                     value={formCatatan}
                     onChange={(e) => setFormCatatan(e.target.value)}
                     placeholder="Catatan tambahan..."
                     rows={2}
-                    className="w-full mt-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors resize-none"
+                    className="w-full mt-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors resize-none"
                   />
                 </div>
               </div>
@@ -1600,34 +1600,34 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
           {/* ── Section: Each Variant ────────────────────────────────────── */}
           {VARIANT_CONFIG.map((vc) => (
-            <div key={vc.key} className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden">
+            <div key={vc.key} className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] shadow-sm overflow-hidden">
               <button
                 onClick={() => toggleSection(vc.key)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800/40 transition-colors"
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#f8f9fc] dark:hover:bg-gray-700/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg bg-${vc.color}-500/20 flex items-center justify-center text-${vc.color}-400`}>
+                  <div className={`w-8 h-8 rounded-[0.35rem] bg-${vc.color}-500/10 flex items-center justify-center text-${vc.color}-600 dark:text-${vc.color}-400`}>
                     {vc.icon}
                   </div>
                   <div className="text-left">
-                    <span className="text-sm font-bold text-white">{vc.label}</span>
-                    <p className="text-[10px] text-slate-500">{vc.desc}</p>
+                    <span className="text-sm font-bold text-[#5a5c69] dark:text-gray-100">{vc.label}</span>
+                    <p className="text-[10px] text-[#858796] dark:text-gray-400">{vc.desc}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {formMenuData[vc.key].jumlah_porsi > 0 && (
-                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-md">
+                    <span className="text-[10px] font-bold text-[#4e73df] bg-[#4e73df]/10 border border-[#4e73df]/20 px-2 py-0.5 rounded-[0.25rem]">
                       {formatNumber(resolveVariant(formMenuData, vc.key).jumlah_porsi)} porsi
                     </span>
                   )}
                   {expandedSections.has(vc.key)
-                    ? <ChevronUp size={18} className="text-slate-400" />
-                    : <ChevronDown size={18} className="text-slate-400" />}
+                    ? <ChevronUp size={18} className="text-[#858796] dark:text-gray-400" />
+                    : <ChevronDown size={18} className="text-[#858796] dark:text-gray-400" />}
                 </div>
               </button>
 
               {expandedSections.has(vc.key) && (
-                <div className="px-5 pb-5 border-t border-slate-700/30 pt-4">
+                <div className="px-5 pb-5 border-t border-[#e3e6f0] dark:border-gray-700 pt-4">
                   {renderVariantForm(vc.key)}
                 </div>
               )}
@@ -1636,50 +1636,50 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
           {/* ── Shopping List Preview ────────────────────────────────────── */}
           {shoppingList.length > 0 && (
-            <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden shadow-lg">
+            <div className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] overflow-hidden shadow-sm">
               <button
                 type="button"
                 onClick={() => toggleSection("shopping")}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800/60 transition-colors"
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#f8f9fc] dark:hover:bg-gray-700/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <div className="w-9 h-9 rounded-[0.35rem] bg-[#1cc88a]/10 border border-[#1cc88a]/30 flex items-center justify-center text-[#1cc88a]">
                     <ShoppingCart size={18} />
                   </div>
                   <div className="text-left">
-                    <span className="text-sm font-bold text-white block">Estimasi Daftar Belanja Gabungan</span>
-                    <p className="text-[11px] text-slate-400">Akumulasi otomatis seluruh varian untuk persiapan logistik</p>
+                    <span className="text-sm font-bold text-[#5a5c69] dark:text-gray-100 block">Estimasi Daftar Belanja Gabungan</span>
+                    <p className="text-[11px] text-[#858796] dark:text-gray-400">Akumulasi otomatis seluruh varian untuk persiapan logistik</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                  <span className="text-xs font-bold text-[#1cc88a] bg-[#1cc88a]/10 border border-[#1cc88a]/30 px-3 py-1 rounded-full">
                     {shoppingList.length} Bahan
                   </span>
                   {expandedSections.has("shopping")
-                    ? <ChevronUp size={18} className="text-slate-400" />
-                    : <ChevronDown size={18} className="text-slate-400" />}
+                    ? <ChevronUp size={18} className="text-[#858796] dark:text-gray-400" />
+                    : <ChevronDown size={18} className="text-[#858796] dark:text-gray-400" />}
                 </div>
               </button>
 
               {expandedSections.has("shopping") && (
-                <div className="px-5 pb-5 border-t border-slate-700/40 pt-4 space-y-3">
+                <div className="px-5 pb-5 border-t border-[#e3e6f0] dark:border-gray-700 pt-4 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {shoppingList.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-700/40 hover:border-emerald-500/30 transition-all">
+                      <div key={i} className="flex items-center justify-between p-3 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900 border border-[#e3e6f0] dark:border-gray-700 hover:border-[#1cc88a] transition-all">
                         <div className="min-w-0 pr-2">
-                          <span className="text-xs font-semibold text-slate-200 block truncate">{item.bahan}</span>
+                          <span className="text-xs font-bold text-[#5a5c69] dark:text-gray-200 block truncate">{item.bahan}</span>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700/60 font-medium">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-[0.25rem] bg-white dark:bg-gray-800 text-[#858796] dark:text-gray-400 border border-[#d1d3e2] dark:border-gray-700 font-medium">
                               {item.kategori}
                             </span>
-                            <span className="text-[10px] text-slate-500 truncate">
+                            <span className="text-[10px] text-[#858796] dark:text-gray-400 truncate">
                               ({item.sources.join(", ")})
                             </span>
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-sm font-black text-emerald-400">{formatNumber(item.totalJumlah)}</span>
-                          <span className="text-xs text-slate-400 ml-1 font-medium">{item.satuan}</span>
+                          <span className="text-sm font-bold text-[#1cc88a]">{formatNumber(item.totalJumlah)}</span>
+                          <span className="text-xs text-[#858796] dark:text-gray-400 ml-1 font-medium">{item.satuan}</span>
                         </div>
                       </div>
                     ))}
@@ -1690,13 +1690,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           )}
 
           {/* ── Action Buttons ───────────────────────────────────────────── */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sticky bottom-20 lg:bottom-4 z-30 bg-slate-900/95 backdrop-blur-xl p-4 rounded-2xl border border-slate-700/40 shadow-2xl">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sticky bottom-20 lg:bottom-4 z-30 bg-white/95 dark:bg-gray-800/95 p-4 rounded-[0.35rem] border border-[#e3e6f0] dark:border-gray-700 shadow-xl backdrop-blur-sm">
             <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-400">Status:</label>
+              <label className="text-xs font-bold text-[#5a5c69] dark:text-gray-300">Status:</label>
               <select
                 value={formStatus}
                 onChange={(e) => setFormStatus(e.target.value as "DRAFT" | "FINALIZED")}
-                className="bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500/60 focus:outline-none transition-colors"
+                className="bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2 text-xs text-[#5a5c69] dark:text-gray-200 focus:border-[#4e73df] focus:outline-none transition-colors"
               >
                 <option value="DRAFT">Draft</option>
                 <option value="FINALIZED">Finalized</option>
@@ -1706,14 +1706,14 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             <div className="flex items-center gap-2 sm:ml-auto">
               <button
                 onClick={() => setShowTemplateModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-[0.35rem] text-xs font-bold bg-[#f6c23e]/10 text-[#f6c23e] border border-[#f6c23e]/30 hover:bg-[#f6c23e]/20 transition-all"
               >
                 <Bookmark size={14} /> Simpan Template
               </button>
               <button
                 onClick={() => handleSave(false)}
                 disabled={saving}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-5 py-2 rounded-[0.35rem] text-xs font-bold bg-[#4e73df] hover:bg-[#2e59d9] text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
                 {view === "edit" ? "Perbarui Menu" : "Simpan Menu"}
@@ -1735,23 +1735,23 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 setView("list");
                 setSelectedMenu(null);
               }}
-              className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/40 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+              className="p-2 rounded-[0.35rem] bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 text-[#5a5c69] dark:text-gray-300 hover:bg-[#f8f9fc] dark:hover:bg-gray-700 transition-colors"
             >
               <ArrowLeft size={18} />
             </button>
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-bold text-white truncate">{selectedMenu.nama_menu}</h3>
+              <h3 className="text-lg font-bold text-[#5a5c69] dark:text-gray-100 truncate">{selectedMenu.nama_menu}</h3>
               <div className="flex items-center gap-2 mt-0.5">
                 {selectedMenu.tanggal && (
-                  <span className="text-xs text-slate-400 flex items-center gap-1"><Calendar size={11} /> {selectedMenu.tanggal}</span>
+                  <span className="text-xs text-[#858796] dark:text-gray-400 flex items-center gap-1"><Calendar size={11} /> {selectedMenu.tanggal}</span>
                 )}
                 {selectedMenu.sppg_data?.nama_sppg && (
-                  <span className="text-xs text-indigo-400 font-medium">{selectedMenu.sppg_data.nama_sppg}</span>
+                  <span className="text-xs text-[#4e73df] font-bold">{selectedMenu.sppg_data.nama_sppg}</span>
                 )}
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                <span className={`px-2 py-0.5 rounded-[0.25rem] text-[10px] font-bold ${
                   selectedMenu.status === "FINALIZED"
-                    ? "bg-emerald-500/15 text-emerald-400"
-                    : "bg-slate-700/50 text-slate-400"
+                    ? "bg-[#1cc88a]/20 text-[#1cc88a] border border-[#1cc88a]/30"
+                    : "bg-gray-100 dark:bg-gray-700 text-[#858796] dark:text-gray-300 border border-[#d1d3e2] dark:border-gray-600"
                 }`}>
                   {selectedMenu.status}
                 </span>
@@ -1763,13 +1763,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                   loadMenuIntoForm(selectedMenu);
                   setView("edit");
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-[0.35rem] text-xs font-bold bg-[#4e73df]/10 text-[#4e73df] border border-[#4e73df]/30 hover:bg-[#4e73df]/20 transition-colors"
               >
                 <Edit size={13} /> Edit
               </button>
               <button
                 onClick={() => handleDuplicate(selectedMenu)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-[0.35rem] text-xs font-bold bg-[#36b9cc]/10 text-[#36b9cc] border border-[#36b9cc]/30 hover:bg-[#36b9cc]/20 transition-colors"
               >
                 <Copy size={13} /> Duplikat
               </button>
@@ -1777,7 +1777,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 onClick={() => {
                   setView("shopping");
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-[0.35rem] text-xs font-bold bg-[#1cc88a]/10 text-[#1cc88a] border border-[#1cc88a]/30 hover:bg-[#1cc88a]/20 transition-colors"
               >
                 <ShoppingCart size={13} /> Belanja
               </button>
@@ -1786,8 +1786,8 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
           {/* Catatan */}
           {selectedMenu.catatan && (
-            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-sm text-amber-300">
-              <span className="text-xs font-semibold text-amber-400">Catatan:</span> {selectedMenu.catatan}
+            <div className="p-3 rounded-[0.35rem] bg-amber-500/10 border border-amber-500/20 text-sm text-[#5a5c69] dark:text-amber-200">
+              <span className="text-xs font-bold text-[#f6c23e]">Catatan:</span> {selectedMenu.catatan}
             </div>
           )}
 
@@ -1797,34 +1797,34 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             if (!resolved.nama_menu && resolved.komposisi.length === 0) return null;
 
             return (
-              <div key={vc.key} className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden">
+              <div key={vc.key} className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] shadow-sm overflow-hidden">
                 <button
                   onClick={() => toggleSection(`detail_${vc.key}`)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800/40 transition-colors"
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#f8f9fc] dark:hover:bg-gray-700/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg bg-${vc.color}-500/20 flex items-center justify-center text-${vc.color}-400`}>
+                    <div className={`w-8 h-8 rounded-[0.35rem] bg-${vc.color}-500/10 flex items-center justify-center text-${vc.color}-600 dark:text-${vc.color}-400`}>
                       {vc.icon}
                     </div>
                     <div className="text-left">
-                      <span className="text-sm font-bold text-white">{vc.label}</span>
-                      <p className="text-[10px] text-slate-500">{vc.desc}</p>
+                      <span className="text-sm font-bold text-[#5a5c69] dark:text-gray-100">{vc.label}</span>
+                      <p className="text-[10px] text-[#858796] dark:text-gray-400">{vc.desc}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     {resolved.jumlah_porsi > 0 && (
-                      <span className="text-[10px] font-semibold text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] font-bold text-[#4e73df] bg-[#4e73df]/10 border border-[#4e73df]/20 px-2 py-0.5 rounded-[0.25rem]">
                         {formatNumber(resolved.jumlah_porsi)} porsi
                       </span>
                     )}
                     {expandedSections.has(`detail_${vc.key}`)
-                      ? <ChevronUp size={18} className="text-slate-400" />
-                      : <ChevronDown size={18} className="text-slate-400" />}
+                      ? <ChevronUp size={18} className="text-[#858796] dark:text-gray-400" />
+                      : <ChevronDown size={18} className="text-[#858796] dark:text-gray-400" />}
                   </div>
                 </button>
 
                 {expandedSections.has(`detail_${vc.key}`) && (
-                  <div className="px-5 pb-5 border-t border-slate-700/30 pt-4">
+                  <div className="px-5 pb-5 border-t border-[#e3e6f0] dark:border-gray-700 pt-4">
                     {renderDetailVariant(selectedMenu.menu_data, vc.key)}
                   </div>
                 )}
@@ -1834,41 +1834,41 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
           {/* ── Shopping List Preview in Detail View ─────────────────────── */}
           {shoppingList.length > 0 && (
-            <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden shadow-lg">
+            <div className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] overflow-hidden shadow-sm">
               <button
                 type="button"
                 onClick={() => toggleSection("detail_shopping")}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800/60 transition-colors"
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#f8f9fc] dark:hover:bg-gray-700/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <div className="w-9 h-9 rounded-[0.35rem] bg-[#1cc88a]/10 border border-[#1cc88a]/30 flex items-center justify-center text-[#1cc88a]">
                     <ShoppingCart size={18} />
                   </div>
                   <div className="text-left">
-                    <span className="text-sm font-bold text-white block">Ringkasan Estimasi Bahan Belanja</span>
-                    <p className="text-[11px] text-slate-400">Akumulasi otomatis seluruh varian porsi</p>
+                    <span className="text-sm font-bold text-[#5a5c69] dark:text-gray-100 block">Ringkasan Estimasi Bahan Belanja</span>
+                    <p className="text-[11px] text-[#858796] dark:text-gray-400">Akumulasi otomatis seluruh varian porsi</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                  <span className="text-xs font-bold text-[#1cc88a] bg-[#1cc88a]/10 border border-[#1cc88a]/30 px-3 py-1 rounded-full">
                     {shoppingList.length} Bahan
                   </span>
                   {expandedSections.has("detail_shopping")
-                    ? <ChevronUp size={18} className="text-slate-400" />
-                    : <ChevronDown size={18} className="text-slate-400" />}
+                    ? <ChevronUp size={18} className="text-[#858796] dark:text-gray-400" />
+                    : <ChevronDown size={18} className="text-[#858796] dark:text-gray-400" />}
                 </div>
               </button>
 
               {expandedSections.has("detail_shopping") && (
-                <div className="px-5 pb-5 border-t border-slate-700/40 pt-4 space-y-4">
+                <div className="px-5 pb-5 border-t border-[#e3e6f0] dark:border-gray-700 pt-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-[#858796] dark:text-gray-400">
                       Rincian bahan yang diperlukan berdasarkan porsi SPPG:
                     </p>
                     <button
                       type="button"
                       onClick={() => setView("shopping")}
-                      className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 font-semibold transition-colors"
+                      className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-[0.35rem] bg-[#1cc88a]/10 text-[#1cc88a] border border-[#1cc88a]/30 hover:bg-[#1cc88a]/20 font-bold transition-colors"
                     >
                       <Printer size={13} /> Buka Format Cetak & Ceklis
                     </button>
@@ -1876,21 +1876,21 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {shoppingList.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-700/40 hover:border-emerald-500/30 transition-all">
+                      <div key={i} className="flex items-center justify-between p-3 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900 border border-[#e3e6f0] dark:border-gray-700 hover:border-[#1cc88a] transition-all">
                         <div className="min-w-0 pr-2">
-                          <span className="text-xs font-semibold text-slate-200 block truncate">{item.bahan}</span>
+                          <span className="text-xs font-bold text-[#5a5c69] dark:text-gray-200 block truncate">{item.bahan}</span>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700/60 font-medium">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-[0.25rem] bg-white dark:bg-gray-800 text-[#858796] dark:text-gray-400 border border-[#d1d3e2] dark:border-gray-700 font-medium">
                               {item.kategori}
                             </span>
-                            <span className="text-[10px] text-slate-500 truncate">
+                            <span className="text-[10px] text-[#858796] dark:text-gray-400 truncate">
                               ({item.sources.join(", ")})
                             </span>
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-sm font-black text-emerald-400">{formatNumber(item.totalJumlah)}</span>
-                          <span className="text-xs text-slate-400 ml-1 font-medium">{item.satuan}</span>
+                          <span className="text-sm font-bold text-[#1cc88a]">{formatNumber(item.totalJumlah)}</span>
+                          <span className="text-xs text-[#858796] dark:text-gray-400 ml-1 font-medium">{item.satuan}</span>
                         </div>
                       </div>
                     ))}
@@ -1912,16 +1912,16 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setView("detail")}
-                className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/40 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                className="p-2 rounded-[0.35rem] bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 text-[#5a5c69] dark:text-gray-300 hover:bg-[#f8f9fc] dark:hover:bg-gray-700 transition-colors"
               >
                 <ArrowLeft size={18} />
               </button>
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <ShoppingCart size={22} className="text-emerald-400" />
+                <h3 className="text-lg font-bold text-[#5a5c69] dark:text-gray-100 flex items-center gap-2">
+                  <ShoppingCart size={22} className="text-[#1cc88a]" />
                   Daftar Belanja & Logistik
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#858796] dark:text-gray-400">
                   {selectedMenu.nama_menu} — {selectedMenu.sppg_data?.nama_sppg || "Semua SPPG"}
                 </p>
               </div>
@@ -1936,15 +1936,15 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                     setShoppingCheckedItems(new Set(shoppingList.map((i) => i.bahan)));
                   }
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-[0.35rem] text-xs font-semibold bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 text-[#5a5c69] dark:text-gray-200 hover:bg-[#f8f9fc] dark:hover:bg-gray-700 transition-colors"
               >
-                <CheckSquare size={14} className="text-emerald-400" />
+                <CheckSquare size={14} className="text-[#1cc88a]" />
                 {shoppingCheckedItems.size === shoppingList.length ? "Reset Centang" : "Centang Semua"}
               </button>
 
               <button
                 onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:opacity-95 transition-all shadow-lg shadow-emerald-600/20"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[0.35rem] text-xs font-bold bg-[#1cc88a] hover:bg-[#17a673] text-white transition-all shadow-sm"
               >
                 <Printer size={15} /> Cetak Daftar Belanja
               </button>
@@ -1960,15 +1960,15 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 <button
                   key={cat}
                   onClick={() => setShoppingCategoryFilter(cat)}
-                  className={`text-xs px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+                  className={`text-xs px-3 py-1.5 rounded-[0.35rem] font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
                     shoppingCategoryFilter === cat
-                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                      : "bg-slate-800/80 border border-slate-700/60 text-slate-300 hover:text-white"
+                      ? "bg-[#1cc88a] text-white shadow-xs font-bold"
+                      : "bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 text-[#5a5c69] dark:text-gray-300 hover:bg-[#f8f9fc] dark:hover:bg-gray-700"
                   }`}
                 >
                   <span>{cat === "ALL" ? "Semua Kategori" : cat}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    shoppingCategoryFilter === cat ? "bg-slate-950/30 text-slate-950" : "bg-slate-700 text-slate-400"
+                    shoppingCategoryFilter === cat ? "bg-white/20 text-white" : "bg-gray-100 dark:bg-gray-700 text-[#858796] dark:text-gray-400"
                   }`}>
                     {count}
                   </span>
@@ -1978,27 +1978,27 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           </div>
 
           {/* Printable & Interactive Shopping Container */}
-          <div ref={printRef} className="bg-slate-800/30 border border-slate-700/40 rounded-2xl p-6 print:p-4 print:bg-white print:text-black print:border-none print:shadow-none space-y-6">
+          <div ref={printRef} className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-6 shadow-sm print:p-4 print:bg-white print:text-black print:border-none print:shadow-none space-y-6">
             
             {/* Header Document */}
-            <div className="border-b border-slate-700/60 pb-5 print:border-gray-800 print:pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="border-b border-[#e3e6f0] dark:border-gray-700 pb-5 print:border-gray-800 print:pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 print:text-gray-700 bg-emerald-500/10 print:bg-gray-100 px-2.5 py-1 rounded-md">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#1cc88a] print:text-gray-700 bg-[#1cc88a]/10 print:bg-gray-100 px-2.5 py-1 rounded-[0.25rem]">
                   Badan Gizi Nasional (BGN) • Rekap Logistik SPPG
                 </span>
-                <h2 className="text-xl font-black text-white print:text-black mt-2">DAFTAR BELANJA BAHAN MAKANAN</h2>
-                <p className="text-sm font-semibold text-slate-300 print:text-gray-800">{selectedMenu.nama_menu}</p>
+                <h2 className="text-xl font-bold text-[#5a5c69] dark:text-gray-100 print:text-black mt-2">DAFTAR BELANJA BAHAN MAKANAN</h2>
+                <p className="text-sm font-semibold text-[#858796] dark:text-gray-300 print:text-gray-800">{selectedMenu.nama_menu}</p>
               </div>
-              <div className="text-left sm:text-right space-y-0.5 text-xs text-slate-400 print:text-gray-600">
-                {selectedMenu.tanggal && <p><strong className="text-slate-300 print:text-black">Tanggal Rencana:</strong> {selectedMenu.tanggal}</p>}
-                {selectedMenu.sppg_data?.nama_sppg && <p><strong className="text-slate-300 print:text-black">Dapur SPPG:</strong> {selectedMenu.sppg_data.nama_sppg}</p>}
-                <p className="text-emerald-400 print:text-gray-800 font-semibold">Total: {shoppingList.length} Item Bahan</p>
+              <div className="text-left sm:text-right space-y-0.5 text-xs text-[#858796] dark:text-gray-400 print:text-gray-600">
+                {selectedMenu.tanggal && <p><strong className="text-[#5a5c69] dark:text-gray-200 print:text-black">Tanggal Rencana:</strong> {selectedMenu.tanggal}</p>}
+                {selectedMenu.sppg_data?.nama_sppg && <p><strong className="text-[#5a5c69] dark:text-gray-200 print:text-black">Dapur SPPG:</strong> {selectedMenu.sppg_data.nama_sppg}</p>}
+                <p className="text-[#1cc88a] print:text-gray-800 font-bold">Total: {shoppingList.length} Item Bahan</p>
               </div>
             </div>
 
             {/* Target Beneficiary Badges */}
-            <div className="bg-slate-900/60 print:bg-gray-50 border border-slate-700/50 print:border-gray-300 rounded-xl p-3.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 print:text-gray-600 block mb-2">
+            <div className="bg-[#f8f9fc] dark:bg-gray-900 print:bg-gray-50 border border-[#e3e6f0] dark:border-gray-700 print:border-gray-300 rounded-[0.35rem] p-3.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#858796] dark:text-gray-400 print:text-gray-600 block mb-2">
                 Rincian Porsi Penerima Manfaat:
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
@@ -2007,10 +2007,10 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                   const resolved = resolveVariant(selectedMenu.menu_data, vc.key);
                   const porsi = Number((rawV && rawV.jumlah_porsi) || resolved.jumlah_porsi || 0);
                   return (
-                    <div key={vc.key} className="p-2 rounded-lg bg-slate-800/60 print:bg-white border border-slate-700/40 print:border-gray-200">
-                      <span className="text-[10px] text-slate-400 print:text-gray-500 block truncate">{vc.label}</span>
-                      <span className="text-sm font-black text-white print:text-black mt-0.5 block">
-                        {formatNumber(porsi)} <span className="text-[11px] font-normal text-slate-400 print:text-gray-600">porsi</span>
+                    <div key={vc.key} className="p-2 rounded-[0.35rem] bg-white dark:bg-gray-800 print:bg-white border border-[#e3e6f0] dark:border-gray-700 print:border-gray-200">
+                      <span className="text-[10px] text-[#858796] dark:text-gray-400 print:text-gray-500 block truncate font-semibold">{vc.label}</span>
+                      <span className="text-sm font-bold text-[#5a5c69] dark:text-gray-100 print:text-black mt-0.5 block">
+                        {formatNumber(porsi)} <span className="text-[11px] font-normal text-[#858796] dark:text-gray-400 print:text-gray-600">porsi</span>
                       </span>
                     </div>
                   );
@@ -2018,8 +2018,8 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               </div>
 
               {shoppingList.some((i) => i.isStandarPorsi) && (
-                <div className="mt-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                <div className="mt-3 px-3 py-2 rounded-[0.35rem] bg-amber-500/10 border border-amber-500/20 text-[#5a5c69] dark:text-amber-200 text-[11px] flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#f6c23e] animate-pulse shrink-0" />
                   <span>
                     <strong>Catatan:</strong> Jumlah porsi di SPPG belum diset atau bernilai 0. Nilai total bahan di bawah ini dihitung berdasarkan estimasi <strong>standar 1 porsi</strong> per kategori.
                   </span>
@@ -2028,27 +2028,27 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             </div>
 
             {/* Modern Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem]">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b-2 border-slate-700 print:border-black text-left text-xs uppercase tracking-wider text-slate-400 print:text-gray-800 bg-slate-900/40 print:bg-gray-100">
+                  <tr className="border-b border-[#e3e6f0] dark:border-gray-700 print:border-black text-left text-xs uppercase tracking-wider text-[#4e73df] dark:text-indigo-400 print:text-gray-800 bg-[#f8f9fc] dark:bg-gray-900 print:bg-gray-100 font-bold">
                     <th className="py-2.5 px-3 print:hidden w-10 text-center">Cek</th>
                     <th className="py-2.5 px-3 w-12 text-center">No</th>
-                    <th className="py-2.5 px-4 font-bold">Nama Bahan Baku</th>
-                    <th className="py-2.5 px-4 font-bold">Kategori</th>
-                    <th className="py-2.5 px-4 text-right font-bold">Total Kebutuhan</th>
+                    <th className="py-2.5 px-4">Nama Bahan Baku</th>
+                    <th className="py-2.5 px-4">Kategori</th>
+                    <th className="py-2.5 px-4 text-right">Total Kebutuhan</th>
                     <th className="py-2.5 px-4">Satuan</th>
                     <th className="py-2.5 px-4">Diperuntukkan Untuk</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700/40 print:divide-gray-300">
+                <tbody className="divide-y divide-[#e3e6f0] dark:divide-gray-700 print:divide-gray-300">
                   {(() => {
                     const filtered = shoppingList.filter((item) => shoppingCategoryFilter === "ALL" || item.kategori === shoppingCategoryFilter);
                     if (filtered.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-slate-500 print:text-gray-500">
-                            <ShoppingCart size={24} className="mx-auto mb-2 opacity-40 text-slate-400" />
+                          <td colSpan={7} className="py-8 text-center text-[#858796] dark:text-gray-400 print:text-gray-500">
+                            <ShoppingCart size={24} className="mx-auto mb-2 opacity-40 text-[#858796]" />
                             {shoppingList.length === 0
                               ? "Belum ada bahan komposisi yang tercatat pada menu ini."
                               : "Tidak ada bahan yang cocok dengan kategori filter ini."}
@@ -2071,8 +2071,8 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                           }}
                           className={`cursor-pointer transition-colors ${
                             isChecked
-                              ? "bg-emerald-950/20 text-slate-400 line-through print:no-underline"
-                              : "hover:bg-slate-800/40 print:hover:bg-transparent text-slate-200 print:text-black"
+                              ? "bg-emerald-50 dark:bg-emerald-950/20 text-[#858796] line-through print:no-underline"
+                              : "hover:bg-[#f8f9fc] dark:hover:bg-gray-700/50 print:hover:bg-transparent text-[#5a5c69] dark:text-gray-200 print:text-black"
                           }`}
                         >
                           <td className="py-3 px-3 print:hidden text-center" onClick={(e) => e.stopPropagation()}>
@@ -2086,27 +2086,27 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                                   return next;
                                 });
                               }}
-                              className="text-slate-400 hover:text-emerald-400 transition-colors"
+                              className="text-[#858796] hover:text-[#1cc88a] transition-colors"
                             >
-                              {isChecked ? <CheckSquare size={16} className="text-emerald-400" /> : <Square size={16} />}
+                              {isChecked ? <CheckSquare size={16} className="text-[#1cc88a]" /> : <Square size={16} />}
                             </button>
                           </td>
-                          <td className="py-3 px-3 text-center text-xs text-slate-500 print:text-gray-700 font-mono">{i + 1}</td>
-                          <td className="py-3 px-4 font-semibold text-white print:text-black">
+                          <td className="py-3 px-3 text-center text-xs text-[#858796] dark:text-gray-400 print:text-gray-700 font-mono">{i + 1}</td>
+                          <td className="py-3 px-4 font-semibold text-[#5a5c69] dark:text-gray-100 print:text-black">
                             <span className={isChecked ? "opacity-60" : ""}>{item.bahan}</span>
                           </td>
                           <td className="py-3 px-4">
-                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 print:bg-gray-200 text-slate-300 print:text-gray-800 border border-slate-700/50 print:border-gray-300 font-medium">
+                            <span className="text-[11px] px-2 py-0.5 rounded-[0.25rem] bg-[#f8f9fc] dark:bg-gray-900 print:bg-gray-200 text-[#858796] dark:text-gray-300 print:text-gray-800 border border-[#d1d3e2] dark:border-gray-700 print:border-gray-300 font-medium">
                               {item.kategori}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right font-black text-emerald-400 print:text-black text-base">
+                          <td className="py-3 px-4 text-right font-bold text-[#1cc88a] print:text-black text-base">
                             {formatNumber(item.totalJumlah)}
                           </td>
-                          <td className="py-3 px-4 text-xs font-semibold text-slate-300 print:text-gray-800">
+                          <td className="py-3 px-4 text-xs font-semibold text-[#5a5c69] dark:text-gray-300 print:text-gray-800">
                             {item.satuan}
                           </td>
-                          <td className="py-3 px-4 text-xs text-slate-400 print:text-gray-600">
+                          <td className="py-3 px-4 text-xs text-[#858796] dark:text-gray-400 print:text-gray-600">
                             {item.sources.join(", ")}
                           </td>
                         </tr>
@@ -2139,8 +2139,8 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
           {/* Recipe Cards for print */}
           <div className="space-y-4 print:break-before-page">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2 print:text-black">
-              <Utensils size={18} className="text-amber-400 print:text-gray-600" />
+            <h3 className="text-lg font-bold text-[#5a5c69] dark:text-gray-100 flex items-center gap-2 print:text-black">
+              <Utensils size={18} className="text-[#f6c23e] print:text-gray-600" />
               Kartu Resep
             </h3>
 
@@ -2152,18 +2152,18 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               if (isSame) return null; // Skip duplicates
 
               return (
-                <div key={vc.key} className="bg-slate-800/30 border border-slate-700/40 rounded-2xl p-5 print:bg-white print:border-gray-300 print:break-inside-avoid">
+                <div key={vc.key} className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-5 shadow-sm print:bg-white print:border-gray-300 print:break-inside-avoid">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className={`w-2 h-2 rounded-full bg-${vc.color}-400`} />
-                    <h4 className="text-sm font-bold text-white print:text-black">{vc.label} — {resolved.nama_menu}</h4>
+                    <span className={`w-2 h-2 rounded-full bg-${vc.color}-500`} />
+                    <h4 className="text-sm font-bold text-[#5a5c69] dark:text-gray-100 print:text-black">{vc.label} — {resolved.nama_menu}</h4>
                   </div>
 
                   {resolved.komposisi.length > 0 && (
                     <div className="mb-3">
-                      <p className="text-xs font-semibold text-slate-400 print:text-gray-600 mb-1">Bahan (per porsi):</p>
+                      <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 print:text-gray-600 mb-1">Bahan (per porsi):</p>
                       <div className="grid grid-cols-2 gap-1">
                         {resolved.komposisi.map((ing, i) => (
-                          <p key={i} className="text-xs text-slate-300 print:text-gray-700">• {ing.bahan}: {ing.jumlah_per_porsi} {ing.satuan}</p>
+                          <p key={i} className="text-xs text-[#5a5c69] dark:text-gray-300 print:text-gray-700">• {ing.bahan}: {ing.jumlah_per_porsi} {ing.satuan}</p>
                         ))}
                       </div>
                     </div>
@@ -2171,34 +2171,34 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
                   {resolved.resep && (
                     <div className="mb-3">
-                      <p className="text-xs font-semibold text-slate-400 print:text-gray-600 mb-1">Resep:</p>
-                      <p className="text-xs text-slate-300 print:text-gray-700 whitespace-pre-wrap">{resolved.resep}</p>
+                      <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 print:text-gray-600 mb-1">Resep:</p>
+                      <p className="text-xs text-[#5a5c69] dark:text-gray-300 print:text-gray-700 whitespace-pre-wrap">{resolved.resep}</p>
                     </div>
                   )}
 
                   {resolved.langkah_persiapan.length > 0 && (
                     <div className="mb-3">
-                      <p className="text-xs font-semibold text-slate-400 print:text-gray-600 mb-1">Persiapan:</p>
+                      <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 print:text-gray-600 mb-1">Persiapan:</p>
                       <ol className="list-decimal list-inside space-y-0.5">
-                        {resolved.langkah_persiapan.map((s, i) => <li key={i} className="text-xs text-slate-300 print:text-gray-700">{s}</li>)}
+                        {resolved.langkah_persiapan.map((s, i) => <li key={i} className="text-xs text-[#5a5c69] dark:text-gray-300 print:text-gray-700">{s}</li>)}
                       </ol>
                     </div>
                   )}
 
                   {resolved.langkah_pengolahan.length > 0 && (
                     <div className="mb-3">
-                      <p className="text-xs font-semibold text-slate-400 print:text-gray-600 mb-1">Pengolahan:</p>
+                      <p className="text-xs font-semibold text-[#858796] dark:text-gray-400 print:text-gray-600 mb-1">Pengolahan:</p>
                       <ol className="list-decimal list-inside space-y-0.5">
-                        {resolved.langkah_pengolahan.map((s, i) => <li key={i} className="text-xs text-slate-300 print:text-gray-700">{s}</li>)}
+                        {resolved.langkah_pengolahan.map((s, i) => <li key={i} className="text-xs text-[#5a5c69] dark:text-gray-300 print:text-gray-700">{s}</li>)}
                       </ol>
                     </div>
                   )}
 
                   {(resolved.nilai_gizi.energi > 0 || resolved.nilai_gizi.protein > 0) && (
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-700/30 print:border-gray-200">
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-[#e3e6f0] dark:border-gray-700 print:border-gray-200">
                       {Object.entries(resolved.nilai_gizi).map(([k, v]) => (
-                        <span key={k} className="text-[10px] text-slate-400 print:text-gray-600">
-                          <strong className="text-slate-300 print:text-gray-800">{v}</strong> {k === "energi" ? "kcal" : "g"} {k}
+                        <span key={k} className="text-[10px] text-[#858796] dark:text-gray-400 print:text-gray-600">
+                          <strong className="text-[#5a5c69] dark:text-gray-200 print:text-gray-800">{v}</strong> {k === "energi" ? "kcal" : "g"} {k}
                         </span>
                       ))}
                     </div>
@@ -2214,36 +2214,36 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           TEMPLATE SAVE MODAL
           ════════════════════════════════════════════════════════════════════ */}
       {showTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowTemplateModal(false)}>
-          <div className="bg-slate-900 border border-slate-700/60 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <Bookmark size={16} className="text-amber-400" /> Simpan sebagai Template
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowTemplateModal(false)}>
+          <div className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-[#e3e6f0] dark:border-gray-700 pb-3">
+              <h4 className="text-sm font-bold text-[#5a5c69] dark:text-gray-100 flex items-center gap-2">
+                <Bookmark size={16} className="text-[#f6c23e]" /> Simpan sebagai Template
               </h4>
-              <button onClick={() => setShowTemplateModal(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+              <button onClick={() => setShowTemplateModal(false)} className="p-1.5 rounded-[0.35rem] text-[#858796] hover:text-[#5a5c69] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <X size={16} />
               </button>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300">Nama Template</label>
+              <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Nama Template</label>
               <input
                 type="text"
                 value={templateSaveName}
                 onChange={(e) => setTemplateSaveName(e.target.value)}
                 placeholder={formNamaMenu || "Nama template..."}
-                className="w-full mt-1 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                className="w-full mt-1 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors"
               />
             </div>
 
-            <div className="flex items-center gap-2 mt-4 justify-end">
-              <button onClick={() => setShowTemplateModal(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors">
+            <div className="flex items-center gap-2 mt-4 justify-end pt-3 border-t border-[#e3e6f0] dark:border-gray-700">
+              <button onClick={() => setShowTemplateModal(false)} className="px-4 py-2 rounded-[0.35rem] text-xs font-semibold border border-[#d1d3e2] dark:border-gray-600 bg-white dark:bg-gray-700 text-[#5a5c69] dark:text-gray-200 hover:bg-[#f8f9fc] dark:hover:bg-gray-600 transition-colors">
                 Batal
               </button>
               <button
                 onClick={() => handleSave(true)}
                 disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white hover:bg-amber-500 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[0.35rem] text-xs font-bold bg-[#f6c23e] hover:bg-[#dfa82b] text-white shadow-sm transition-colors disabled:opacity-50"
               >
                 {saving ? <RefreshCw size={13} className="animate-spin" /> : <Bookmark size={13} />}
                 Simpan Template
@@ -2257,13 +2257,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           LOAD TEMPLATE MODAL
           ════════════════════════════════════════════════════════════════════ */}
       {showLoadTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowLoadTemplateModal(false)}>
-          <div className="bg-slate-900 border border-slate-700/60 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <BookTemplate size={16} className="text-amber-400" /> Muat dari Template
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowLoadTemplateModal(false)}>
+          <div className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-6 w-full max-w-lg shadow-xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-[#e3e6f0] dark:border-gray-700 pb-3">
+              <h4 className="text-sm font-bold text-[#5a5c69] dark:text-gray-100 flex items-center gap-2">
+                <BookTemplate size={16} className="text-[#f6c23e]" /> Muat dari Template
               </h4>
-              <button onClick={() => setShowLoadTemplateModal(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+              <button onClick={() => setShowLoadTemplateModal(false)} className="p-1.5 rounded-[0.35rem] text-[#858796] hover:text-[#5a5c69] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <X size={16} />
               </button>
             </div>
@@ -2271,8 +2271,8 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             <div className="flex-1 overflow-y-auto space-y-2">
               {templates.length === 0 && (
                 <div className="text-center py-8">
-                  <Bookmark size={24} className="text-slate-600 mx-auto mb-2" />
-                  <p className="text-xs text-slate-500">Belum ada template tersimpan.</p>
+                  <Bookmark size={24} className="text-[#b7b9cc] dark:text-gray-500 mx-auto mb-2" />
+                  <p className="text-xs text-[#858796] dark:text-gray-400">Belum ada template tersimpan.</p>
                 </div>
               )}
 
@@ -2280,14 +2280,14 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 <button
                   key={tmpl.id}
                   onClick={() => handleLoadTemplate(tmpl)}
-                  className="w-full text-left p-3 rounded-xl border border-slate-700/40 hover:border-amber-500/30 hover:bg-slate-800/60 transition-all group"
+                  className="w-full text-left p-3 rounded-[0.35rem] border border-[#e3e6f0] dark:border-gray-700 hover:border-[#f6c23e] hover:bg-[#f8f9fc] dark:hover:bg-gray-750 transition-all group"
                 >
                   <div className="flex items-center justify-between">
-                    <h5 className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">{tmpl.template_name || tmpl.nama_menu}</h5>
-                    <ChevronRight size={14} className="text-slate-600 group-hover:text-amber-400 transition-colors" />
+                    <h5 className="text-sm font-bold text-[#5a5c69] dark:text-gray-200 group-hover:text-[#4e73df] transition-colors">{tmpl.template_name || tmpl.nama_menu}</h5>
+                    <ChevronRight size={14} className="text-[#b7b9cc] dark:text-gray-500 group-hover:text-[#4e73df] transition-colors" />
                   </div>
                   {tmpl.menu_data?.porsi_besar?.nama_menu && (
-                    <p className="text-xs text-slate-500 mt-0.5 truncate">{tmpl.menu_data.porsi_besar.nama_menu}</p>
+                    <p className="text-xs text-[#858796] dark:text-gray-400 mt-0.5 truncate">{tmpl.menu_data.porsi_besar.nama_menu}</p>
                   )}
                 </button>
               ))}
@@ -2300,22 +2300,22 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           AI MENU GENERATOR MODAL
           ════════════════════════════════════════════════════════════════════ */}
       {showAiModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => !aiLoading && setShowAiModal(false)}>
-          <div className="bg-slate-900 border border-slate-700/70 rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !aiLoading && setShowAiModal(false)}>
+          <div className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-6 w-full max-w-lg shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[#e3e6f0] dark:border-gray-700 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white shadow-md">
+                <div className="w-8 h-8 rounded-[0.35rem] bg-[#4e73df]/10 flex items-center justify-center text-[#4e73df]">
                   <Sparkles size={16} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white">AI Menu & Recipe Generator</h4>
-                  <p className="text-[11px] text-slate-400">Didukung Gemini AI standar gizi BGN</p>
+                  <h4 className="text-sm font-bold text-[#5a5c69] dark:text-gray-100">AI Menu & Recipe Generator</h4>
+                  <p className="text-[11px] text-[#858796] dark:text-gray-400">Didukung Gemini AI standar gizi BGN</p>
                 </div>
               </div>
               <button
                 disabled={aiLoading}
                 onClick={() => setShowAiModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                className="p-1.5 rounded-[0.35rem] text-[#858796] hover:text-[#5a5c69] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 <X size={16} />
               </button>
@@ -2323,8 +2323,8 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
             <div className="space-y-3 pt-1">
               <div>
-                <label className="text-xs font-semibold text-slate-300">
-                  Ide / Tema Menu atau Preferensi Bahan <span className="text-red-400">*</span>
+                <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">
+                  Ide / Tema Menu atau Preferensi Bahan <span className="text-[#e74a3b]">*</span>
                 </label>
                 <textarea
                   value={aiPrompt}
@@ -2332,13 +2332,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                   placeholder="Contoh: Menu ayam fillet saus tiram, tumis buncis wortel, tempe orek, dan buah semangka. Bahan lokal ekonomis dan tinggi protein."
                   rows={3}
                   disabled={aiLoading}
-                  className="w-full mt-1.5 bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors resize-none"
+                  className="w-full mt-1.5 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3.5 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors resize-none"
                 />
               </div>
 
               {/* Quick suggestions */}
               <div>
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider">Inspirasi Cepat</label>
+                <label className="text-[10px] text-[#858796] dark:text-gray-400 uppercase tracking-wider font-bold">Inspirasi Cepat</label>
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {[
                     "Ayam Bakar Madu & Sayur Asem",
@@ -2352,7 +2352,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                       type="button"
                       disabled={aiLoading}
                       onClick={() => setAiPrompt(sug)}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-700/80 transition-colors"
+                      className="text-[11px] px-2.5 py-1 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-700 border border-[#d1d3e2] dark:border-gray-600 text-[#5a5c69] dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                     >
                       {sug}
                     </button>
@@ -2362,12 +2362,12 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
               {/* Target variant */}
               <div>
-                <label className="text-xs font-semibold text-slate-300">Target Varian</label>
+                <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">Target Varian</label>
                 <select
                   value={aiTargetVariant}
                   onChange={(e) => setAiTargetVariant(e.target.value as "all" | VariantKey)}
                   disabled={aiLoading}
-                  className="w-full mt-1.5 bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
+                  className="w-full mt-1.5 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3.5 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 focus:border-[#4e73df] focus:outline-none transition-colors"
                 >
                   <option value="all">✨ Seluruh Varian Lengkap (Besar, Kecil, Balita, Bumil, Busui)</option>
                   <option value="porsi_besar">Porsi Besar Saja (SD 4-6, SMP, SMA)</option>
@@ -2379,12 +2379,12 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2 justify-end">
+            <div className="flex items-center gap-2 pt-3 justify-end border-t border-[#e3e6f0] dark:border-gray-700">
               <button
                 type="button"
                 disabled={aiLoading}
                 onClick={() => setShowAiModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                className="px-4 py-2 rounded-[0.35rem] text-xs font-semibold border border-[#d1d3e2] dark:border-gray-600 bg-white dark:bg-gray-700 text-[#5a5c69] dark:text-gray-200 hover:bg-[#f8f9fc] dark:hover:bg-gray-600 transition-colors"
               >
                 Batal
               </button>
@@ -2392,7 +2392,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 type="button"
                 onClick={handleAiGenerateMenu}
                 disabled={aiLoading || !aiPrompt.trim()}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-95 transition-all shadow-lg shadow-indigo-500/25 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-[0.35rem] text-xs font-bold bg-[#4e73df] hover:bg-[#2e59d9] text-white shadow-sm transition-all disabled:opacity-50"
               >
                 {aiLoading ? (
                   <>
@@ -2415,22 +2415,22 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           AI SUGGESTIONS / TELAAH GIZI MODAL
           ════════════════════════════════════════════════════════════════════ */}
       {showAiSuggestionsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => !aiSuggestionsLoading && setShowAiSuggestionsModal(false)}>
-          <div className="bg-slate-900 border border-slate-700/70 rounded-2xl p-6 w-full max-w-xl shadow-2xl space-y-4 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !aiSuggestionsLoading && setShowAiSuggestionsModal(false)}>
+          <div className="bg-white dark:bg-gray-800 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-6 w-full max-w-xl shadow-xl space-y-4 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[#e3e6f0] dark:border-gray-700 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-600/20 flex items-center justify-center text-emerald-400">
+                <div className="w-8 h-8 rounded-[0.35rem] bg-[#1cc88a]/10 flex items-center justify-center text-[#1cc88a]">
                   <Sparkles size={16} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white">Telaah Gizi & Saran Ahli Gizi BGN</h4>
-                  <p className="text-[11px] text-slate-400">Evaluasi gizi dan keamanan pangan SPPG</p>
+                  <h4 className="text-sm font-bold text-[#5a5c69] dark:text-gray-100">Telaah Gizi & Saran Ahli Gizi BGN</h4>
+                  <p className="text-[11px] text-[#858796] dark:text-gray-400">Evaluasi gizi dan keamanan pangan SPPG</p>
                 </div>
               </div>
               <button
                 disabled={aiSuggestionsLoading}
                 onClick={() => setShowAiSuggestionsModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                className="p-1.5 rounded-[0.35rem] text-[#858796] hover:text-[#5a5c69] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 <X size={16} />
               </button>
@@ -2439,26 +2439,26 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             <div className="flex-1 overflow-y-auto space-y-4 pr-1">
               {aiSuggestionsLoading && (
                 <div className="py-12 flex flex-col items-center justify-center gap-3">
-                  <RefreshCw size={24} className="animate-spin text-emerald-400" />
-                  <p className="text-xs text-slate-400">Menganalisis komposisi gizi dan keamanan pangan...</p>
+                  <RefreshCw size={24} className="animate-spin text-[#1cc88a]" />
+                  <p className="text-xs text-[#858796] dark:text-gray-400">Menganalisis komposisi gizi dan keamanan pangan...</p>
                 </div>
               )}
 
               {!aiSuggestionsLoading && aiSuggestionsData && (
                 <>
                   {/* Status & Score Banner */}
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-slate-800/80 to-slate-800/40 border border-slate-700/60 flex items-center justify-between">
+                  <div className="p-4 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900 border border-[#e3e6f0] dark:border-gray-700 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Status Evaluasi</span>
-                      <h5 className="text-base font-bold text-white mt-0.5">{aiSuggestionsData.status_evaluasi || "BAIK"}</h5>
+                      <span className="text-[10px] text-[#858796] dark:text-gray-400 uppercase tracking-wider font-bold">Status Evaluasi</span>
+                      <h5 className="text-base font-bold text-[#5a5c69] dark:text-gray-100 mt-0.5">{aiSuggestionsData.status_evaluasi || "BAIK"}</h5>
                       {aiSuggestionsData.ringkasan && (
-                        <p className="text-xs text-slate-300 mt-1">{aiSuggestionsData.ringkasan}</p>
+                        <p className="text-xs text-[#858796] dark:text-gray-300 mt-1">{aiSuggestionsData.ringkasan}</p>
                       )}
                     </div>
                     {typeof aiSuggestionsData.skor_kebugaran_gizi === "number" && (
-                      <div className="text-center px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shrink-0">
-                        <span className="text-2xl font-black text-emerald-400">{aiSuggestionsData.skor_kebugaran_gizi}</span>
-                        <p className="text-[10px] text-slate-400">/ 100 Skor</p>
+                      <div className="text-center px-4 py-2 rounded-[0.35rem] bg-[#1cc88a]/10 border border-[#1cc88a]/30 shrink-0">
+                        <span className="text-2xl font-black text-[#1cc88a]">{aiSuggestionsData.skor_kebugaran_gizi}</span>
+                        <p className="text-[10px] text-[#858796] dark:text-gray-400 font-bold">/ 100 Skor</p>
                       </div>
                     )}
                   </div>
@@ -2466,13 +2466,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                   {/* Kelebihan */}
                   {aiSuggestionsData.kelebihan && aiSuggestionsData.kelebihan.length > 0 && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-[#1cc88a] flex items-center gap-1.5">
                         <CheckCircle2 size={13} /> Kelebihan Menu
                       </label>
-                      <ul className="space-y-1 bg-slate-800/40 border border-slate-700/40 rounded-xl p-3">
+                      <ul className="space-y-1 bg-[#f8f9fc] dark:bg-gray-900/60 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-3">
                         {aiSuggestionsData.kelebihan.map((point, idx) => (
-                          <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
-                            <span className="text-emerald-400 font-bold">•</span>
+                          <li key={idx} className="text-xs text-[#5a5c69] dark:text-gray-300 flex items-start gap-2">
+                            <span className="text-[#1cc88a] font-bold">•</span>
                             <span>{point}</span>
                           </li>
                         ))}
@@ -2483,13 +2483,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                   {/* Kekurangan / Gap */}
                   {aiSuggestionsData.kekurangan && aiSuggestionsData.kekurangan.length > 0 && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-[#f6c23e] flex items-center gap-1.5">
                         <AlertCircle size={13} /> Catatan & Hal Perlu Diperhatikan
                       </label>
-                      <ul className="space-y-1 bg-slate-800/40 border border-slate-700/40 rounded-xl p-3">
+                      <ul className="space-y-1 bg-[#f8f9fc] dark:bg-gray-900/60 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-3">
                         {aiSuggestionsData.kekurangan.map((point, idx) => (
-                          <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
-                            <span className="text-amber-400 font-bold">•</span>
+                          <li key={idx} className="text-xs text-[#5a5c69] dark:text-gray-300 flex items-start gap-2">
+                            <span className="text-[#f6c23e] font-bold">•</span>
                             <span>{point}</span>
                           </li>
                         ))}
@@ -2500,13 +2500,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                   {/* Saran Ahli Gizi */}
                   {aiSuggestionsData.saran_ahli_gizi && aiSuggestionsData.saran_ahli_gizi.length > 0 && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-[#4e73df] flex items-center gap-1.5">
                         <Sparkles size={13} /> Rekomendasi Ahli Gizi BGN
                       </label>
-                      <ul className="space-y-1 bg-slate-800/40 border border-slate-700/40 rounded-xl p-3">
+                      <ul className="space-y-1 bg-[#f8f9fc] dark:bg-gray-900/60 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-3">
                         {aiSuggestionsData.saran_ahli_gizi.map((saran, idx) => (
-                          <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
-                            <span className="text-indigo-400 font-bold">{idx + 1}.</span>
+                          <li key={idx} className="text-xs text-[#5a5c69] dark:text-gray-300 flex items-start gap-2">
+                            <span className="text-[#4e73df] font-bold">{idx + 1}.</span>
                             <span>{saran}</span>
                           </li>
                         ))}
@@ -2517,13 +2517,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                   {/* Tips Keamanan Pangan */}
                   {aiSuggestionsData.tips_keamanan_pangan && aiSuggestionsData.tips_keamanan_pangan.length > 0 && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-[#36b9cc] flex items-center gap-1.5">
                         <Utensils size={13} /> Keamanan Pangan & Sanitasi Dapur SPPG
                       </label>
-                      <ul className="space-y-1 bg-slate-800/40 border border-slate-700/40 rounded-xl p-3">
+                      <ul className="space-y-1 bg-[#f8f9fc] dark:bg-gray-900/60 border border-[#e3e6f0] dark:border-gray-700 rounded-[0.35rem] p-3">
                         {aiSuggestionsData.tips_keamanan_pangan.map((tip, idx) => (
-                          <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
-                            <span className="text-sky-400 font-bold">✓</span>
+                          <li key={idx} className="text-xs text-[#5a5c69] dark:text-gray-300 flex items-start gap-2">
+                            <span className="text-[#36b9cc] font-bold">✓</span>
                             <span>{tip}</span>
                           </li>
                         ))}
@@ -2534,11 +2534,11 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               )}
             </div>
 
-            <div className="flex items-center justify-end pt-2 border-t border-slate-800">
+            <div className="flex items-center justify-end pt-3 border-t border-[#e3e6f0] dark:border-gray-700">
               <button
                 type="button"
                 onClick={() => setShowAiSuggestionsModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                className="px-4 py-2 rounded-[0.35rem] text-xs font-semibold border border-[#d1d3e2] dark:border-gray-600 bg-white dark:bg-gray-700 text-[#5a5c69] dark:text-gray-200 hover:bg-[#f8f9fc] dark:hover:bg-gray-600 transition-colors"
               >
                 Tutup
               </button>

@@ -23,6 +23,9 @@ Sistem pelaporan **Makanan Bergizi Gratis (MBG)** untuk **Badan Gizi Nasional**.
 src/
 ├── app/
 │   ├── api/
+│   │   ├── ai/menu-generator/route.ts    # Gemini AI (MBG Maker): generate/adapt/gizi/saran
+│   │   ├── ai/models/route.ts            # Deteksi model Gemini yang tersedia
+│   │   ├── ai/test-model/route.ts        # Tes satu model Gemini (status + latensi)
 │   │   ├── generate-poster/route.ts     # Generate poster by ID
 │   │   ├── reports/route.ts             # CRUD laporan via Dashboard
 │   │   ├── settings/route.ts            # Baca/tulis system_settings
@@ -32,8 +35,13 @@ src/
 │   ├── layout.tsx                       # Root layout
 │   └── globals.css                      # Tailwind v4 imports
 ├── components/
-│   └── Dashboard.tsx                    # Komponen dashboard utama (2229 baris)
+│   ├── Dashboard.tsx                    # Komponen dashboard utama
+│   ├── MBGMaker.tsx                     # Tab MBG Maker (komposisi menu via Gemini AI)
+│   └── features/settings/SettingsTab.tsx # Tab Pengaturan (API key + model Gemini)
 ├── lib/
+│   ├── gemini-models.ts                 # Konstanta model + parser (client-safe)
+│   ├── gemini-schemas.ts                # JSON Schema ketat per action (client-safe)
+│   ├── gemini-server.ts                 # Helper server-only: callGemini, deteksi & tes model
 │   ├── hooks/useLaporanRealtime.ts      # Hook realtime Supabase
 │   ├── poster-service.ts                # Generate poster PNG via Satori
 │   └── supabase.ts                      # Inisialisasi Supabase client
@@ -127,4 +135,28 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 - Saat menambah API route, tambahkan `export const dynamic = "force-dynamic"`
 - Supabase client support baik `NEXT_PUBLIC_` maupun non-prefixed env vars
 - **Hydration di Vercel:** Node.js di Vercel mungkin tidak punya ICU locale `id-ID`. `toLocaleDateString("id-ID")` akan fallback ke English, menyebabkan hydration mismatch dgn browser. Gunakan `suppressHydrationWarning` pada elemen kosmetik atau render tanggal via `useEffect` agar konsisten.
-- **Tidak ada WA/Gemini:** Webhook WhatsApp, Gemini AI, `parseManualInput.ts`, dan `whatsapp.ts` sudah dihapus. Aplikasi murni Dashboard-only.
+- **Tidak ada WA:** Webhook WhatsApp, `parseManualInput.ts`, dan `whatsapp.ts` sudah dihapus. Tidak ada pengiriman otomatis ke WA; laporan disalin manual ke grup WhatsApp. Aplikasi murni Dashboard-only.
+- **Gemini AI masih aktif** untuk fitur MBG Maker (tab terpisah, `src/components/MBGMaker.tsx`).
+
+## Gemini AI (MBG Maker)
+- Endpoint utama: `POST /api/ai/menu-generator` dengan action `generate_menu` | `adapt_variant` | `estimate_nutrition` | `give_suggestions`
+- Endpoint pendukung: `GET /api/ai/models` (daftar model yang tersedia untuk API key) dan `POST /api/ai/test-model` body `{ model }` (tes 1 model)
+- Panggil REST API Google langsung (bukan SDK): `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
+- Semua helper server-side ada di `src/lib/gemini-server.ts` (HANYA untuk server/API route — jangan diimpor ke client component):
+  - `getGeminiConfig()` — API key + chain model
+  - `callGemini({ systemInstruction, prompt, schema, thinkingLevel })` → `{ text, model, modelVersion }`
+  - `listAvailableModels()` — proxy `GET /v1beta/models` (cache in-memory 10 menit)
+  - `testGeminiModel(model)` — 1 prompt kecil, Return `{ ok, modelVersion, latencyMs, error }`
+- **Chain fallback model** diambil dari `system_settings` key `gemini_models` (dipisah koma). Kalau kosong → `DEFAULT_GEMINI_MODELS` di `src/lib/gemini-models.ts`
+  - Default: `gemini-3.8-flash` → `gemini-3.5-flash-lite` → `gemini-3.6-flash`
+- API key: `system_settings` key `gemini_api_key` → fallback `process.env.GEMINI_API_KEY`
+- **`thinkingConfig` per keluarga model** (hasil uji live 2026-10-21 — `buildThinkingConfig()` di `src/lib/gemini-models.ts`):
+  - Gemini 3.x/4.x → `{ thinkingLevel: "LOW" | "MEDIUM" | "HIGH" }` (`thinkingBudget` ditolak HTTP 400)
+  - Gemini 2.5 → `{ thinkingBudget: 0 }` (`thinkingLevel` ditolak HTTP 400)
+  - Model lain (alias/gemma) → `thinkingConfig` dihilangkan
+- **Strict JSON schema:** `generationConfig.responseJsonSchema` (WAJIB berpasangan dengan `responseMimeType: "application/json"`; jangan pakai `responseSchema` bersamaan). Skema per action ada di `src/lib/gemini-schemas.ts` dan harus sinkron dengan system instruction + parser di `MBGMaker.tsx`
+- **Retry berlapis per model** (hanya bila HTTP 400 = konfigurasi tidak valid): (schema+thinking) → (schema tanpa thinking) → (tanpa schema+thinking) → (tanpa schema tanpa thinking). Error 429/503 langsung pindah ke model berikutnya
+- Timeout per request: `AbortSignal.timeout(60_000)`; cek `candidates[0].finishReason === "MAX_TOKENS"`
+- Response API menyertakan field `model` (model dari chain) dan `modelVersion` (model asli yang melayani, mis. alias `gemini-flash-latest` → `gemini-3.8-flash`) — ditampilkan sebagai badge di MBG Maker
+- Konstanta & parser model bersama (client-safe): `src/lib/gemini-models.ts` (`parseGeminiModels`, `formatGeminiModels`, `GEMINI_MODEL_SUGGESTIONS`, `buildThinkingConfig`, tipe `AvailableModel` & `ModelTestResult`)
+- UI konfigurasi model ada di tab **Pengaturan** → kartu "Kecerdasan Buatan (Gemini AI API)": tombol "Deteksi Model Tersedia" + tombol tes per model (ikon labu)

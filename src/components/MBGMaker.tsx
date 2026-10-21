@@ -327,6 +327,8 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiCalculatingGizi, setAiCalculatingGizi] = useState<VariantKey | null>(null);
   const [aiAdaptingVariant, setAiAdaptingVariant] = useState<VariantKey | null>(null);
+  const [aiModelUsed, setAiModelUsed] = useState<string | null>(null);
+  const [aiModelVersion, setAiModelVersion] = useState<string | null>(null);
 
   // AI Suggestions modal
   const [showAiSuggestionsModal, setShowAiSuggestionsModal] = useState(false);
@@ -343,6 +345,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
   // Print ref
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Badge model: tampilkan model asli yang melayani request bila berbeda
+  // (mis. alias gemini-flash-latest -> gemini-3.8-flash).
+  const aiModelBadge =
+    aiModelUsed && aiModelVersion && aiModelVersion !== aiModelUsed
+      ? `${aiModelUsed} → ${aiModelVersion}`
+      : aiModelUsed;
 
   // ── Toast helper ─────────────────────────────────────────────────────────
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
@@ -568,6 +577,9 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         return;
       }
 
+      if (json.model) setAiModelUsed(json.model);
+      if (json.modelVersion) setAiModelVersion(json.modelVersion);
+
       const aiData = json.data;
       if (aiData.nama_menu) {
         setFormNamaMenu(aiData.nama_menu);
@@ -666,6 +678,9 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         return;
       }
 
+      if (json.model) setAiModelUsed(json.model);
+      if (json.modelVersion) setAiModelVersion(json.modelVersion);
+
       const gizi = json.data.nilai_gizi;
       updateVariant(key, (v) => {
         v.nilai_gizi = {
@@ -712,6 +727,9 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         showToast(json.message || "Gagal mengadaptasi varian dengan AI.", "error");
         return;
       }
+
+      if (json.model) setAiModelUsed(json.model);
+      if (json.modelVersion) setAiModelVersion(json.modelVersion);
 
       const adapted = json.data;
       updateVariant(targetKey, (v) => {
@@ -774,6 +792,9 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         setShowAiSuggestionsModal(false);
         return;
       }
+
+      if (json.model) setAiModelUsed(json.model);
+      if (json.modelVersion) setAiModelVersion(json.modelVersion);
 
       setAiSuggestionsData(json.data);
     } catch (err) {
@@ -1245,7 +1266,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             : "bg-red-50 dark:bg-red-950/80 border-[#e74a3b] text-[#e74a3b]"
         }`}>
           {toast.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-          <span className="text-sm font-medium">{toast.message}</span>
+          <span className="text-sm font-medium whitespace-pre-line text-left">{toast.message}</span>
         </div>
       )}
 
@@ -1495,6 +1516,14 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
               >
                 <Wand2 size={14} /> ✨ Buat dengan AI
               </button>
+              {aiModelBadge && (
+                <span
+                  className="hidden md:inline-flex items-center gap-1 px-2 py-2 rounded-[0.35rem] text-[10px] font-mono font-semibold bg-[#4e73df]/10 text-[#4e73df] dark:text-indigo-400 border border-[#4e73df]/20"
+                  title="Model Gemini yang dipakai pada permintaan AI terakhir"
+                >
+                  <Sparkles size={11} /> {aiModelBadge}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => setShowLoadTemplateModal(true)}
@@ -2310,6 +2339,11 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                 <div>
                   <h4 className="text-sm font-bold text-[#5a5c69] dark:text-gray-100">AI Menu & Recipe Generator</h4>
                   <p className="text-[11px] text-[#858796] dark:text-gray-400">Didukung Gemini AI standar gizi BGN</p>
+                  {aiModelBadge && (
+                    <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded bg-[#4e73df]/10 text-[10px] font-mono font-semibold text-[#4e73df] dark:text-indigo-400">
+                      <Sparkles size={10} /> {aiModelBadge}
+                    </span>
+                  )}
                 </div>
               </div>
               <button

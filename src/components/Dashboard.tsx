@@ -63,6 +63,13 @@ import StickerPrintSheetSE from "@/components/StickerPrintSheetSE";
 import StickerRollGrozziie from "@/components/StickerRollGrozziie";
 import StickerPreview from "@/components/StickerPreview";
 import MBGMaker from "@/components/MBGMaker";
+import {
+  DEFAULT_GEMINI_MODELS_TEXT,
+  formatGeminiModels,
+  parseGeminiModels,
+  type AvailableModel,
+  type ModelTestResult,
+} from "@/lib/gemini-models";
 import RekapTab from "@/components/features/rekap/RekapTab";
 import SppgTab from "@/components/features/sppg/SppgTab";
 import SbModal from "@/components/ui/SbModal";
@@ -432,6 +439,23 @@ export default function Dashboard() {
 
   const [showGeminiKeySecret, setShowGeminiKeySecret] = useState(false);
 
+  // Gemini model fallback chain (disimpan di system_settings key "gemini_models")
+  const [geminiModelsInput, setGeminiModelsInput] = useState(DEFAULT_GEMINI_MODELS_TEXT);
+
+  const [isSavingGeminiModels, setIsSavingGeminiModels] = useState(false);
+
+  // Deteksi model yang tersedia (proxy ke Gemini API)
+  const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
+
+  const [isDetectingModels, setIsDetectingModels] = useState(false);
+
+  // Hasil uji per model (tombol "Tes Model")
+  const [modelTestResults, setModelTestResults] = useState<
+    Record<string, ModelTestResult>
+  >({});
+
+  const [isTestingModel, setIsTestingModel] = useState<string | null>(null);
+
 
 
   const handleSaveGeminiKey = async (e: React.FormEvent) => {
@@ -467,6 +491,120 @@ export default function Dashboard() {
       showSettingsToast("Terjadi kesalahan saat menyimpan pengaturan.", "error");
     } finally {
       setIsSavingGeminiKey(false);
+    }
+  };
+
+  const handleSaveGeminiModels = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const models = parseGeminiModels(geminiModelsInput);
+    if (models.length === 0) {
+      showSettingsToast("Masukkan minimal satu model ID Gemini yang valid.", "error");
+      return;
+    }
+
+    setIsSavingGeminiModels(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "gemini_models",
+          value: formatGeminiModels(models),
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setGeminiModelsInput(formatGeminiModels(models));
+        showSettingsToast("Daftar model Gemini berhasil disimpan!", "success");
+      } else {
+        showSettingsToast(json.error || "Gagal menyimpan daftar model Gemini.", "error");
+      }
+    } catch {
+      showSettingsToast("Terjadi kesalahan saat menyimpan daftar model Gemini.", "error");
+    } finally {
+      setIsSavingGeminiModels(false);
+    }
+  };
+
+  const handleResetGeminiModels = async () => {
+    setGeminiModelsInput(DEFAULT_GEMINI_MODELS_TEXT);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "gemini_models",
+          value: DEFAULT_GEMINI_MODELS_TEXT,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showSettingsToast("Daftar model Gemini dikembalikan ke default.", "success");
+      } else {
+        showSettingsToast(json.error || "Gagal mengembalikan daftar model Gemini.", "error");
+      }
+    } catch {
+      showSettingsToast("Terjadi kesalahan saat mengembalikan daftar model Gemini.", "error");
+    }
+  };
+
+  // Deteksi model yang benar-benar tersedia untuk API key saat ini
+  const handleDetectModels = async () => {
+    setIsDetectingModels(true);
+    try {
+      const res = await fetch("/api/ai/models");
+      const json = await res.json();
+      if (json.status === "success" && Array.isArray(json.models)) {
+        setAvailableModels(json.models as AvailableModel[]);
+        showSettingsToast(
+          `${json.models.length} model Gemini terdeteksi.`,
+          "success"
+        );
+      } else {
+        showSettingsToast(
+          json.message || "Gagal mendeteksi daftar model Gemini.",
+          "error"
+        );
+      }
+    } catch {
+      showSettingsToast("Terjadi kesalahan saat mendeteksi model Gemini.", "error");
+    } finally {
+      setIsDetectingModels(false);
+    }
+  };
+
+  // Uji satu model Gemini (cek kuota, status, dan latensi)
+  const handleTestModel = async (model: string) => {
+    setIsTestingModel(model);
+    try {
+      const res = await fetch("/api/ai/test-model", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model }),
+      });
+      const json = await res.json();
+      const result: ModelTestResult = {
+        ok: Boolean(json.ok),
+        model,
+        modelVersion: json.modelVersion ?? null,
+        latencyMs: Number(json.latencyMs) || 0,
+        error: json.error ?? null,
+      };
+      setModelTestResults((prev) => ({ ...prev, [model]: result }));
+      const reason = result.error
+        ? result.error.charAt(0).toUpperCase() + result.error.slice(1)
+        : "tidak diketahui";
+      showSettingsToast(
+        result.ok
+          ? `${model} siap dipakai (${result.latencyMs} ms).`
+          : `${model} gagal: ${reason}`,
+        result.ok ? "success" : "error"
+      );
+    } catch {
+      showSettingsToast("Terjadi kesalahan saat menguji model.", "error");
+    } finally {
+      setIsTestingModel(null);
     }
   };
 
@@ -1004,7 +1142,20 @@ export default function Dashboard() {
         // ignore
       }
     }
+    async function loadModels() {
+      try {
+        const res = await fetch("/api/settings?key=gemini_models");
+        const json = await res.json();
+        const models = parseGeminiModels(json.value);
+        if (mounted && models.length > 0) {
+          setGeminiModelsInput(formatGeminiModels(models));
+        }
+      } catch {
+        // ignore
+      }
+    }
     loadKey();
+    loadModels();
     return () => {
       mounted = false;
     };
@@ -3035,7 +3186,7 @@ export default function Dashboard() {
             )}
 
             {/* TAB 4: PENGATURAN */}
-            {activeTab === "pengaturan" && <SettingsTab theme={theme} toggleTheme={toggleTheme} notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} autoSync={autoSync} setAutoSync={setAutoSync} geminiApiKeyInput={geminiApiKeyInput} setGeminiApiKeyInput={setGeminiApiKeyInput} isSavingGeminiKey={isSavingGeminiKey} showGeminiKeySecret={showGeminiKeySecret} setShowGeminiKeySecret={setShowGeminiKeySecret} handleSaveGeminiKey={handleSaveGeminiKey} />}
+            {activeTab === "pengaturan" && <SettingsTab theme={theme} toggleTheme={toggleTheme} notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} autoSync={autoSync} setAutoSync={setAutoSync} geminiApiKeyInput={geminiApiKeyInput} setGeminiApiKeyInput={setGeminiApiKeyInput} isSavingGeminiKey={isSavingGeminiKey} showGeminiKeySecret={showGeminiKeySecret} setShowGeminiKeySecret={setShowGeminiKeySecret} handleSaveGeminiKey={handleSaveGeminiKey} geminiModelsInput={geminiModelsInput} setGeminiModelsInput={setGeminiModelsInput} isSavingGeminiModels={isSavingGeminiModels} handleSaveGeminiModels={handleSaveGeminiModels} handleResetGeminiModels={handleResetGeminiModels} availableModels={availableModels} isDetectingModels={isDetectingModels} handleDetectModels={handleDetectModels} modelTestResults={modelTestResults} isTestingModel={isTestingModel} handleTestModel={handleTestModel} />}
 
             {/* TAB: MBG MAKER */}
             {activeTab === "menu" && (

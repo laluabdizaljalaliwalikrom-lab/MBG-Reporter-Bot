@@ -1,103 +1,52 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { callGemini } from "@/lib/gemini-server";
+import {
+  buildMenuSchema,
+  MENU_VARIANT_KEYS,
+  NUTRITION_SCHEMA,
+  SUGGESTION_SCHEMA,
+  VARIANT_ADAPT_SCHEMA,
+  type MenuVariantKey,
+} from "@/lib/gemini-schemas";
 
 export const dynamic = "force-dynamic";
 
-// Helper to retrieve Gemini API Key from database settings or fallback to process.env
-async function getGeminiApiKey(): Promise<string> {
-  try {
-    const { data } = await supabase
-      .from("system_settings")
-      .select("value")
-      .eq("key", "gemini_api_key")
-      .maybeSingle();
+/** Label varian untuk ditampilkan ke model. */
+const VARIANT_LABELS: Record<MenuVariantKey, string> = {
+  porsi_besar: "Porsi Besar (SD Kelas 4-6, SMP, SMA, Guru)",
+  porsi_kecil: "Porsi Kecil (PAUD, TK, SD Kelas 1-3)",
+  pmt_balita: "PMT Balita (6-59 bulan)",
+  pmt_bumil: "PMT Bumil (Ibu Hamil)",
+  pmt_busui: "PMT Busui (Ibu Menyusui)",
+};
 
-    if (data?.value && data.value.trim()) {
-      return data.value.trim();
-    }
-  } catch (err) {
-    console.warn("Gagal membaca gemini_api_key dari system_settings:", err);
+/** Normalisasi target varian menjadi daftar kunci yang sah. */
+function resolveTargetKeys(targetVariant: unknown): MenuVariantKey[] {
+  if (!targetVariant || targetVariant === "all") {
+    return [...MENU_VARIANT_KEYS];
   }
 
-  return (process.env.GEMINI_API_KEY || "").trim();
+  const requested = Array.isArray(targetVariant)
+    ? targetVariant
+    : [targetVariant];
+
+  const keys = requested
+    .map((value) => String(value).trim())
+    .filter((value): value is MenuVariantKey =>
+      (MENU_VARIANT_KEYS as readonly string[]).includes(value)
+    );
+
+  return keys.length > 0 ? Array.from(new Set(keys)) : ["porsi_besar"];
 }
 
-// Helper to call Gemini REST API
-async function callGemini(systemInstruction: string, prompt: string): Promise<string> {
-  const apiKey = await getGeminiApiKey();
-  if (!apiKey) {
-    throw new Error("Gemini API Key belum diisi. Silakan masukkan di menu Pengaturan Dashboard atau tambahkan di .env.local.");
-  }
+/** System instruction generate_menu — disusun dinamis sesuai varian target. */
+function buildMenuSystemInstruction(targetKeys: MenuVariantKey[]): string {
+  const keyList = targetKeys.map((key) => `"${key}"`).join(", ");
+  const labelList = targetKeys
+    .map((key) => `- ${key} (${VARIANT_LABELS[key]})`)
+    .join("\n");
 
-  // Urutan model: prioritaskan model yang paling stabil dan responsif (bebas lonjakan 503)
-  const models = [
-    "gemini-2.5-flash",
-    "gemini-3.7-flash",
-    "gemini-3.5-flash",
-    "gemini-3.8-flash",
-    "gemini-flash-latest",
-  ];
-  let lastError: Error | null = null;
-
-  for (const model of models) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemInstruction }],
-          },
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            responseMimeType: "application/json",
-            thinkingConfig: {
-              thinkingBudget: 0,
-            },
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn(`Gemini model ${model} failed (${response.status}):`, errorText);
-        lastError = new Error(`Gemini API error (${response.status}): ${errorText}`);
-        continue;
-      }
-
-      const result = await response.json();
-      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return text;
-    } catch (err: unknown) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`Gemini model ${model} error:`, err);
-    }
-  }
-
-  throw lastError || new Error("Semua model Gemini gagal merespons.");
-}
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { action, prompt, currentVariant, fullMenuData, targetVariant } = body;
-
-    if (!action) {
-      return NextResponse.json({ status: "error", message: "Action wajib disertakan." }, { status: 400 });
-    }
-
-    // ── ACTION 1: GENERATE FULL MENU / SINGLE VARIANT ────────────────────────
-    if (action === "generate_menu") {
-      const userPrompt = prompt || "Menu sehat bergizi seimbang";
-      const target = targetVariant || "all"; // 'all' or 'porsi_besar', 'porsi_kecil', etc.
-
-      const systemInstruction = `Anda adalah Ahli Gizi Spesialis Program Makanan Bergizi Gratis (MBG) Badan Gizi Nasional (BGN) Republik Indonesia.
+  return `Anda adalah Ahli Gizi Spesialis Program Makanan Bergizi Gratis (MBG) Badan Gizi Nasional (BGN) Republik Indonesia.
 Tugas Anda adalah membuat rencana menu makanan bergizi seimbang lengkap dengan resep, takaran bahan per 1 porsi, langkah persiapan, langkah pengolahan, dan estimasi nilai gizi.
 
 Standar Gizi BGN:
@@ -107,16 +56,19 @@ Standar Gizi BGN:
 4. PMT Bumil (Ibu Hamil): ~500-650 kkal, Protein 22-30g, kaya Asam Folat, Zat Besi, Kalsium.
 5. PMT Busui (Ibu Menyusui): ~550-700 kkal, Protein 25-35g, kaya cairan, kalsium, daun katuk/kelor/sayuran hijau pendukung ASI.
 
-Kembalikan respon HANYA dalam JSON valid dengan struktur:
+Varian yang harus dibuat:
+${labelList}
+
+Kembalikan respon HANYA dalam JSON valid dengan struktur berikut (hanya kunci varian di atas):
 {
   "nama_menu": "Nama menu utama, misal: Nasi Liwet Ayam Suwir Gurih Sayur Labu Siam & Tempe Bacem",
   "catatan": "Catatan gizi dan tips keamanan pangan bagi dapur SPPG",
   "menu": {
-    "porsi_besar": {
+    ${targetKeys[0]}: {
       "nama_menu": "string",
       "komposisi": [
-        { "nama_bahan": "Beras Putih", "jumlah_per_porsi": 100, "satuan": "gram", "kategori": "karbohidrat" },
-        { "nama_bahan": "Dada Ayam Fillet", "jumlah_per_porsi": 60, "satuan": "gram", "kategori": "protein_hewani" }
+        { "nama_bahan": "Beras Putih", "jumlah_per_porsi": 100, "satuan": "gram" },
+        { "nama_bahan": "Dada Ayam Fillet", "jumlah_per_porsi": 60, "satuan": "gram" }
       ],
       "resep": "Deskripsi singkat resep dan bumbu utama",
       "langkah_persiapan": ["Langkah 1", "Langkah 2"],
@@ -128,100 +80,67 @@ Kembalikan respon HANYA dalam JSON valid dengan struktur:
         "karbohidrat": 95,
         "serat": 7
       }
-    },
-    "porsi_kecil": {
-      "nama_menu": "string",
-      "komposisi": [
-        { "nama_bahan": "Beras Putih", "jumlah_per_porsi": 70, "satuan": "gram", "kategori": "karbohidrat" },
-        { "nama_bahan": "Dada Ayam Fillet", "jumlah_per_porsi": 40, "satuan": "gram", "kategori": "protein_hewani" }
-      ],
-      "resep": "string",
-      "langkah_persiapan": ["string"],
-      "langkah_pengolahan": ["string"],
-      "nilai_gizi": {
-        "energi": 450,
-        "protein": 16,
-        "lemak": 14,
-        "karbohidrat": 65,
-        "serat": 5
-      }
-    },
-    "pmt_balita": {
-      "nama_menu": "string",
-      "komposisi": [
-        { "nama_bahan": "Beras Lembek / Nasi Tim", "jumlah_per_porsi": 50, "satuan": "gram", "kategori": "karbohidrat" },
-        { "nama_bahan": "Dada Ayam Cincang", "jumlah_per_porsi": 30, "satuan": "gram", "kategori": "protein_hewani" }
-      ],
-      "resep": "string",
-      "langkah_persiapan": ["string"],
-      "langkah_pengolahan": ["string"],
-      "nilai_gizi": {
-        "energi": 300,
-        "protein": 11,
-        "lemak": 10,
-        "karbohidrat": 40,
-        "serat": 4
-      }
-    },
-    "pmt_bumil": {
-      "nama_menu": "string",
-      "komposisi": [
-        { "nama_bahan": "Beras Putih", "jumlah_per_porsi": 90, "satuan": "gram", "kategori": "karbohidrat" },
-        { "nama_bahan": "Dada Ayam Fillet", "jumlah_per_porsi": 70, "satuan": "gram", "kategori": "protein_hewani" }
-      ],
-      "resep": "string",
-      "langkah_persiapan": ["string"],
-      "langkah_pengolahan": ["string"],
-      "nilai_gizi": {
-        "energi": 620,
-        "protein": 27,
-        "lemak": 19,
-        "karbohidrat": 85,
-        "serat": 8
-      }
-    },
-    "pmt_busui": {
-      "nama_menu": "string",
-      "komposisi": [
-        { "nama_bahan": "Beras Putih", "jumlah_per_porsi": 100, "satuan": "gram", "kategori": "karbohidrat" },
-        { "nama_bahan": "Dada Ayam Fillet", "jumlah_per_porsi": 75, "satuan": "gram", "kategori": "protein_hewani" }
-      ],
-      "resep": "string",
-      "langkah_persiapan": ["string"],
-      "langkah_pengolahan": ["string"],
-      "nilai_gizi": {
-        "energi": 660,
-        "protein": 29,
-        "lemak": 21,
-        "karbohidrat": 90,
-        "serat": 8
-      }
     }
   }
 }
-Kategori komposisi yang diizinkan: "karbohidrat", "protein_hewani", "protein_nabati", "sayuran", "buah", "bumbu", "lainnya".
-Satuan yang umum: "gram", "ml", "butir", "buah", "batang", "siung", "sdm", "sdt", "potong".`;
+Kunci varian yang wajib ada: ${keyList}.
+Satuan yang umum: "gram", "ml", "butir", "buah", "batang", "siung", "sdm", "sdt", "potong".
+Nilai gizi: energi dalam kkal, sedangkan protein, lemak, karbohidrat, dan serat dalam gram per 1 porsi.`;
+}
 
-      const aiText = await callGemini(
-        systemInstruction,
-        `Buatlah menu MBG berdasarkan permintaan berikut:
-Permintaan/Tema: "${userPrompt}"
-Target varian: ${target === "all" ? "Seluruh 5 varian (Porsi Besar, Porsi Kecil, PMT Balita, PMT Bumil, PMT Busui)" : target}`
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { action, prompt, currentVariant, fullMenuData, targetVariant } = body;
+
+    if (!action) {
+      return NextResponse.json(
+        { status: "error", message: "Action wajib disertakan." },
+        { status: 400 }
       );
+    }
+
+    // ── ACTION 1: GENERATE FULL MENU / SINGLE VARIANT ────────────────────────
+    if (action === "generate_menu") {
+      const userPrompt = prompt || "Menu sehat bergizi seimbang";
+      const targetKeys = resolveTargetKeys(targetVariant);
+      const targetLabel =
+        targetKeys.length === MENU_VARIANT_KEYS.length
+          ? "Seluruh 5 varian (Porsi Besar, Porsi Kecil, PMT Balita, PMT Bumil, PMT Busui)"
+          : targetKeys.map((key) => VARIANT_LABELS[key]).join(", ");
+
+      const { text: aiText, model, modelVersion } = await callGemini({
+        systemInstruction: buildMenuSystemInstruction(targetKeys),
+        prompt: `Buatlah menu MBG berdasarkan permintaan berikut:
+Permintaan/Tema: "${userPrompt}"
+Target varian: ${targetLabel}`,
+        schema: buildMenuSchema(targetKeys),
+        thinkingLevel: "LOW",
+      });
 
       const parsed = JSON.parse(aiText);
-      return NextResponse.json({ status: "success", data: parsed });
+      return NextResponse.json({
+        status: "success",
+        data: parsed,
+        model,
+        modelVersion,
+      });
     }
 
     // ── ACTION 2: ADAPT VARIANT ──────────────────────────────────────────────
     if (action === "adapt_variant") {
       const { sourceVariant, targetKey, targetLabel } = body;
       if (!sourceVariant || !targetKey) {
-        return NextResponse.json({ status: "error", message: "sourceVariant dan targetKey wajib diisi." }, { status: 400 });
+        return NextResponse.json(
+          { status: "error", message: "sourceVariant dan targetKey wajib diisi." },
+          { status: 400 }
+        );
       }
 
       const systemInstruction = `Anda adalah Ahli Gizi Program MBG Badan Gizi Nasional.
-Tugas Anda adalah mengadaptasi resep dan komposisi dari Porsi Besar ke varian target: ${targetLabel || targetKey}.
+Tugas Anda adalah mengadaptasi resep dan komposisi dari Porsi Besar ke varian target: ${
+        targetLabel || targetKey
+      }.
 
 Panduan Adaptasi:
 - porsi_kecil (PAUD-SD 3): kurangi gramatur bahan ~30-40%, bumbu tidak terlalu pedas/tajam, sesuaikan nilai gizi (energi ~450kkal, protein ~15g).
@@ -233,7 +152,7 @@ Kembalikan HANYA JSON valid:
 {
   "nama_menu": "string",
   "komposisi": [
-    { "nama_bahan": "string", "jumlah_per_porsi": 0, "satuan": "gram", "kategori": "string" }
+    { "nama_bahan": "string", "jumlah_per_porsi": 0, "satuan": "gram" }
   ],
   "resep": "string",
   "langkah_persiapan": ["string"],
@@ -247,19 +166,32 @@ Kembalikan HANYA JSON valid:
   }
 }`;
 
-      const aiText = await callGemini(
+      const { text: aiText, model, modelVersion } = await callGemini({
         systemInstruction,
-        `Adaptasikan menu berikut ini untuk varian ${targetLabel || targetKey}:\n` + JSON.stringify(sourceVariant)
-      );
+        prompt:
+          `Adaptasikan menu berikut ini untuk varian ${
+            targetLabel || targetKey
+          }:\n` + JSON.stringify(sourceVariant),
+        schema: VARIANT_ADAPT_SCHEMA,
+        thinkingLevel: "LOW",
+      });
 
       const parsed = JSON.parse(aiText);
-      return NextResponse.json({ status: "success", data: parsed });
+      return NextResponse.json({
+        status: "success",
+        data: parsed,
+        model,
+        modelVersion,
+      });
     }
 
     // ── ACTION 3: ESTIMATE NUTRITION ─────────────────────────────────────────
     if (action === "estimate_nutrition") {
       if (!currentVariant || !Array.isArray(currentVariant.komposisi)) {
-        return NextResponse.json({ status: "error", message: "Komposisi varian wajib disertakan." }, { status: 400 });
+        return NextResponse.json(
+          { status: "error", message: "Komposisi varian wajib disertakan." },
+          { status: 400 }
+        );
       }
 
       const systemInstruction = `Anda adalah Ahli Gizi BGN. Hitung estimasi nilai gizi (energi dalam kkal, protein dalam gram, lemak dalam gram, karbohidrat dalam gram, serat dalam gram) per 1 porsi berdasarkan daftar komposisi bahan yang diberikan menggunakan data Tabel Komposisi Pangan Indonesia (TKPI).
@@ -276,17 +208,25 @@ Kembalikan HANYA JSON valid:
   "analisis_singkat": "Penjelasan singkat apakah sudah memenuhi standar porsi/kelompok sasaran."
 }`;
 
-      const aiText = await callGemini(
+      const { text: aiText, model, modelVersion } = await callGemini({
         systemInstruction,
-        `Hitung estimasi nilai gizi per 1 porsi untuk komposisi bahan makanan berikut:\n` +
+        prompt:
+          `Hitung estimasi nilai gizi per 1 porsi untuk komposisi bahan makanan berikut:\n` +
           JSON.stringify({
             nama_menu: currentVariant.nama_menu,
             komposisi: currentVariant.komposisi,
-          })
-      );
+          }),
+        schema: NUTRITION_SCHEMA,
+        thinkingLevel: "LOW",
+      });
 
       const parsed = JSON.parse(aiText);
-      return NextResponse.json({ status: "success", data: parsed });
+      return NextResponse.json({
+        status: "success",
+        data: parsed,
+        model,
+        modelVersion,
+      });
     }
 
     // ── ACTION 4: GIVE SUGGESTIONS / AUDIT ────────────────────────────────────
@@ -309,18 +249,33 @@ Kembalikan HANYA JSON valid:
   "tips_keamanan_pangan": ["tips 1", "tips 2"]
 }`;
 
-      const aiText = await callGemini(
+      const { text: aiText, model, modelVersion } = await callGemini({
         systemInstruction,
-        `Evaluasi dan berikan telaah gizi untuk menu MBG berikut:\n` + JSON.stringify(fullMenuData || currentVariant)
-      );
+        prompt:
+          `Evaluasi dan berikan telaah gizi untuk menu MBG berikut:\n` +
+          JSON.stringify(fullMenuData || currentVariant),
+        schema: SUGGESTION_SCHEMA,
+        thinkingLevel: "MEDIUM",
+      });
 
       const parsed = JSON.parse(aiText);
-      return NextResponse.json({ status: "success", data: parsed });
+      return NextResponse.json({
+        status: "success",
+        data: parsed,
+        model,
+        modelVersion,
+      });
     }
 
-    return NextResponse.json({ status: "error", message: `Action '${action}' tidak dikenal.` }, { status: 400 });
+    return NextResponse.json(
+      { status: "error", message: `Action '${action}' tidak dikenal.` },
+      { status: 400 }
+    );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Terjadi kesalahan pada AI Assistant.";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Terjadi kesalahan pada AI Assistant.";
     console.error("POST /api/ai/menu-generator error:", error);
     return NextResponse.json({ status: "error", message }, { status: 500 });
   }

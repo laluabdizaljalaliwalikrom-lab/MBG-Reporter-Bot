@@ -34,7 +34,20 @@ import {
   Wand2,
   CheckSquare,
   Square,
+  ShieldCheck,
+  Wallet,
+  MapPin,
+  CircleAlert,
+  TriangleAlert,
 } from "lucide-react";
+import {
+  KOMPONEN_WAJIB,
+  STANDAR_PORSI,
+  evaluasiVarian,
+  formatRupiah,
+  kategoriDariBahan,
+  type KomponenKey,
+} from "@/lib/mbg-standards";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -54,6 +67,8 @@ interface Ingredient {
   bahan: string;
   jumlah_per_porsi: number;
   satuan: string;
+  /** Kategori komponen wajib BGN (karbohidrat, protein_hewani, protein_nabati, sayur, buah). */
+  kategori?: string;
 }
 
 interface NilaiGizi {
@@ -72,6 +87,8 @@ interface MenuVariant {
   langkah_pengolahan: string[];
   nilai_gizi: NilaiGizi;
   jumlah_porsi: number;
+  /** Estimasi biaya bahan baku per porsi (Rupiah) dari AI. */
+  estimasi_biaya?: number;
 }
 
 interface MenuVariantWithRef extends MenuVariant {
@@ -112,6 +129,27 @@ interface MBGMakerProps {
   sppgList: SppgData[];
 }
 
+/** Ide menu yang dihasilkan AI (action `suggest_menu_ideas`). */
+interface MenuIdea {
+  judul: string;
+  prompt: string;
+  komponen?: Record<string, string>;
+  estimasi_biaya?: number;
+  alasan?: string;
+}
+
+/** Hasil cek kepatuhan per varian yang dikembalikan AI (action `give_suggestions`). */
+interface CekKepatuhanAi {
+  varian: string;
+  komponen_lengkap: boolean;
+  komponen_kurang: string[];
+  status_energi: string;
+  status_protein: string;
+  status_anggaran: string;
+  estimasi_biaya: number;
+  catatan: string;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const EMPTY_GIZI: NilaiGizi = { energi: 0, protein: 0, lemak: 0, karbohidrat: 0, serat: 0 };
@@ -147,6 +185,44 @@ const VARIANT_CONFIG: { key: VariantKey; label: string; desc: string; icon: Reac
 ];
 
 const SATUAN_OPTIONS = ["gram", "kg", "ml", "liter", "butir", "buah", "batang", "lembar", "siung", "sdm", "sdt", "bungkus", "potong", "ekor", "ikat"];
+
+/**
+ * Preset "Inspirasi Cepat".
+ * Setiap preset sudah memuat 5 komponen wajib BGN (karbohidrat, protein hewani,
+ * protein nabati, sayur, buah) serta mengutamakan bahan lokal yang ekonomis.
+ */
+const INSPIRASI_CEPAT: { label: string; prompt: string }[] = [
+  {
+    label: "Ayam Bakar Madu + Sayur Asem",
+    prompt:
+      "Nasi putih, ayam bakar madu, tempe orek, sayur asem (bayam, tomat, wortel), dan buah semangka. Bahan lokal ekonomis, tinggi protein.",
+  },
+  {
+    label: "Ikan Kembung Bumbu Kuning + Sop Sayur",
+    prompt:
+      "Nasi putih, ikan kembung bumbu kuning, tempe goreng, sayur sop (buncis, kangkung, wortel), dan buah pisang. Hemat dan gurih.",
+  },
+  {
+    label: "Nasi Kuning Ayam Suwir + Telur Balado",
+    prompt:
+      "Nasi kuning, ayam suwir, tempe bacem, sayur buncis dan wortel, dan buah pepaya. Tekstur lembut, cocok untuk PAUD dan SD kelas 1-3.",
+  },
+  {
+    label: "Zat Besi untuk Balita & Bumil",
+    prompt:
+      "Nasi merah, daging sapi cincang, tempe bacem, sayur bayam dan wortel, dan buah pepaya. Kaya zat besi, asam folat, dan kalsium.",
+  },
+  {
+    label: "Lauk Nabati Super Ekonomis",
+    prompt:
+      "Nasi putih, tofu goreng, tempe orek, sayur kangkung dan tomat, dan buah pisang. Budget bahan baku di bawah Rp8.000 per porsi.",
+  },
+  {
+    label: "Menu Anti Stunting Kaya Zinc",
+    prompt:
+      "Nasi putih, daging sapi, tempe orek, sayur bayam dan wortel, dan buah mangga. Perbanyak sumber protein hewani dan zinc.",
+  },
+];
 
 // The list of variants that can be referenced via "sama_dengan"
 const REFERENCE_OPTIONS: { value: string; label: string }[] = [
@@ -206,6 +282,19 @@ function detectKategoriBahan(bahan: string): string {
     return "Bumbu & Minyak";
   }
   return "Bahan Lainnya";
+}
+
+/**
+ * Normalisasi kategori bahan menjadi salah satu dari 5 komponen wajib BGN.
+ * Memakai kategori dari AI bila tersedia, jika tidak dideteksi dari nama bahan.
+ * Mengembalikan undefined bila bahan bukan komponen (bumbu/minyak/lainnya).
+ */
+function normalisasiKategoriKomponen(
+  nama: string,
+  kategoriAi?: string | null
+): KomponenKey | undefined {
+  const kat = kategoriDariBahan(nama, kategoriAi);
+  return KOMPONEN_WAJIB.find((k) => k.key === kat)?.key;
 }
 
 export interface ShoppingListItem {
@@ -330,6 +419,13 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
   const [aiModelUsed, setAiModelUsed] = useState<string | null>(null);
   const [aiModelVersion, setAiModelVersion] = useState<string | null>(null);
 
+  // Wilayah kerja SPPG (opsional) untuk prioritas pangan lokal
+  const [aiWilayah, setAiWilayah] = useState("");
+
+  // Ide menu dari AI (Inspirasi Cepat)
+  const [aiIdeas, setAiIdeas] = useState<MenuIdea[]>([]);
+  const [aiIdeasLoading, setAiIdeasLoading] = useState(false);
+
   // AI Suggestions modal
   const [showAiSuggestionsModal, setShowAiSuggestionsModal] = useState(false);
   const [aiSuggestionsLoading, setAiSuggestionsLoading] = useState(false);
@@ -341,6 +437,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
     kekurangan?: string[];
     saran_ahli_gizi?: string[];
     tips_keamanan_pangan?: string[];
+    cek_kepatuhan?: CekKepatuhanAi[];
   } | null>(null);
 
   // Print ref
@@ -568,6 +665,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           action: "generate_menu",
           prompt: aiPrompt.trim(),
           targetVariant: aiTargetVariant,
+          wilayah: aiWilayah.trim() || null,
         }),
       });
 
@@ -597,6 +695,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             jumlah_per_porsi?: number | string;
             jumlah?: number | string;
             satuan?: string;
+            kategori?: string;
           }
           interface RawAiVariant {
             nama_menu?: string;
@@ -605,22 +704,31 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             langkah_persiapan?: string[];
             langkah_pengolahan?: string[];
             nilai_gizi?: Partial<NilaiGizi>;
+            estimasi_biaya?: number;
           }
           const applyDataToVariant = (k: VariantKey, varData: RawAiVariant) => {
             const current = next[k];
             current.nama_menu = varData.nama_menu || current.nama_menu || aiData.nama_menu;
             if (Array.isArray(varData.komposisi)) {
-              current.komposisi = varData.komposisi.map((item: RawAiIngredient) => ({
-                bahan: (item.bahan || item.nama_bahan || "").trim(),
-                jumlah_per_porsi: Number(item.jumlah_per_porsi || item.jumlah || 0),
-                satuan: item.satuan || "gram",
-              }));
+              current.komposisi = varData.komposisi.map((item: RawAiIngredient) => {
+                const nama = (item.bahan || item.nama_bahan || "").trim();
+                const kategori = normalisasiKategoriKomponen(nama, item.kategori);
+                return {
+                  bahan: nama,
+                  jumlah_per_porsi: Number(item.jumlah_per_porsi || item.jumlah || 0),
+                  satuan: item.satuan || "gram",
+                  ...(kategori ? { kategori } : {}),
+                };
+              });
             }
             if (varData.resep) current.resep = varData.resep;
             if (Array.isArray(varData.langkah_persiapan)) current.langkah_persiapan = varData.langkah_persiapan;
             if (Array.isArray(varData.langkah_pengolahan)) current.langkah_pengolahan = varData.langkah_pengolahan;
             if (varData.nilai_gizi) {
               current.nilai_gizi = { ...current.nilai_gizi, ...varData.nilai_gizi };
+            }
+            if (typeof varData.estimasi_biaya === "number" && varData.estimasi_biaya > 0) {
+              current.estimasi_biaya = Math.round(varData.estimasi_biaya);
             }
             if (k !== "porsi_besar") {
               (current as MenuVariantWithRef).sama_dengan = null;
@@ -652,7 +760,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
     } finally {
       setAiLoading(false);
     }
-  }, [aiPrompt, aiTargetVariant, showToast]);
+  }, [aiPrompt, aiTargetVariant, aiWilayah, showToast]);
 
   const handleAiEstimateGizi = useCallback(async (key: VariantKey) => {
     const variant = formMenuData[key];
@@ -669,6 +777,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
         body: JSON.stringify({
           action: "estimate_nutrition",
           currentVariant: variant,
+          variantKey: key,
         }),
       });
 
@@ -682,6 +791,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
       if (json.modelVersion) setAiModelVersion(json.modelVersion);
 
       const gizi = json.data.nilai_gizi;
+      const biayaAi = Number(json.data.estimasi_biaya) || 0;
       updateVariant(key, (v) => {
         v.nilai_gizi = {
           energi: Number(gizi.energi) || 0,
@@ -690,6 +800,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           karbohidrat: Number(gizi.karbohidrat) || 0,
           serat: Number(gizi.serat) || 0,
         };
+        if (biayaAi > 0) v.estimasi_biaya = Math.round(biayaAi);
       });
 
       showToast(`✨ Nilai gizi dihitung oleh AI (${json.data.analisis_singkat || "Selesai"})`);
@@ -719,6 +830,7 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           sourceVariant,
           targetKey,
           targetLabel: config?.label || targetKey,
+          wilayah: aiWilayah.trim() || null,
         }),
       });
 
@@ -742,12 +854,18 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             jumlah_per_porsi?: number | string;
             jumlah?: number | string;
             satuan?: string;
+            kategori?: string;
           }
-          v.komposisi = adapted.komposisi.map((item: RawAdaptedItem) => ({
-            bahan: (item.bahan || item.nama_bahan || "").trim(),
-            jumlah_per_porsi: Number(item.jumlah_per_porsi || item.jumlah || 0),
-            satuan: item.satuan || "gram",
-          }));
+          v.komposisi = adapted.komposisi.map((item: RawAdaptedItem) => {
+            const nama = (item.bahan || item.nama_bahan || "").trim();
+            const kategori = normalisasiKategoriKomponen(nama, item.kategori);
+            return {
+              bahan: nama,
+              jumlah_per_porsi: Number(item.jumlah_per_porsi || item.jumlah || 0),
+              satuan: item.satuan || "gram",
+              ...(kategori ? { kategori } : {}),
+            };
+          });
         }
         if (adapted.resep) v.resep = adapted.resep;
         if (Array.isArray(adapted.langkah_persiapan)) v.langkah_persiapan = adapted.langkah_persiapan;
@@ -761,6 +879,9 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             serat: Number(adapted.nilai_gizi.serat) || 0,
           };
         }
+        if (typeof adapted.estimasi_biaya === "number" && adapted.estimasi_biaya > 0) {
+          v.estimasi_biaya = Math.round(adapted.estimasi_biaya);
+        }
       });
 
       showToast(`✨ Varian ${config?.label} berhasil diadaptasi oleh AI!`);
@@ -770,19 +891,29 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
     } finally {
       setAiAdaptingVariant(null);
     }
-  }, [formMenuData, showToast, updateVariant]);
+  }, [formMenuData, aiWilayah, showToast, updateVariant]);
 
   const handleAiGetSuggestions = useCallback(async () => {
     setAiSuggestionsLoading(true);
     setShowAiSuggestionsModal(true);
     setAiSuggestionsData(null);
     try {
+      // Kirim varian yang sudah di-resolve (varian "sama_dengan" memakai komposisi acuannya)
+      const resolvedMenu = VARIANT_CONFIG.reduce(
+        (acc, cfg) => {
+          acc[cfg.key] = resolveVariant(formMenuData, cfg.key);
+          return acc;
+        },
+        {} as Record<VariantKey, MenuVariant>
+      );
+
       const res = await fetch("/api/ai/menu-generator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "give_suggestions",
-          fullMenuData: formMenuData,
+          fullMenuData: resolvedMenu,
+          targetVariant: "all",
         }),
       });
 
@@ -805,6 +936,58 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
       setAiSuggestionsLoading(false);
     }
   }, [formMenuData, showToast]);
+
+  // ── AI: Inspirasi Cepat — ide menu siap pakai sesuai standar BGN ────────────
+  const handleAiSuggestIdeas = useCallback(async () => {
+    setAiIdeasLoading(true);
+    setAiIdeas([]);
+    try {
+      const res = await fetch("/api/ai/menu-generator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "suggest_menu_ideas",
+          targetVariant: aiTargetVariant === "all" ? "porsi_besar" : aiTargetVariant,
+          wilayah: aiWilayah.trim() || null,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.status !== "success" || !json.data?.ide) {
+        showToast(json.message || "Gagal mendapatkan ide menu dari AI.", "error");
+        return;
+      }
+
+      if (json.model) setAiModelUsed(json.model);
+      if (json.modelVersion) setAiModelVersion(json.modelVersion);
+
+      const ide: MenuIdea[] = Array.isArray(json.data.ide) ? json.data.ide : [];
+      setAiIdeas(ide);
+      if (ide.length === 0) {
+        showToast("AI tidak menghasilkan ide menu.", "error");
+      }
+    } catch (err) {
+      console.error("AI Ideas error:", err);
+      showToast("Terjadi kesalahan saat meminta ide menu AI.", "error");
+    } finally {
+      setAiIdeasLoading(false);
+    }
+  }, [aiTargetVariant, aiWilayah, showToast]);
+
+  /** Masukkan ide menu AI ke kolom ide pada modal AI. */
+  const handlePakaiIde = useCallback(
+    (ide: MenuIdea) => {
+      const rincian = ide.komponen
+        ? Object.entries(ide.komponen)
+            .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
+            .join("; ")
+        : "";
+      const teks = [ide.judul, rincian, ide.prompt].filter(Boolean).join(". ");
+      setAiPrompt(teks);
+      showToast("Ide menu dimasukkan. Tekan Generate Menu dengan AI.");
+    },
+    [showToast]
+  );
 
   // ── Filtered list ────────────────────────────────────────────────────────
   const displayList = useMemo(() => {
@@ -843,6 +1026,159 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
   }, [view, selectedMenu, formMenuData]);
 
   // ── Render helpers ───────────────────────────────────────────────────────
+
+  /** Baris nilai gizi vs rentang standar (helper panel kepatuhan). */
+  const barisNilai = (
+    label: string,
+    nilai: { nilai: number; min: number; max: number; status: string }
+  ) => {
+    const warna =
+      nilai.status === "ok"
+        ? "text-[#1cc88a]"
+        : nilai.status === "belum_ada"
+          ? "text-[#858796] dark:text-gray-500"
+          : "text-[#e74a3b]";
+    return (
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-[#858796] dark:text-gray-400">{label}</span>
+        <span className={`font-bold ${warna}`}>
+          {nilai.nilai > 0 ? nilai.nilai : "-"}
+          <span className="text-[#858796] dark:text-gray-500 font-normal">
+            {" "}
+            ({nilai.min}-{nilai.max})
+          </span>
+        </span>
+      </div>
+    );
+  };
+
+  /** Warna teks untuk status kepatuhan yang dikembalikan AI. */
+  const warnaStatusAi = (status: string) => {
+    const s = (status || "").toUpperCase();
+    if (
+      s.includes("MELEBIHI") ||
+      s.includes("DI BAWAH") ||
+      s.includes("DI ATAS") ||
+      s.includes("KURANG") ||
+      s.includes("TIDAK")
+    ) {
+      return "text-[#e74a3b]";
+    }
+    if (s.includes("SESUAI") || s.includes("OK") || s.includes("LENGKAP")) {
+      return "text-[#1cc88a]";
+    }
+    return "text-[#858796] dark:text-gray-400";
+  };
+
+  /** Panel "Cek Kepatuhan Standar BGN" untuk satu varian. */
+  const renderPanelKepatuhan = (key: VariantKey) => {
+    const variant = resolveVariant(formMenuData, key);
+    const hasil = evaluasiVarian(
+      key,
+      variant.komposisi,
+      variant.nilai_gizi,
+      variant.estimasi_biaya
+    );
+    const std = hasil.standar;
+    const skorWarna =
+      hasil.skor >= 80
+        ? "text-[#1cc88a] bg-[#1cc88a]/10 border-[#1cc88a]/30"
+        : hasil.skor >= 50
+          ? "text-[#f6c23e] bg-[#f6c23e]/10 border-[#f6c23e]/30"
+          : "text-[#e74a3b] bg-[#e74a3b]/10 border-[#e74a3b]/30";
+
+    return (
+      <div className="p-3 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900/60 border border-[#d1d3e2] dark:border-gray-700 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-xs font-bold text-[#5a5c69] dark:text-gray-200 flex items-center gap-1.5">
+            <ShieldCheck size={13} /> Cek Kepatuhan Standar BGN
+          </label>
+          <span
+            className={`text-[10px] font-black px-2 py-0.5 rounded border ${skorWarna}`}
+            title="Skor kepatuhan: 40% kelengkapan komponen, 40% nilai gizi, 20% anggaran"
+          >
+            {hasil.skor}/100
+          </span>
+        </div>
+
+        {/* Lima komponen wajib */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+          {hasil.komponen.daftar.map((k) => (
+            <div
+              key={k.key}
+              className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-1 rounded border ${
+                k.terpenuhi
+                  ? "text-[#1cc88a] bg-[#1cc88a]/10 border-[#1cc88a]/25"
+                  : "text-[#e74a3b] bg-[#e74a3b]/10 border-[#e74a3b]/25"
+              }`}
+            >
+              {k.terpenuhi ? <CheckCircle2 size={10} /> : <CircleAlert size={10} />}
+              <span className="truncate">{k.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Target gizi */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+          {barisNilai("Energi (kkal)", hasil.energi)}
+          {barisNilai("Protein (g)", hasil.protein)}
+          {barisNilai("Lemak (g)", hasil.lemak)}
+          {barisNilai("Karbohidrat (g)", hasil.karbohidrat)}
+          {barisNilai("Serat (g)", hasil.serat)}
+        </div>
+
+        {/* Anggaran bahan baku */}
+        <div>
+          <div className="flex items-center justify-between text-[11px] mb-1">
+            <span className="font-semibold text-[#5a5c69] dark:text-gray-300 flex items-center gap-1">
+              <Wallet size={11} /> Estimasi bahan baku per porsi
+            </span>
+            <span
+              className={`font-bold ${
+                hasil.biaya.status === "ok"
+                  ? "text-[#1cc88a]"
+                  : hasil.biaya.status === "melebihi"
+                    ? "text-[#e74a3b]"
+                    : "text-[#858796] dark:text-gray-400"
+              }`}
+            >
+              {formatRupiah(hasil.biaya.estimasi)} / {formatRupiah(hasil.biaya.cap)}
+            </span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-[#e3e6f0] dark:bg-gray-700 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${
+                hasil.biaya.status === "melebihi" ? "bg-[#e74a3b]" : "bg-[#1cc88a]"
+              }`}
+              style={{ width: `${Math.min(100, Math.max(2, hasil.biaya.persen))}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Catatan */}
+        {hasil.ringkas.length > 0 && (
+          <ul className="space-y-1">
+            {hasil.ringkas.map((catatan, i) => (
+              <li
+                key={i}
+                className="text-[11px] text-[#e74a3b] dark:text-red-400 flex items-start gap-1.5"
+              >
+                <TriangleAlert size={11} className="mt-0.5 shrink-0" />
+                <span>{catatan}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="text-[10px] text-[#858796] dark:text-gray-400 leading-relaxed">
+          Acuan: {std.label} ({std.kelompok.join(", ")}) - target {std.energi.min}-
+          {std.energi.max} kkal, protein {std.protein.min}-{std.protein.max} g, pagu bahan baku{" "}
+          {formatRupiah(std.capAnggaran)}/porsi, {std.persenAkg.min}-{std.persenAkg.max}% AKG (
+          {STANDAR_PORSI[key]?.waktuPemberian ?? std.waktuPemberian}).
+        </p>
+      </div>
+    );
+  };
 
   // Ingredient row editor
   const renderIngredientEditor = (key: VariantKey, ingredients: Ingredient[]) => (
@@ -898,6 +1234,26 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
           >
             {SATUAN_OPTIONS.map((s) => (
               <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={ing.kategori || ""}
+            onChange={(e) =>
+              updateVariant(key, (v) => {
+                v.komposisi[idx].kategori = e.target.value || undefined;
+              })
+            }
+            title="Komponen menu wajib BGN (Auto = dideteksi dari nama bahan)"
+            className="w-32 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-2 py-2 text-[11px] text-[#5a5c69] dark:text-gray-200 focus:border-[#4e73df] focus:outline-none transition-colors appearance-none"
+          >
+            <option value="">
+              {(() => {
+                const auto = normalisasiKategoriKomponen(ing.bahan);
+                return auto ? `Auto: ${auto.replace(/_/g, " ")}` : "Auto";
+              })()}
+            </option>
+            {KOMPONEN_WAJIB.map((k) => (
+              <option key={k.key} value={k.key}>{k.label}</option>
             ))}
           </select>
           <button
@@ -1152,6 +1508,9 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
             {/* Nutrition */}
             {renderGiziEditor(key)}
+
+            {/* Cek Kepatuhan Standar BGN */}
+            {renderPanelKepatuhan(key)}
           </>
         )}
       </div>
@@ -2356,6 +2715,21 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
             </div>
 
             <div className="space-y-3 pt-1">
+              {/* Ringkasan standar BGN yang diterapkan otomatis */}
+              <div className="p-2.5 rounded-[0.35rem] bg-[#1cc88a]/5 border border-[#1cc88a]/20 space-y-1">
+                <p className="text-[10px] font-bold text-[#1cc88a] uppercase tracking-wider flex items-center gap-1">
+                  <ShieldCheck size={12} /> Standar BGN yang diterapkan otomatis
+                </p>
+                <ul className="text-[10px] text-[#5a5c69] dark:text-gray-300 space-y-0.5 list-disc pl-4">
+                  <li>5 komponen wajib: karbohidrat, protein hewani, protein nabati, sayur, buah</li>
+                  <li>Gramasi sesuai AKG (Permenkes 28/2019) per kelompok sasaran</li>
+                  <li>
+                    Pagu bahan baku Rp8.000 (Porsi Kecil) dan Rp10.000 (Porsi Besar) per porsi
+                  </li>
+                  <li>Mengutamakan pangan lokal, musiman, dan harga acuan pasar</li>
+                </ul>
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300">
                   Ide / Tema Menu atau Preferensi Bahan <span className="text-[#e74a3b]">*</span>
@@ -2372,26 +2746,96 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
 
               {/* Quick suggestions */}
               <div>
-                <label className="text-[10px] text-[#858796] dark:text-gray-400 uppercase tracking-wider font-bold">Inspirasi Cepat</label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-[10px] text-[#858796] dark:text-gray-400 uppercase tracking-wider font-bold">
+                    Inspirasi Cepat (5 Komponen Wajib BGN)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAiSuggestIdeas}
+                    disabled={aiIdeasLoading || aiLoading}
+                    title="Minta ide menu dari AI sesuai standar BGN"
+                    className="flex items-center gap-1 px-2 py-1 rounded-[0.35rem] text-[10px] font-bold bg-[#1cc88a]/10 text-[#1cc88a] border border-[#1cc88a]/25 hover:bg-[#1cc88a]/20 transition-colors disabled:opacity-50"
+                  >
+                    {aiIdeasLoading ? (
+                      <RefreshCw size={11} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={11} />
+                    )}
+                    Saran AI
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {[
-                    "Ayam Bakar Madu & Sayur Asem",
-                    "Ikan Kembung Bumbu Kuning & Sayur Sop",
-                    "Rolade Daging Sapi & Capcay Bakso",
-                    "Nasi Kuning Ayam Suwir & Telur Balado",
-                    "Menu Tinggi Zat Besi untuk Balita & Bumil",
-                  ].map((sug) => (
+                  {INSPIRASI_CEPAT.map((sug) => (
                     <button
-                      key={sug}
+                      key={sug.label}
                       type="button"
                       disabled={aiLoading}
-                      onClick={() => setAiPrompt(sug)}
+                      onClick={() => setAiPrompt(sug.prompt)}
+                      title={sug.prompt}
                       className="text-[11px] px-2.5 py-1 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-700 border border-[#d1d3e2] dark:border-gray-600 text-[#5a5c69] dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                     >
-                      {sug}
+                      {sug.label}
                     </button>
                   ))}
                 </div>
+
+                {/* Ide menu dari AI */}
+                {aiIdeas.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {aiIdeas.map((ide, i) => (
+                      <button
+                        key={`${ide.judul}-${i}`}
+                        type="button"
+                        disabled={aiLoading}
+                        onClick={() => handlePakaiIde(ide)}
+                        className="w-full text-left p-2 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900/60 border border-[#d1d3e2] dark:border-gray-700 hover:border-[#4e73df] transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-[11px] font-bold text-[#5a5c69] dark:text-gray-100">
+                            {ide.judul}
+                          </span>
+                          {typeof ide.estimasi_biaya === "number" && ide.estimasi_biaya > 0 && (
+                            <span className="text-[10px] font-bold text-[#1cc88a] shrink-0">
+                              {formatRupiah(ide.estimasi_biaya)}
+                            </span>
+                          )}
+                        </div>
+                        {ide.komponen && (
+                          <p className="text-[10px] text-[#858796] dark:text-gray-400 mt-0.5">
+                            {KOMPONEN_WAJIB.map((k) => ide.komponen?.[k.key])
+                              .filter(Boolean)
+                              .join(" | ")}
+                          </p>
+                        )}
+                        {ide.alasan && (
+                          <p className="text-[10px] text-[#858796] dark:text-gray-400 mt-0.5">
+                            {ide.alasan}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Wilayah kerja SPPG */}
+              <div>
+                <label className="text-xs font-semibold text-[#5a5c69] dark:text-gray-300 flex items-center gap-1.5">
+                  <MapPin size={13} /> Wilayah / Provinsi SPPG
+                  <span className="text-[10px] font-normal text-[#858796]">(opsional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={aiWilayah}
+                  onChange={(e) => setAiWilayah(e.target.value)}
+                  placeholder="Contoh: Kabupaten Bandung, Jawa Barat"
+                  disabled={aiLoading}
+                  className="w-full mt-1.5 bg-white dark:bg-gray-800 border border-[#d1d3e2] dark:border-gray-700 rounded-[0.35rem] px-3.5 py-2.5 text-sm text-[#5a5c69] dark:text-gray-200 placeholder:text-[#b7b9cc] dark:placeholder:text-gray-500 focus:border-[#4e73df] focus:outline-none transition-colors"
+                />
+                <p className="text-[10px] text-[#858796] dark:text-gray-400 mt-1">
+                  Dipakai AI untuk mengutamakan pangan lokal dan musiman di wilayah tersebut.
+                </p>
               </div>
 
               {/* Target variant */}
@@ -2496,6 +2940,78 @@ export default function MBGMaker({ sppgList }: MBGMakerProps) {
                       </div>
                     )}
                   </div>
+
+                  {/* Cek Kepatuhan per Varian */}
+                  {aiSuggestionsData.cek_kepatuhan && aiSuggestionsData.cek_kepatuhan.length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-[#4e73df] flex items-center gap-1.5">
+                        <ShieldCheck size={13} /> Cek Kepatuhan Standar BGN per Varian
+                      </label>
+                      <div className="space-y-1.5">
+                        {aiSuggestionsData.cek_kepatuhan.map((cek, idx) => (
+                          <div
+                            key={`${cek.varian}-${idx}`}
+                            className="p-2.5 rounded-[0.35rem] bg-[#f8f9fc] dark:bg-gray-900/60 border border-[#e3e6f0] dark:border-gray-700"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-[#5a5c69] dark:text-gray-100">
+                                {getVariantLabel(cek.varian)}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                  cek.komponen_lengkap
+                                    ? "text-[#1cc88a] bg-[#1cc88a]/10 border-[#1cc88a]/30"
+                                    : "text-[#e74a3b] bg-[#e74a3b]/10 border-[#e74a3b]/30"
+                                }`}
+                              >
+                                {cek.komponen_lengkap
+                                  ? "5 Komponen lengkap"
+                                  : "Komponen kurang"}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 mt-1.5 text-[10px]">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[#858796] dark:text-gray-400">Energi</span>
+                                <span className={`font-bold ${warnaStatusAi(cek.status_energi)}`}>
+                                  {cek.status_energi}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[#858796] dark:text-gray-400">Protein</span>
+                                <span className={`font-bold ${warnaStatusAi(cek.status_protein)}`}>
+                                  {cek.status_protein}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[#858796] dark:text-gray-400">Anggaran</span>
+                                <span className={`font-bold ${warnaStatusAi(cek.status_anggaran)}`}>
+                                  {cek.status_anggaran}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[#858796] dark:text-gray-400">Biaya bahan baku</span>
+                                <span className="font-bold text-[#5a5c69] dark:text-gray-200">
+                                  {formatRupiah(cek.estimasi_biaya)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {cek.komponen_kurang && cek.komponen_kurang.length > 0 && (
+                              <p className="text-[10px] text-[#e74a3b] mt-1">
+                                Komponen belum lengkap: {cek.komponen_kurang.join(", ")}
+                              </p>
+                            )}
+                            {cek.catatan && (
+                              <p className="text-[10px] text-[#858796] dark:text-gray-400 mt-1">
+                                {cek.catatan}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Kelebihan */}
                   {aiSuggestionsData.kelebihan && aiSuggestionsData.kelebihan.length > 0 && (

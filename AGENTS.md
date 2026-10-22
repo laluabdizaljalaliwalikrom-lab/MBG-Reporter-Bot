@@ -23,25 +23,35 @@ Sistem pelaporan **Makanan Bergizi Gratis (MBG)** untuk **Badan Gizi Nasional**.
 src/
 ├── app/
 │   ├── api/
-│   │   ├── ai/menu-generator/route.ts    # Gemini AI (MBG Maker): generate/adapt/gizi/saran
+│   │   ├── ai/menu-generator/route.ts    # Gemini AI (MBG Maker): generate/adapt/gizi/saran/ide
 │   │   ├── ai/models/route.ts            # Deteksi model Gemini yang tersedia
 │   │   ├── ai/test-model/route.ts        # Tes satu model Gemini (status + latensi)
 │   │   ├── generate-poster/route.ts     # Generate poster by ID
+│   │   ├── kelompok-penerima-manfaat/    # CRUD + import kelompok penerima manfaat
+│   │   ├── menus/route.ts                # CRUD menu MBG (menu_data JSONB)
+│   │   ├── penerima-manfaat/             # CRUD + import penerima manfaat
+│   │   ├── public/menu/route.ts          # Menu publik (tanpa auth)
 │   │   ├── reports/route.ts             # CRUD laporan via Dashboard
 │   │   ├── settings/route.ts            # Baca/tulis system_settings
 │   │   ├── sppg/route.ts                # CRUD master data SPPG
 │   ├── dashboard/page.tsx               # Halaman dashboard (client wrapper)
+│   ├── menu/page.tsx                    # Halaman menu publik
 │   ├── page.tsx                         # Halaman utama (render Dashboard)
 │   ├── layout.tsx                       # Root layout
 │   └── globals.css                      # Tailwind v4 imports
 ├── components/
 │   ├── Dashboard.tsx                    # Komponen dashboard utama
 │   ├── MBGMaker.tsx                     # Tab MBG Maker (komposisi menu via Gemini AI)
-│   └── features/settings/SettingsTab.tsx # Tab Pengaturan (API key + model Gemini)
+│   ├── Sticker*.tsx, WeeklyReport*.tsx  # Cetak stiker & rekap mingguan
+│   ├── features/                        # Tab: penerima, rekap, reports, settings, sppg
+│   └── ui/                              # SbCard, SbModal, SbTable, SbStatCard, ...
 ├── lib/
+│   ├── mbg-standards.ts                 # Standar BGN: 5 komponen, pagu, AKG, harga, kepatuhan
 │   ├── gemini-models.ts                 # Konstanta model + parser (client-safe)
 │   ├── gemini-schemas.ts                # JSON Schema ketat per action (client-safe)
 │   ├── gemini-server.ts                 # Helper server-only: callGemini, deteksi & tes model
+│   ├── csv.ts, thermal-ble.ts           # Import CSV & printer thermal
+│   ├── api/                             # Client API: penerima, kelompok, sppg
 │   ├── hooks/useLaporanRealtime.ts      # Hook realtime Supabase
 │   ├── poster-service.ts                # Generate poster PNG via Satori
 │   └── supabase.ts                      # Inisialisasi Supabase client
@@ -100,6 +110,13 @@ CRUD master data SPPG.
 ### `GET /api/generate-poster?id=xxx`
 Generate ulang poster untuk report ID tertentu.
 
+### `POST /api/ai/menu-generator`
+Action: `generate_menu` | `adapt_variant` | `estimate_nutrition` | `give_suggestions` | `suggest_menu_ideas`.
+Body opsional `wilayah` (Provinsi/Kabupaten SPPG) dipakai di semua action untuk prioritas pangan lokal.
+
+### `GET /api/ai/models` & `POST /api/ai/test-model`
+Deteksi daftar model Gemini yang tersedia untuk API key aktif, dan tes satu model (status + latensi).
+
 ## Environment Variables
 ```env
 SUPABASE_URL=
@@ -125,6 +142,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 - **CSS:** `@import "tailwindcss"` (Tailwind v4), utility classes, dark theme (slate/indigo/emerald)
 - **Dashboard SPA:** Tab: dashboard, laporan, sppg, pengaturan — semua dalam satu file Dashboard.tsx
 - **Poster generated dalam rasio 1080×1350px (portrait)**
+- **Panel kepatuhan:** setiap varian di MBG Maker menampilkan "Cek Kepatuhan Standar BGN"
+  (skor 0–100, chip 5 komponen, nilai gizi vs rentang, meter anggaran) — dihitung deterministik
+  oleh `evaluasiVarian()` dari `mbg-standards.ts`, bukan dari AI
+- **Inspirasi Cepat:** preset di `INSPIRASI_CEPAT` (`MBGMaker.tsx`) — setiap preset memuat 5 komponen wajib;
+  tombol "Saran AI" memanggil action `suggest_menu_ideas` dan menampilkan kartu ide yang bisa dipakai
 
 ## Kepala SPPG & Pengawas Gizi
 - Tabel `sppg_data` punya kolom `kepala_sppg` (TEXT) dan `pengawas_gizi` (TEXT) — nomor kontak sebagai referensi
@@ -138,13 +160,42 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 - **Tidak ada WA:** Webhook WhatsApp, `parseManualInput.ts`, dan `whatsapp.ts` sudah dihapus. Tidak ada pengiriman otomatis ke WA; laporan disalin manual ke grup WhatsApp. Aplikasi murni Dashboard-only.
 - **Gemini AI masih aktif** untuk fitur MBG Maker (tab terpisah, `src/components/MBGMaker.tsx`).
 
+## Standar Menu MBG (BGN)
+Sumber tunggal: `src/lib/mbg-standards.ts` (client-safe, dipakai bersama oleh API route & UI).
+**Jangan menduplikasi angka standar di file lain** — import dari modul ini.
+
+- **5 komponen wajib (BGN):** karbohidrat, protein hewani, protein nabati, sayur, buah.
+  Didefinisikan sebagai `KOMPONEN_WAJIB` / `KOMPONEN_KEYS` / `LABEL_KOMPONEN`.
+  Enum yang sama juga ada di `gemini-schemas.ts` (`KATEGORI_KOMPONEN`) dan WAJIB sinkron.
+- **Pagu bahan baku:** Porsi Kecil **Rp8.000**/porsi, Porsi Besar **Rp10.000**/porsi
+  (`ANGGARAN_BAHAN_BAKU`). Anggaran operasional Rp3.000 & fasilitas Rp2.000 terpisah
+  (`ANGGARAN_OPERASIONAL`, `ANGGARAN_FASILITAS`) — TIDAK digabung ke pagu bahan baku.
+- **Standar porsi:** `STANDAR_PORSI` (5 varian: `porsi_kecil`, `porsi_besar`, `pmt_balita`,
+  `pmt_bumil`, `pmt_busui`) berisi rentang target energi/protein/lemak/karbohidrat/serat per porsi
+  (anchor ±10%), cap anggaran, dan %AKG. Acuan: Pedoman Standar Gizi MBG (BGN) +
+  AKG Permenkes 28/2019 (20–25% AKG makan pagi, 30–35% AKG makan siang).
+  Kelompok sasaran & hitungan %AKG ada di `KELOMPOK_SASARAN` / `targetKelompok()`.
+- **Kategori bahan:** `kategoriDariBahan(nama, kategoriAi?)` memakai kategori dari AI bila valid,
+  jika tidak mendeteksi dari nama bahan dengan pencocokan batas kata (`cocokkanKata()`),
+  mis. "bayam" (sayur) tidak boleh cocok dengan "ayam" (protein hewani).
+- **Biaya:** `HARGA_BAHAN` + `estimasiBiayaBahan()` sebagai fallback hitungan lokal;
+  bila AI menyertakan `estimasi_biaya` (> 0) angka itu yang dipakai.
+- **Kepatuhan:** `evaluasiVarian()` mengembalikan skor 0–100
+  (40% kelengkapan komponen, 40% nilai gizi, 20% anggaran) + `ringkas` berisi catatan.
+  Panel "Cek Kepatuhan Standar BGN" di `MBGMaker.tsx` memakai fungsi ini.
+- **Pangan lokal:** input opsional "Wilayah / Provinsi SPPG" dikirim ke semua action AI
+  (field `wilayah`) dan dipakai `buildBlokPanganLokal()` untuk memprioritaskan bahan
+  daerah/musiman yang ekonomis.
+- Blok prompt yang dipakai API route: `buildBlokKomponen()`, `buildBlokAnggaran()`,
+  `buildBlokStandarPorsi()`, `buildBlokPanganLokal()`, `buildBlokHargaAcuan()`.
+
 ## Gemini AI (MBG Maker)
-- Endpoint utama: `POST /api/ai/menu-generator` dengan action `generate_menu` | `adapt_variant` | `estimate_nutrition` | `give_suggestions`
+- Endpoint utama: `POST /api/ai/menu-generator` dengan action `generate_menu` | `adapt_variant` | `estimate_nutrition` | `give_suggestions` | `suggest_menu_ideas`
 - Endpoint pendukung: `GET /api/ai/models` (daftar model yang tersedia untuk API key) dan `POST /api/ai/test-model` body `{ model }` (tes 1 model)
 - Panggil REST API Google langsung (bukan SDK): `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
 - Semua helper server-side ada di `src/lib/gemini-server.ts` (HANYA untuk server/API route — jangan diimpor ke client component):
   - `getGeminiConfig()` — API key + chain model
-  - `callGemini({ systemInstruction, prompt, schema, thinkingLevel })` → `{ text, model, modelVersion }`
+  - `callGemini({ systemInstruction, prompt, schema, thinkingLevel, temperature })` → `{ text, model, modelVersion }` — `temperature` opsional (default 0.3; `suggest_menu_ideas` memakai 0.85 untuk ide kreatif)
   - `listAvailableModels()` — proxy `GET /v1beta/models` (cache in-memory 10 menit)
   - `testGeminiModel(model)` — 1 prompt kecil, Return `{ ok, modelVersion, latencyMs, error }`
 - **Chain fallback model** diambil dari `system_settings` key `gemini_models` (dipisah koma). Kalau kosong → `DEFAULT_GEMINI_MODELS` di `src/lib/gemini-models.ts`
@@ -160,3 +211,17 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 - Response API menyertakan field `model` (model dari chain) dan `modelVersion` (model asli yang melayani, mis. alias `gemini-flash-latest` → `gemini-3.8-flash`) — ditampilkan sebagai badge di MBG Maker
 - Konstanta & parser model bersama (client-safe): `src/lib/gemini-models.ts` (`parseGeminiModels`, `formatGeminiModels`, `GEMINI_MODEL_SUGGESTIONS`, `buildThinkingConfig`, tipe `AvailableModel` & `ModelTestResult`)
 - UI konfigurasi model ada di tab **Pengaturan** → kartu "Kecerdasan Buatan (Gemini AI API)": tombol "Deteksi Model Tersedia" + tombol tes per model (ikon labu)
+
+### Kontrak data action AI
+- `generate_menu` → `{ nama_menu, catatan, menu: { <varian>: { komposisi[], nilai_gizi, estimasi_biaya } } }`
+- `adapt_variant` → varian tunggal: `{ nama_menu, komposisi[], nilai_gizi, estimasi_biaya }`
+- `estimate_nutrition` → `{ nilai_gizi, analisis_singkat, komponen_terpenuhi[], estimasi_biaya }`
+- `give_suggestions` → `{ skor_kebugaran_gizi, status_evaluasi, ringkasan, kelebihan[], kekurangan[], saran_ahli_gizi[], tips_keamanan_pangan[], cek_kepatuhan[] }`
+- `suggest_menu_ideas` → `{ ide: [{ judul, prompt, komponen{}, estimasi_biaya, alasan }] }`
+- Field baru: **setiap bahan wajib punya `kategori`** (enum `KATEGORI_KOMPONEN`) supaya kelengkapan
+  5 komponen bisa divalidasi deterministik; **setiap varian punya `estimasi_biaya`** (Rupiah per porsi);
+  `give_suggestions` menambah blok `cek_kepatuhan[]` per varian (komponen_lengkap, komponen_kurang,
+  status_energi, status_protein, status_anggaran, estimasi_biaya, catatan).
+- Parser AI ada di `src/components/MBGMaker.tsx` (`applyDataToVariant`, `normalisasiKategoriKomponen`);
+  bila menambah field baru, ubah SERTA schema (`gemini-schemas.ts`) DAN parser UI.
+- Simpan hasil AI ke tabel `menus` (`menu_data` JSONB) aman tanpa migrasi karena JSONB.

@@ -121,12 +121,13 @@ interface AttemptOptions {
   schema: JsonSchema | null;
   useThinking: boolean;
   thinkingLevel: ThinkingLevel;
+  temperature: number;
 }
 
 /** Kirim satu request ke satu model dengan konfigurasi tertentu. */
 async function attemptModel(opts: AttemptOptions): Promise<AttemptResult> {
   const generationConfig: Record<string, unknown> = {
-    temperature: 0.3,
+    temperature: opts.temperature,
     responseMimeType: "application/json",
   };
 
@@ -223,6 +224,8 @@ export async function callGemini(params: {
   prompt: string;
   schema?: JsonSchema | null;
   thinkingLevel?: ThinkingLevel;
+  /** Suhu sampling (0–1). Default 0.3; naikkan (mis. 0.85) untuk ide kreatif. */
+  temperature?: number;
 }): Promise<GeminiCallResult> {
   const { apiKey, models } = await getGeminiConfig();
 
@@ -234,6 +237,8 @@ export async function callGemini(params: {
 
   const schema = params.schema ?? null;
   const thinkingLevel = params.thinkingLevel ?? "LOW";
+  const temperature =
+    typeof params.temperature === "number" ? params.temperature : 0.3;
 
   const variants: { useSchema: boolean; useThinking: boolean }[] = [
     { useSchema: schema !== null, useThinking: true },
@@ -254,6 +259,7 @@ export async function callGemini(params: {
         schema: variant.useSchema ? schema : null,
         useThinking: variant.useThinking,
         thinkingLevel,
+        temperature,
       });
 
       if (attempt.ok && attempt.text) {
@@ -408,6 +414,7 @@ export async function testGeminiModel(model: string): Promise<{
     },
     useThinking: true,
     thinkingLevel: "LOW",
+    temperature: 0.3,
   });
 
   const latencyMs = Date.now() - startedAt;
